@@ -209,6 +209,28 @@ Choose the test type based on the kind of change:
 - **End-to-end tests** for major user flows once those flows exist
 - **Regression tests** for bug fixes
 
+### Test File Placement
+
+Use these test-location rules:
+
+- **Unit tests** should usually be colocated with the source file
+- **Integration tests** should usually live in a `test/` folder inside the related app or package
+- **End-to-end tests** should usually live in a dedicated `test/e2e/` area for the relevant app
+
+### Examples
+
+- `apps/api/src/app.ts` -> `apps/api/src/app.test.ts`
+- `packages/db/src/query.ts` -> `packages/db/src/query.test.ts`
+- `apps/api/test/health.integration.test.ts`
+- `packages/db/test/query.integration.test.ts`
+- `apps/web/test/e2e/watchlist.e2e.test.ts`
+
+### Placement Preference
+
+- colocate tests when they validate a small, focused module
+- use `test/` when the test covers a larger boundary such as API, DB, Redis, worker, or app flow
+- do not mix heavy integration coverage into `src/` unless there is a strong reason
+
 ### What Should Usually Be Unit Tested
 
 - indicator calculations
