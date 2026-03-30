@@ -1,3 +1,5 @@
+name: trading-analyst
+
 services:
   postgres:
     image: postgres:17-alpine
@@ -33,4 +35,3 @@ services:
 volumes:
   postgres-data:
   redis-data:
-

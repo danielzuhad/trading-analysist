@@ -38,6 +38,12 @@ infrastructure/
 4. Install dependencies with `bun install`.
 5. Run the monorepo with `bun run dev`.
 
+To start the local infrastructure:
+
+```bash
+docker compose -f infrastructure/docker/docker-compose.yml up -d
+```
+
 ## Commands
 
 - `bun run dev` to run all apps
@@ -47,6 +53,9 @@ infrastructure/
 - `bun run test` to run tests
 - `bun run db:generate` to generate Drizzle migrations
 - `bun run db:migrate` to run Drizzle migrations
+
+Infrastructure-backed integration tests are included for the database, API readiness route, and worker bootstrap.
+Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
 
 ## Git Hooks
 
@@ -62,3 +71,5 @@ This means commit-time quality checks happen automatically before a commit is ac
 Docker is expected for local PostgreSQL and Redis. In this WSL environment, Docker Desktop WSL integration must be enabled before `docker compose` commands will work.
 
 If `bun` still resolves to the Windows-side installation inside WSL, prefer a native WSL Bun binary on your shell `PATH`.
+
+The CI workflow provisions PostgreSQL and Redis services, runs `bun run db:migrate`, and then executes the full test suite with `RUN_INFRA_TESTS=true`.

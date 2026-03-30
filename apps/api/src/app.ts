@@ -1,4 +1,4 @@
-import { closeDatabase } from "@trading-analyst/db";
+import { closeDatabase, pingDatabase } from "@trading-analyst/db";
 import Fastify from "fastify";
 import { Redis } from "ioredis";
 import { type ApiEnv, loadApiEnv } from "./env.js";
@@ -16,12 +16,13 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
 
   await registerHealthRoutes(app, {
     env,
+    checkDatabase: () => pingDatabase(env.DATABASE_URL),
     redis,
   });
 
   app.addHook("onClose", async () => {
     await redis.quit().catch(() => undefined);
-    await closeDatabase();
+    await closeDatabase(env.DATABASE_URL);
   });
 
   return app;

@@ -11,4 +11,3 @@ coverage
 .env.*.local
 apps/web/.next
 apps/web/out
-packages/db/drizzle

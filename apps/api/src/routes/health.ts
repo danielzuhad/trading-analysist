@@ -1,10 +1,10 @@
-import { pingDatabase } from "@trading-analyst/db";
 import type { FastifyInstance } from "fastify";
 import type { Redis } from "ioredis";
 import type { ApiEnv } from "../env.js";
 
 type Dependencies = {
   env: ApiEnv;
+  checkDatabase: () => Promise<void>;
   redis: Redis;
 };
 
@@ -29,7 +29,7 @@ export async function registerHealthRoutes(
     };
 
     try {
-      await pingDatabase();
+      await dependencies.checkDatabase();
       checks.database = true;
     } catch (error) {
       app.log.error({ error }, "database readiness check failed");

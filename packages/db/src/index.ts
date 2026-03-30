@@ -3,47 +3,68 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool, type QueryResultRow } from "pg";
 import { schema } from "./schema/index.js";
 
-const defaultDatabaseUrl =
+const fallbackDatabaseUrl =
   process.env.DATABASE_URL ??
   "postgresql://postgres:postgres@localhost:5432/trading_analyst";
 
-let pool: Pool | undefined;
+const pools = new Map<string, Pool>();
 
-export function getPool() {
-  if (!pool) {
-    pool = new Pool({
-      connectionString: defaultDatabaseUrl,
-    });
+export function resolveDatabaseUrl(connectionString?: string) {
+  return connectionString ?? process.env.DATABASE_URL ?? fallbackDatabaseUrl;
+}
+
+export function getPool(connectionString?: string) {
+  const databaseUrl = resolveDatabaseUrl(connectionString);
+  const existingPool = pools.get(databaseUrl);
+
+  if (existingPool) {
+    return existingPool;
   }
+
+  const pool = new Pool({
+    connectionString: databaseUrl,
+  });
+
+  pools.set(databaseUrl, pool);
 
   return pool;
 }
 
-export function getDb() {
-  return drizzle(getPool(), {
+export function getDb(connectionString?: string) {
+  return drizzle(getPool(connectionString), {
     schema,
   });
 }
 
-export async function pingDatabase() {
-  const db = getDb();
+export async function pingDatabase(connectionString?: string) {
+  const db = getDb(connectionString);
   await db.execute(sql`select 1`);
 }
 
-export async function closeDatabase() {
-  if (!pool) {
+export async function closeDatabase(connectionString?: string) {
+  if (connectionString) {
+    const databaseUrl = resolveDatabaseUrl(connectionString);
+    const pool = pools.get(databaseUrl);
+
+    if (!pool) {
+      return;
+    }
+
+    await pool.end();
+    pools.delete(databaseUrl);
     return;
   }
 
-  await pool.end();
-  pool = undefined;
+  await Promise.all([...pools.values()].map((pool) => pool.end()));
+  pools.clear();
 }
 
 export async function runRawQuery<T extends QueryResultRow = QueryResultRow>(
   queryText: string,
   values: unknown[] = [],
+  connectionString?: string,
 ) {
-  return getPool().query<T>(queryText, values);
+  return getPool(connectionString).query<T>(queryText, values);
 }
 
 export { schema };
