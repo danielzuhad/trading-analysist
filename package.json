@@ -14,6 +14,7 @@
     "lint:fix": "turbo lint -- --write",
     "format": "biome format . --write",
     "format:check": "biome format .",
+    "prepare": "node .husky/install.mjs",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "db:generate": "bun --cwd packages/db run db:generate",
@@ -26,6 +27,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "drizzle-kit": "^0.31.10",
+    "husky": "^9.1.7",
     "turbo": "^2.8.21",
     "typescript": "^6.0.2",
     "vitest": "^4.1.2"

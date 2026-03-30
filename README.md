@@ -48,6 +48,15 @@ infrastructure/
 - `bun run db:generate` to generate Drizzle migrations
 - `bun run db:migrate` to run Drizzle migrations
 
+## Git Hooks
+
+Husky is enabled in this repository.
+
+- `pre-commit` runs `bun run lint`, `bun run typecheck`, and `bun run test`
+- `pre-push` runs `bun run build`
+
+This means commit-time quality checks happen automatically before a commit is accepted, and build verification happens automatically before a push is accepted.
+
 ## Local Infrastructure
 
 Docker is expected for local PostgreSQL and Redis. In this WSL environment, Docker Desktop WSL integration must be enabled before `docker compose` commands will work.

@@ -47,6 +47,47 @@ When implementing work:
 - update documentation when implementation changes the plan, contracts, or operating assumptions
 - do not mark work complete without running the relevant validation commands
 
+## Commit Message Convention
+
+All commits in this repository should use **Conventional Commits** style.
+
+Preferred format:
+
+- `type(scope): short description`
+
+Scope is preferred but can be omitted when it does not add value:
+
+- `type: short description`
+
+### Allowed Types
+
+- `feat`
+- `fix`
+- `refactor`
+- `test`
+- `docs`
+- `chore`
+- `build`
+- `ci`
+- `perf`
+
+### Commit Message Rules
+
+- use lowercase commit types
+- keep the subject short and clear
+- use imperative wording
+- do not end the subject with a period
+- use scope when it helps identify the area changed
+
+### Examples
+
+- `feat(api): add watchlist overview endpoint`
+- `fix(worker): handle redis reconnect on startup`
+- `refactor(db): simplify raw query helper`
+- `test(api): add health route integration test`
+- `docs(agents): define commit message convention`
+- `chore(repo): add husky hooks`
+
 ## Code Style and Engineering Standards
 
 All code in this repository should aim for:
@@ -226,6 +267,11 @@ Database-related commands:
 
 - `bun run db:generate`
 - `bun run db:migrate`
+
+These validations are also enforced through Husky hooks:
+
+- `pre-commit` runs lint, typecheck, and tests
+- `pre-push` runs build
 
 ## Environment Notes
 
