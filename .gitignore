@@ -1,0 +1,14 @@
+node_modules
+.turbo
+.next
+dist
+coverage
+*.tsbuildinfo
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+apps/web/.next
+apps/web/out
+packages/db/drizzle
