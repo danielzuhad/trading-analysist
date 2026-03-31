@@ -95,11 +95,11 @@ Define the internal data contracts and decision structure.
   - `INVALID`
 - Define decision card contract:
   - `summary`
-  - `key_reasons`
-  - `action_plan`
-  - `execution_method`
+  - `keyReasons`
+  - `actionPlan`
+  - `executionMethod`
   - `invalidation`
-  - `risk_level`
+  - `riskLevel`
 
 **Output:**
 

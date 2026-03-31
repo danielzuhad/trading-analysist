@@ -1,6 +1,6 @@
 # Trading Analyst
 
-Sprint 1 foundation for the AI Trading Analyst Dashboard.
+Sprint 1 foundation plus Sprint 2 shared domain contracts for the AI Trading Analyst Dashboard.
 
 Agent execution policy lives in `AGENTS.md`.
 
@@ -59,6 +59,7 @@ Infrastructure-backed integration tests are included for the database, API readi
 Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
 
 `packages/shared-types` is the source of truth for shared Sprint 2 contracts and schema validation.
+For the current MVP, user-configurable monitoring timeframes are intentionally limited to `1H` and `4H`.
 
 ## Git Hooks
 

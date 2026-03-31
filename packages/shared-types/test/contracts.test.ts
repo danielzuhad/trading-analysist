@@ -49,6 +49,19 @@ describe("shared contracts", () => {
     expect(invalidCard.success).toBe(false);
   });
 
+  it("uses the camelCase decision card contract expected by the TypeScript domain model", () => {
+    const result = decisionCardSchema.safeParse({
+      summary: "Momentum improving",
+      key_reasons: ["EMA stack bullish"],
+      action_plan: ["Wait for confirmation"],
+      execution_method: "Enter above breakout candle",
+      invalidation: "Exit below 145",
+      risk_level: "medium",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
   it("parses multi-user watchlist and user preference contracts", () => {
     const watchlist = userWatchlistSchema.parse({
       id: "watchlist-core",
@@ -86,6 +99,42 @@ describe("shared contracts", () => {
 
     expect(watchlist.userId).toBe(preference.userId);
     expect(watchlist.assetIds).toContain("stock:nasdaq:NVDA");
+  });
+
+  it("rejects unsupported user-configurable timeframes outside the current MVP scope", () => {
+    const watchlist = userWatchlistSchema.safeParse({
+      id: "watchlist-fast",
+      userId: "user-123",
+      name: "Fast Watchlist",
+      assetIds: ["crypto:binance:BTC-USDT"],
+      tradingStyle: "scalp",
+      riskProfile: "aggressive",
+      timeframes: ["15M"],
+      notificationChannels: ["dashboard"],
+      status: "active",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      metadata: {},
+    });
+
+    const preference = userPreferenceSchema.safeParse({
+      id: "pref-fast",
+      userId: "user-123",
+      defaultTradingStyle: "intraday",
+      defaultRiskProfile: "aggressive",
+      preferredTimeframes: ["1D"],
+      timezone: "Asia/Jakarta",
+      locale: "en-ID",
+      notificationChannels: ["dashboard"],
+      alertCooldownMinutes: 15,
+      receiveOnlyPositionAlerts: false,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+      metadata: {},
+    });
+
+    expect(watchlist.success).toBe(false);
+    expect(preference.success).toBe(false);
   });
 
   it("parses market and indicator snapshots", () => {

@@ -2323,25 +2323,27 @@ The product should stay:
 
 ## Development Phases
 
-Produk ini dibagi menjadi **3 phase**.
+Produk ini dibagi menjadi **2 phase**.
 
 ### Phase 1 — Core Analyst MVP & Intelligence Expansion
 
-Phase ini mencakup semua fondasi utama yang sebelumnya sempat terpecah. Tujuannya adalah membuat aplikasi sudah benar-benar berguna sebagai **AI market decision assistant** untuk crypto dan saham.
+Phase ini mencakup semua fondasi utama dan gelombang intelligence expansion awal. Tujuannya adalah membuat aplikasi sudah benar-benar berguna sebagai **AI market decision assistant** untuk crypto dan saham.
 
 Scope utama:
 
-- web dashboard
-- watchlist multi-asset
-- technical/statistical engine
-- context engine dasar
-- risk engine dasar
-- manual position tracking
-- alert feed
-- OpenClaw integration sebagai chat/notification layer
-- WhatsApp/chat command dasar
-- primary API integration
-- provider-agnostic AI layer
+- core analyst MVP:
+  - web dashboard
+  - watchlist multi-asset
+  - technical/statistical engine
+  - manual position tracking
+  - alert feed
+- intelligence expansion in the same product phase:
+  - context engine dasar
+  - risk engine dasar
+  - OpenClaw integration sebagai chat/notification layer
+  - WhatsApp/chat command dasar
+  - primary API integration
+  - provider-agnostic AI layer
 
 Deliverables:
 
@@ -2353,27 +2355,6 @@ Deliverables:
 - dashboard + backend + database berjalan stabil
 
 ### Phase 2 — Approval & Action Layer
-
-Phase ini fokus menaikkan kualitas keputusan supaya sistem tidak hanya membaca technical structure, tapi juga context yang lebih kaya.
-
-Scope utama:
-
-- stock event/news layer
-- crypto derivatives context
-- on-chain / flow context
-- macro/event enrichment yang lebih dalam
-- factor scoring yang lebih matang
-- conflict detection antar faktor
-- richer explanation dan confidence engine
-
-Deliverables:
-
-- factor breakdown per aset
-- technical vs context vs risk scoring yang lebih jelas
-- decision explanation yang lebih presisi
-- news/event awareness yang lebih berguna untuk saham dan crypto
-
-#
 
 Phase ini baru masuk ke area semi-automation setelah analyst platform dan precision layer stabil.
 

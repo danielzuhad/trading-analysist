@@ -13,6 +13,7 @@ type CreateWorkerRuntimeOptions = {
   env?: WorkerEnv;
   logger?: Logger;
   processor?: AnalysisJobProcessor;
+  queueName?: string;
 };
 
 type StartWorkerRuntimeOptions = CreateWorkerRuntimeOptions & {
@@ -21,10 +22,12 @@ type StartWorkerRuntimeOptions = CreateWorkerRuntimeOptions & {
 
 export type WorkerRuntime = {
   analysisQueue: Queue<AnalysisJobData>;
-  connection: Redis;
   env: WorkerEnv;
+  queueName: string;
+  queueConnection: Redis;
   shutdown: () => Promise<void>;
   worker: Worker<AnalysisJobData>;
+  workerConnection: Redis;
 };
 
 async function defaultProcessor(job: Job<AnalysisJobData>, logger: Logger) {
@@ -37,17 +40,22 @@ export function createWorkerRuntime({
   env = loadWorkerEnv(),
   logger = console,
   processor,
+  queueName = analysisQueueName,
 }: CreateWorkerRuntimeOptions = {}): WorkerRuntime {
-  const connection = new Redis(env.REDIS_URL, {
+  const queueConnection = new Redis(env.REDIS_URL, {
+    maxRetriesPerRequest: null,
+  });
+  // BullMQ workers use a blocking Redis flow and should not share the queue connection.
+  const workerConnection = new Redis(env.REDIS_URL, {
     maxRetriesPerRequest: null,
   });
 
-  const analysisQueue = new Queue<AnalysisJobData>(analysisQueueName, {
-    connection,
+  const analysisQueue = new Queue<AnalysisJobData>(queueName, {
+    connection: queueConnection,
   });
 
   const worker = new Worker<AnalysisJobData>(
-    analysisQueueName,
+    queueName,
     async (job) => {
       const processJob =
         processor ?? ((currentJob) => defaultProcessor(currentJob, logger));
@@ -55,7 +63,7 @@ export function createWorkerRuntime({
     },
     {
       concurrency: env.WORKER_CONCURRENCY,
-      connection,
+      connection: workerConnection,
     },
   );
 
@@ -71,14 +79,17 @@ export function createWorkerRuntime({
 
   return {
     analysisQueue,
-    connection,
     env,
+    queueName,
+    queueConnection,
     shutdown: async () => {
       await worker.close();
       await analysisQueue.close();
-      await connection.quit();
+      await queueConnection.quit();
+      await workerConnection.quit();
     },
     worker,
+    workerConnection,
   };
 }
 
@@ -91,7 +102,7 @@ export async function startWorkerRuntime(
     options.enqueueBootstrapJob ?? runtime.env.NODE_ENV !== "production";
 
   logger.log(
-    `[worker] online with queue "${analysisQueueName}" and concurrency ${runtime.env.WORKER_CONCURRENCY}`,
+    `[worker] online with queue "${runtime.queueName}" and concurrency ${runtime.env.WORKER_CONCURRENCY}`,
   );
 
   if (shouldEnqueueBootstrapJob) {

@@ -8,7 +8,7 @@ import {
 import {
   notificationChannelSchema,
   riskProfileSchema,
-  timeframeSchema,
+  supportedTimeframeSchema,
   tradingStyleSchema,
 } from "./primitives.js";
 
@@ -17,7 +17,7 @@ export const userPreferenceSchema = z.object({
   userId: idSchema,
   defaultTradingStyle: tradingStyleSchema,
   defaultRiskProfile: riskProfileSchema,
-  preferredTimeframes: z.array(timeframeSchema).min(1),
+  preferredTimeframes: z.array(supportedTimeframeSchema).min(1),
   timezone: nonEmptyStringSchema,
   locale: nonEmptyStringSchema,
   notificationChannels: z.array(notificationChannelSchema).min(1),

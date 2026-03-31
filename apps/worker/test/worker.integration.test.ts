@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AnalysisJobData } from "../src/queues.js";
 import { startWorkerRuntime, type WorkerRuntime } from "../src/runtime.js";
@@ -9,13 +10,17 @@ const describeInfrastructure = runInfrastructureTests
 
 describeInfrastructure("worker bootstrap", () => {
   let processedJob: AnalysisJobData | undefined;
+  let processedJobPromise: Promise<void>;
+  let queueName: string;
   let runtime: WorkerRuntime;
   let resolveProcessedJob: (() => void) | undefined;
-  const processedJobPromise = new Promise<void>((resolve) => {
-    resolveProcessedJob = resolve;
-  });
 
   beforeAll(async () => {
+    queueName = `analysis-test-${randomUUID()}`;
+    processedJobPromise = new Promise<void>((resolve) => {
+      resolveProcessedJob = resolve;
+    });
+
     runtime = await startWorkerRuntime({
       env: {
         NODE_ENV: "test",
@@ -27,6 +32,7 @@ describeInfrastructure("worker bootstrap", () => {
         error: console.error,
         log: console.log,
       },
+      queueName,
       processor: async (job) => {
         processedJob = job.data;
         resolveProcessedJob?.();
