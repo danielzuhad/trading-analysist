@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --watch src/index.ts",
+    "dev": "bun --cwd ../.. --watch apps/api/src/index.ts",
     "build": "bun build ./src/index.ts --outdir dist --target node",
     "start": "bun dist/index.js",
     "lint": "biome check .",

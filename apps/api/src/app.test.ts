@@ -5,8 +5,8 @@ const app = await buildApp({
   NODE_ENV: "test",
   API_HOST: "127.0.0.1",
   API_PORT: 3001,
-  DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/trading_analyst",
-  REDIS_URL: "redis://localhost:6379",
+  DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+  REDIS_URL: "redis://127.0.0.1:6379",
 });
 
 describe("api health routes", () => {

@@ -8,7 +8,7 @@ const describeInfrastructure = runInfrastructureTests
   : describe.skip;
 const databaseUrl =
   process.env.DATABASE_URL ??
-  "postgresql://postgres:postgres@localhost:5432/trading_analyst";
+  "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst";
 
 describeInfrastructure("database integration", () => {
   afterAll(async () => {

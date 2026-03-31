@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 const defaultDatabaseUrl =
-  "postgresql://postgres:postgres@localhost:5432/trading_analyst";
-const defaultRedisUrl = "redis://localhost:6379";
+  "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst";
+const defaultRedisUrl = "redis://127.0.0.1:6379";
 
 export const apiEnvSchema = z.object({
   NODE_ENV: z

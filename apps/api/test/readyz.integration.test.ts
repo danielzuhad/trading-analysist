@@ -16,8 +16,8 @@ describeInfrastructure("api readiness route", () => {
       API_PORT: 3001,
       DATABASE_URL:
         process.env.DATABASE_URL ??
-        "postgresql://postgres:postgres@localhost:5432/trading_analyst",
-      REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6379",
+        "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+      REDIS_URL: process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
     });
   });
 
