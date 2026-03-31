@@ -293,7 +293,6 @@ Database-related commands:
 These validations are also enforced through Husky hooks:
 
 - `pre-commit` runs lint, typecheck, and tests
-- `pre-push` runs build
 
 ## Environment Notes
 

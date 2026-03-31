@@ -52,6 +52,9 @@
     },
     "packages/shared-types": {
       "name": "@trading-analyst/shared-types",
+      "dependencies": {
+        "zod": "^4.3.6",
+      },
     },
   },
   "packages": {

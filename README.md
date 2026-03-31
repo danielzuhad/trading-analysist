@@ -11,6 +11,7 @@ Agent execution policy lives in `AGENTS.md`.
 - Fastify (`apps/api`)
 - BullMQ (`apps/worker`)
 - Drizzle + PostgreSQL (`packages/db`)
+- Zod-backed shared domain contracts (`packages/shared-types`)
 - Biome for linting/formatting
 - Vitest for testing
 
@@ -57,14 +58,15 @@ docker compose -f infrastructure/docker/docker-compose.yml up -d
 Infrastructure-backed integration tests are included for the database, API readiness route, and worker bootstrap.
 Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
 
+`packages/shared-types` is the source of truth for shared Sprint 2 contracts and schema validation.
+
 ## Git Hooks
 
 Husky is enabled in this repository.
 
 - `pre-commit` runs `bun run lint`, `bun run typecheck`, and `bun run test`
-- `pre-push` runs `bun run build`
 
-This means commit-time quality checks happen automatically before a commit is accepted, and build verification happens automatically before a push is accepted.
+This means commit-time quality checks happen automatically before a commit is accepted. Build verification still runs in CI and remains part of the required validation commands.
 
 ## Local Infrastructure
 
