@@ -33,8 +33,8 @@ infrastructure/
 
 ## Getting Started
 
-1. Copy `.env.example` to `.env`.
-2. Fill the required PostgreSQL credentials and connection URLs in `.env`.
+1. Copy `.env.development.example` to `.env.development` for local work.
+2. Fill the required PostgreSQL credentials and connection URLs in `.env.development`.
 3. Start PostgreSQL and Redis with Docker Compose.
 4. Use Bun `1.3.11` or newer.
 5. Install dependencies with `bun install`.
@@ -63,7 +63,10 @@ Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
 For the current MVP, user-configurable monitoring timeframes are intentionally limited to `1H` and `4H`.
 
 Infrastructure credentials are intentionally not hardcoded in the repository.
-Local PostgreSQL values for `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `DATABASE_URL` must be defined through `.env`.
+Local PostgreSQL values for `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `DATABASE_URL` must be defined through `.env.development`.
+Production values should live in `.env.production` or in your VPS/process manager secret store, and they will usually differ from local development values.
+
+Bun automatically loads `.env`, then `.env.development` or `.env.production` based on `NODE_ENV`, then `.env.local` with increasing precedence. Source: https://bun.sh/docs/runtime/environment-variables
 
 ## Git Hooks
 

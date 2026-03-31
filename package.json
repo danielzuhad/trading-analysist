@@ -8,13 +8,16 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo dev",
+    "dev": "NODE_ENV=development turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
     "lint:fix": "turbo lint -- --write",
     "format": "biome format . --write",
     "format:check": "biome format .",
     "prepare": "node .husky/install.mjs",
+    "start:api": "NODE_ENV=production bun run --cwd apps/api start",
+    "start:web": "NODE_ENV=production bun run --cwd apps/web start",
+    "start:worker": "NODE_ENV=production bun run --cwd apps/worker start",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "db:generate": "bun run --cwd packages/db db:generate",

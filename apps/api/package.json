@@ -3,9 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "bun --cwd ../.. --watch apps/api/src/index.ts",
+    "dev": "NODE_ENV=development bun --cwd ../.. --watch apps/api/src/index.ts",
     "build": "bun build ./src/index.ts --outdir dist --target node",
-    "start": "bun dist/index.js",
+    "start": "NODE_ENV=production bun --cwd ../.. apps/api/dist/index.js",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
