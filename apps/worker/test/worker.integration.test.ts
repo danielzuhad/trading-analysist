@@ -7,6 +7,18 @@ const runInfrastructureTests = process.env.RUN_INFRA_TESTS === "true";
 const describeInfrastructure = runInfrastructureTests
   ? describe
   : describe.skip;
+const redisUrl = process.env.REDIS_URL;
+const requireRedisUrl = () => {
+  if (!redisUrl) {
+    throw new Error("REDIS_URL is required when RUN_INFRA_TESTS=true.");
+  }
+
+  return redisUrl;
+};
+
+if (runInfrastructureTests && !redisUrl) {
+  throw new Error("REDIS_URL is required when RUN_INFRA_TESTS=true.");
+}
 
 describeInfrastructure("worker bootstrap", () => {
   let processedJob: AnalysisJobData | undefined;
@@ -24,7 +36,7 @@ describeInfrastructure("worker bootstrap", () => {
     runtime = await startWorkerRuntime({
       env: {
         NODE_ENV: "test",
-        REDIS_URL: process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
+        REDIS_URL: requireRedisUrl(),
         WORKER_CONCURRENCY: 1,
       },
       enqueueBootstrapJob: false,

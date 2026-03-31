@@ -6,9 +6,11 @@ const runInfrastructureTests = process.env.RUN_INFRA_TESTS === "true";
 const describeInfrastructure = runInfrastructureTests
   ? describe
   : describe.skip;
-const databaseUrl =
-  process.env.DATABASE_URL ??
-  "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst";
+const databaseUrl = process.env.DATABASE_URL;
+
+if (runInfrastructureTests && !databaseUrl) {
+  throw new Error("DATABASE_URL is required when RUN_INFRA_TESTS=true.");
+}
 
 describeInfrastructure("database integration", () => {
   afterAll(async () => {

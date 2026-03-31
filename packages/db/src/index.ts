@@ -3,14 +3,18 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool, type QueryResultRow } from "pg";
 import { schema } from "./schema/index.js";
 
-const fallbackDatabaseUrl =
-  process.env.DATABASE_URL ??
-  "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst";
-
 const pools = new Map<string, Pool>();
+const missingDatabaseUrlMessage =
+  "DATABASE_URL is required. Define it in your environment or pass a connection string explicitly.";
 
 export function resolveDatabaseUrl(connectionString?: string) {
-  return connectionString ?? process.env.DATABASE_URL ?? fallbackDatabaseUrl;
+  const databaseUrl = connectionString ?? process.env.DATABASE_URL;
+
+  if (!databaseUrl) {
+    throw new Error(missingDatabaseUrlMessage);
+  }
+
+  return databaseUrl;
 }
 
 export function getPool(connectionString?: string) {
@@ -67,4 +71,4 @@ export async function runRawQuery<T extends QueryResultRow = QueryResultRow>(
   return getPool(connectionString).query<T>(queryText, values);
 }
 
-export { schema };
+export { missingDatabaseUrlMessage, schema };

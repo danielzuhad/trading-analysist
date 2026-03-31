@@ -5,6 +5,15 @@ const runInfrastructureTests = process.env.RUN_INFRA_TESTS === "true";
 const describeInfrastructure = runInfrastructureTests
   ? describe
   : describe.skip;
+const requireEnv = (name: "DATABASE_URL" | "REDIS_URL") => {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`${name} is required when RUN_INFRA_TESTS=true.`);
+  }
+
+  return value;
+};
 
 describeInfrastructure("api readiness route", () => {
   let app: Awaited<ReturnType<typeof buildApp>>;
@@ -14,10 +23,8 @@ describeInfrastructure("api readiness route", () => {
       NODE_ENV: "test",
       API_HOST: "127.0.0.1",
       API_PORT: 3001,
-      DATABASE_URL:
-        process.env.DATABASE_URL ??
-        "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
-      REDIS_URL: process.env.REDIS_URL ?? "redis://127.0.0.1:6379",
+      DATABASE_URL: requireEnv("DATABASE_URL"),
+      REDIS_URL: requireEnv("REDIS_URL"),
     });
   });
 

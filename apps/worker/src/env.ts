@@ -4,7 +4,7 @@ export const workerEnvSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
-  REDIS_URL: z.string().url().default("redis://127.0.0.1:6379"),
+  REDIS_URL: z.string().url(),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(1),
 });
 

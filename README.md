@@ -34,10 +34,11 @@ infrastructure/
 ## Getting Started
 
 1. Copy `.env.example` to `.env`.
-2. Start PostgreSQL and Redis with Docker Compose.
-3. Use Bun `1.3.11` or newer.
-4. Install dependencies with `bun install`.
-5. Run the monorepo with `bun run dev`.
+2. Fill the required PostgreSQL credentials and connection URLs in `.env`.
+3. Start PostgreSQL and Redis with Docker Compose.
+4. Use Bun `1.3.11` or newer.
+5. Install dependencies with `bun install`.
+6. Run the monorepo with `bun run dev`.
 
 To start the local infrastructure:
 
@@ -60,6 +61,9 @@ Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
 
 `packages/shared-types` is the source of truth for shared Sprint 2 contracts and schema validation.
 For the current MVP, user-configurable monitoring timeframes are intentionally limited to `1H` and `4H`.
+
+Infrastructure credentials are intentionally not hardcoded in the repository.
+Local PostgreSQL values for `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `DATABASE_URL` must be defined through `.env`.
 
 ## Git Hooks
 
