@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { workerEnvSchema } from "./env.js";
 
+const validTestUrl = (service: string) => `https://${service}.invalid`;
+
 describe("worker environment", () => {
   it("requires an explicit redis URL", () => {
     const result = workerEnvSchema.safeParse({
@@ -14,7 +16,7 @@ describe("worker environment", () => {
   it("parses when redis URL is provided", () => {
     const result = workerEnvSchema.safeParse({
       NODE_ENV: "development",
-      REDIS_URL: "redis://127.0.0.1:6379",
+      REDIS_URL: validTestUrl("redis"),
       WORKER_CONCURRENCY: 1,
     });
 

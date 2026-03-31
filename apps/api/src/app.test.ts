@@ -1,12 +1,25 @@
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
+
+vi.mock("@trading-analyst/db", () => ({
+  closeDatabase: vi.fn(async () => undefined),
+  pingDatabase: vi.fn(async () => undefined),
+}));
+
+vi.mock("ioredis", () => ({
+  Redis: class {
+    quit() {
+      return Promise.resolve();
+    }
+  },
+}));
 
 const app = await buildApp({
   NODE_ENV: "test",
-  API_HOST: "127.0.0.1",
+  API_HOST: "api.invalid",
   API_PORT: 3001,
-  DATABASE_URL: "postgresql://127.0.0.1:5432/trading_analyst",
-  REDIS_URL: "redis://127.0.0.1:6379",
+  DATABASE_URL: "unused-database-connection",
+  REDIS_URL: "unused-redis-connection",
 });
 
 describe("api health routes", () => {

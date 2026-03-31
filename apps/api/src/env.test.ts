@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { apiEnvSchema } from "./env.js";
 
+const validTestUrl = (service: string) => `https://${service}.invalid`;
+
 describe("api environment", () => {
   it("requires database and redis URLs", () => {
     const result = apiEnvSchema.safeParse({
@@ -17,8 +19,8 @@ describe("api environment", () => {
       NODE_ENV: "development",
       API_HOST: "0.0.0.0",
       API_PORT: 3001,
-      DATABASE_URL: "postgresql://db.example.com:5432/trading_analyst",
-      REDIS_URL: "redis://127.0.0.1:6379",
+      DATABASE_URL: validTestUrl("database"),
+      REDIS_URL: validTestUrl("redis"),
     });
 
     expect(result.success).toBe(true);

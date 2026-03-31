@@ -8,8 +8,7 @@ const stack = [
 ];
 
 export default function HomePage() {
-  const apiBaseUrl =
-    process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   return (
     <main className="shell">
@@ -34,9 +33,15 @@ export default function HomePage() {
 
         <article className="card">
           <h2>Service Endpoints</h2>
-          <p>API base URL: {apiBaseUrl}</p>
-          <p>Health endpoint: {apiBaseUrl}/health</p>
-          <p>Readiness endpoint: {apiBaseUrl}/readyz</p>
+          <p>API base URL: {apiBaseUrl ?? "Set NEXT_PUBLIC_API_BASE_URL"}</p>
+          <p>
+            Health endpoint:{" "}
+            {apiBaseUrl ? `${apiBaseUrl}/health` : "Requires API base URL"}
+          </p>
+          <p>
+            Readiness endpoint:{" "}
+            {apiBaseUrl ? `${apiBaseUrl}/readyz` : "Requires API base URL"}
+          </p>
         </article>
       </section>
     </main>

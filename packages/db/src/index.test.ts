@@ -14,11 +14,11 @@ afterEach(() => {
 
 describe("database config", () => {
   it("prefers an explicit connection string", () => {
-    process.env.DATABASE_URL = "postgresql://env.example.com:5432/env_db";
+    process.env.DATABASE_URL = "db://env.invalid/env_db";
 
-    expect(
-      resolveDatabaseUrl("postgresql://override.example.com:5432/override_db"),
-    ).toBe("postgresql://override.example.com:5432/override_db");
+    expect(resolveDatabaseUrl("db://override.invalid/override_db")).toBe(
+      "db://override.invalid/override_db",
+    );
   });
 
   it("throws when no database URL is available", () => {

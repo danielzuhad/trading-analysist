@@ -21,7 +21,7 @@ describeInfrastructure("api readiness route", () => {
   beforeAll(async () => {
     app = await buildApp({
       NODE_ENV: "test",
-      API_HOST: "127.0.0.1",
+      API_HOST: "api.invalid",
       API_PORT: 3001,
       DATABASE_URL: requireEnv("DATABASE_URL"),
       REDIS_URL: requireEnv("REDIS_URL"),
