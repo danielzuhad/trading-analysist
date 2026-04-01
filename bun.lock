@@ -50,6 +50,13 @@
         "pg": "^8.20.0",
       },
     },
+    "packages/market-data": {
+      "name": "@trading-analyst/market-data",
+      "dependencies": {
+        "@trading-analyst/shared-types": "workspace:*",
+        "zod": "^4.3.6",
+      },
+    },
     "packages/shared-types": {
       "name": "@trading-analyst/shared-types",
       "dependencies": {
@@ -281,6 +288,8 @@
     "@trading-analyst/api": ["@trading-analyst/api@workspace:apps/api"],
 
     "@trading-analyst/db": ["@trading-analyst/db@workspace:packages/db"],
+
+    "@trading-analyst/market-data": ["@trading-analyst/market-data@workspace:packages/market-data"],
 
     "@trading-analyst/shared-types": ["@trading-analyst/shared-types@workspace:packages/shared-types"],
 

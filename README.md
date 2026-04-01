@@ -1,6 +1,10 @@
 # Trading Analyst
 
-Sprint 1 foundation plus Sprint 2 shared domain contracts for the AI Trading Analyst Dashboard.
+This repository is currently aligned to Sprint 1-3 of the AI Trading Analyst Dashboard roadmap:
+
+- Sprint 1 foundation
+- Sprint 2 shared contracts
+- Sprint 3 crypto market-data baseline
 
 Agent execution policy lives in `AGENTS.md`.
 
@@ -11,6 +15,7 @@ Agent execution policy lives in `AGENTS.md`.
 - Fastify (`apps/api`)
 - BullMQ (`apps/worker`)
 - Drizzle + PostgreSQL (`packages/db`)
+- Market-data adapters (`packages/market-data`)
 - Zod-backed shared domain contracts (`packages/shared-types`)
 - Biome for linting/formatting
 - Vitest for testing
@@ -25,6 +30,7 @@ apps/
 
 packages/
   db/
+  market-data/
   shared-types/
 
 infrastructure/
@@ -36,9 +42,10 @@ infrastructure/
 1. Copy `.env.development.example` to `.env.development` for local work.
 2. Fill the required PostgreSQL credentials and connection URLs in `.env.development`.
 3. Start PostgreSQL and Redis with Docker Compose.
-4. Use Bun `1.3.11` or newer.
-5. Install dependencies with `bun install`.
-6. Run the monorepo with `bun run dev`.
+4. Add `TWELVE_DATA_API_KEY` to enable market data ingestion. This key is used for both crypto and stock data. The free tier is sufficient for local development.
+5. Use Bun `1.3.11` or newer.
+6. Install dependencies with `bun install`.
+7. Run the monorepo with `bun run dev`.
 
 To start the local infrastructure:
 
@@ -60,7 +67,25 @@ Infrastructure-backed integration tests are included for the database, API readi
 Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
 
 `packages/shared-types` is the source of truth for shared Sprint 2 contracts and schema validation.
-For the current MVP, user-configurable monitoring timeframes are intentionally limited to `1H` and `4H`.
+For the current MVP, monitored timeframes are `1H` and `4H` only. Timeframes `5m`, `15m`, and `1D` are post-MVP.
+`packages/market-data` is the Sprint 3 source of truth for normalized market-data ingestion.
+
+**Market data provider: Twelve Data.**
+Twelve Data is the primary provider for the crypto MVP market-data path.
+`TWELVE_DATA_API_KEY` is required for market-data ingestion.
+
+Current MVP scope is crypto-first.
+US stock support will be added post-MVP as a separate extension using the same Twelve Data account.
+IDX stock support (BBCA, BBRI, and similar) will be added later via Sectors.app as a separate adapter.
+
+**Binance is not used in this repository.**
+
+Twelve Data plan requirements by phase:
+- Development (Sprint 1–6): Free tier — adequate for local development and pipeline validation
+- MVP live (Sprint 7+): Grow plan ($29/month) — all timeframes including 5m, 15m, 1H, 4H, 1D; no WebSocket
+- Alert Engine (Sprint 10+): Pro plan ($99/month) — WebSocket for real-time event monitoring
+
+The Phase 1 chat layer target is the WhatsApp API. That delivery layer is not implemented in the current Sprint 1-3 codebase yet.
 
 Infrastructure credentials are intentionally not hardcoded in the repository.
 Local PostgreSQL values for `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `DATABASE_URL` must be defined through `.env.development`.

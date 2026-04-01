@@ -19,6 +19,10 @@ export const ohlcvCandleSchema = z.object({
   volume: nonNegativeNumberSchema,
 });
 
+export const marketCandleSchema = ohlcvCandleSchema.extend({
+  timestamp: isoDatetimeSchema,
+});
+
 export const marketSnapshotSchema = z.object({
   id: idSchema,
   assetId: idSchema,
@@ -29,6 +33,24 @@ export const marketSnapshotSchema = z.object({
   bidPrice: nonNegativeNumberSchema.optional(),
   askPrice: nonNegativeNumberSchema.optional(),
   candle: ohlcvCandleSchema,
+  marketSession: marketSessionSchema,
+  priceChangePercent: z.number().finite().optional(),
+  volumeWeightedAveragePrice: nonNegativeNumberSchema.optional(),
+  quoteCurrency: currencyCodeSchema.optional(),
+  baseCurrency: currencyCodeSchema.optional(),
+  eventFlags: stringListSchema,
+  metadata: metadataSchema,
+});
+
+export const marketCandleSeriesSchema = z.object({
+  assetId: idSchema,
+  provider: nonEmptyStringSchema,
+  timeframe: timeframeSchema,
+  capturedAt: isoDatetimeSchema,
+  lastPrice: nonNegativeNumberSchema,
+  bidPrice: nonNegativeNumberSchema.optional(),
+  askPrice: nonNegativeNumberSchema.optional(),
+  candles: z.array(marketCandleSchema).min(1),
   marketSession: marketSessionSchema,
   priceChangePercent: z.number().finite().optional(),
   volumeWeightedAveragePrice: nonNegativeNumberSchema.optional(),
@@ -51,6 +73,8 @@ export const marketPricePointSchema = z.object({
 });
 
 export type OhlcvCandle = z.infer<typeof ohlcvCandleSchema>;
+export type MarketCandle = z.infer<typeof marketCandleSchema>;
 export type MarketSnapshot = z.infer<typeof marketSnapshotSchema>;
+export type MarketCandleSeries = z.infer<typeof marketCandleSeriesSchema>;
 export type MarketFetchRequest = z.infer<typeof marketFetchRequestSchema>;
 export type MarketPricePoint = z.infer<typeof marketPricePointSchema>;

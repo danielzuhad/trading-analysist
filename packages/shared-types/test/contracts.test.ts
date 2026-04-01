@@ -7,6 +7,7 @@ import {
   decisionCardSchema,
   executionRecordSchema,
   indicatorSnapshotSchema,
+  marketCandleSeriesSchema,
   marketSnapshotSchema,
   positionSchema,
   userPreferenceSchema,
@@ -18,22 +19,22 @@ const timestamp = "2026-03-31T09:00:00.000Z";
 describe("shared contracts", () => {
   it("parses an asset with a non-ambiguous identity", () => {
     const result = assetSchema.parse({
-      id: "crypto:binance:SOL-USDT",
+      id: "crypto:global:SOL-USD",
       symbol: "SOL",
-      displaySymbol: "SOL/USDT",
+      displaySymbol: "SOL/USD",
       name: "Solana",
       assetClass: "crypto",
       market: "global",
-      exchange: "binance",
+      exchange: "global",
       instrumentType: "spot",
       baseCurrency: "SOL",
-      quoteCurrency: "USDT",
-      providerSymbol: "SOLUSDT",
+      quoteCurrency: "USD",
+      providerSymbol: "SOL/USD",
       isActive: true,
       metadata: {},
     });
 
-    expect(result.id).toBe("crypto:binance:SOL-USDT");
+    expect(result.id).toBe("crypto:global:SOL-USD");
   });
 
   it("requires a fully populated decision card contract", () => {
@@ -66,10 +67,10 @@ describe("shared contracts", () => {
     const watchlist = userWatchlistSchema.parse({
       id: "watchlist-core",
       userId: "user-123",
-      name: "Core Swing Book",
-      description: "High-conviction mixed assets",
-      assetIds: ["crypto:binance:SOL-USDT", "stock:nasdaq:NVDA"],
-      priorityAssetIds: ["crypto:binance:SOL-USDT"],
+      name: "Core Crypto Swing Book",
+      description: "High-conviction crypto watchlist",
+      assetIds: ["crypto:global:SOL-USD", "crypto:global:BTC-USD"],
+      priorityAssetIds: ["crypto:global:SOL-USD"],
       mutedAssetIds: [],
       tradingStyle: "swing",
       riskProfile: "moderate",
@@ -98,7 +99,7 @@ describe("shared contracts", () => {
     });
 
     expect(watchlist.userId).toBe(preference.userId);
-    expect(watchlist.assetIds).toContain("stock:nasdaq:NVDA");
+    expect(watchlist.assetIds).toContain("crypto:global:BTC-USD");
   });
 
   it("rejects unsupported user-configurable timeframes outside the current MVP scope", () => {
@@ -106,7 +107,7 @@ describe("shared contracts", () => {
       id: "watchlist-fast",
       userId: "user-123",
       name: "Fast Watchlist",
-      assetIds: ["crypto:binance:BTC-USDT"],
+      assetIds: ["crypto:global:BTC-USD"],
       tradingStyle: "scalp",
       riskProfile: "aggressive",
       timeframes: ["15M"],
@@ -138,10 +139,45 @@ describe("shared contracts", () => {
   });
 
   it("parses market and indicator snapshots", () => {
+    const marketSeries = marketCandleSeriesSchema.parse({
+      assetId: "crypto:global:SOL-USD",
+      provider: "twelve-data",
+      timeframe: "1H",
+      capturedAt: timestamp,
+      lastPrice: 148.2,
+      bidPrice: 148.1,
+      askPrice: 148.3,
+      candles: [
+        {
+          timestamp: "2026-03-31T08:00:00.000Z",
+          open: 144.8,
+          high: 146.7,
+          low: 144.1,
+          close: 146.4,
+          volume: 1523400,
+        },
+        {
+          timestamp: timestamp,
+          open: 146.4,
+          high: 149.1,
+          low: 145.9,
+          close: 148.2,
+          volume: 1823400,
+        },
+      ],
+      marketSession: "continuous",
+      priceChangePercent: 2.1,
+      volumeWeightedAveragePrice: 147.2,
+      quoteCurrency: "USD",
+      baseCurrency: "SOL",
+      eventFlags: ["reclaimed_resistance"],
+      metadata: {},
+    });
+
     const marketSnapshot = marketSnapshotSchema.parse({
       id: "market-sol-1h",
-      assetId: "crypto:binance:SOL-USDT",
-      provider: "binance",
+      assetId: "crypto:global:SOL-USD",
+      provider: "twelve-data",
       timeframe: "1H",
       capturedAt: timestamp,
       lastPrice: 148.2,
@@ -157,7 +193,7 @@ describe("shared contracts", () => {
       marketSession: "continuous",
       priceChangePercent: 2.1,
       volumeWeightedAveragePrice: 147.2,
-      quoteCurrency: "USDT",
+      quoteCurrency: "USD",
       baseCurrency: "SOL",
       eventFlags: ["reclaimed_resistance"],
       metadata: {},
@@ -165,7 +201,7 @@ describe("shared contracts", () => {
 
     const indicatorSnapshot = indicatorSnapshotSchema.parse({
       id: "indicator-sol-1h",
-      assetId: "crypto:binance:SOL-USDT",
+      assetId: "crypto:global:SOL-USD",
       timeframe: "1H",
       calculatedAt: timestamp,
       movingAverages: {
@@ -194,6 +230,9 @@ describe("shared contracts", () => {
       metadata: {},
     });
 
+    expect(marketSeries.candles.at(-1)?.close).toBe(
+      marketSnapshot.candle.close,
+    );
     expect(marketSnapshot.assetId).toBe(indicatorSnapshot.assetId);
   });
 
@@ -201,12 +240,12 @@ describe("shared contracts", () => {
     const position = positionSchema.parse({
       id: "position-sol-open",
       userId: "user-123",
-      assetId: "crypto:binance:SOL-USDT",
+      assetId: "crypto:global:SOL-USD",
       watchlistId: "watchlist-core",
-      sourceAccount: "binance-main",
+      sourceAccount: "main-account",
       direction: "long",
       status: "open",
-      quoteCurrency: "USDT",
+      quoteCurrency: "USD",
       entryPrice: 148.2,
       averageEntryPrice: 147.6,
       quantity: 10,
@@ -225,7 +264,7 @@ describe("shared contracts", () => {
         },
       ],
       thesis: "Trend continuation after reclaim",
-      notes: "Recorded from dashboard after Binance fill",
+      notes: "Recorded from dashboard after external exchange fill",
       latestState: "IN_POSITION",
       latestSuggestion: "HOLD",
       openedAt: timestamp,
@@ -242,7 +281,7 @@ describe("shared contracts", () => {
       actionType: "BUY",
       source: "dashboard",
       channel: "dashboard",
-      sourceAccount: "binance-main",
+      sourceAccount: "main-account",
       executionPrice: 148.2,
       quantity: 10,
       notionalValue: 1482,
@@ -266,24 +305,24 @@ describe("shared contracts", () => {
       userId: "user-123",
       watchlistId: "watchlist-core",
       asset: {
-        id: "crypto:binance:SOL-USDT",
+        id: "crypto:global:SOL-USD",
         symbol: "SOL",
-        displaySymbol: "SOL/USDT",
+        displaySymbol: "SOL/USD",
         name: "Solana",
         assetClass: "crypto",
         market: "global",
-        exchange: "binance",
+        exchange: "global",
         instrumentType: "spot",
         baseCurrency: "SOL",
-        quoteCurrency: "USDT",
-        providerSymbol: "SOLUSDT",
+        quoteCurrency: "USD",
+        providerSymbol: "SOL/USD",
         isActive: true,
         metadata: {},
       },
       marketSnapshot: {
         id: "market-sol-1h",
-        assetId: "crypto:binance:SOL-USDT",
-        provider: "binance",
+        assetId: "crypto:global:SOL-USD",
+        provider: "twelve-data",
         timeframe: "1H",
         capturedAt: timestamp,
         lastPrice: 148.2,
@@ -300,7 +339,7 @@ describe("shared contracts", () => {
       },
       indicatorSnapshot: {
         id: "indicator-sol-1h",
-        assetId: "crypto:binance:SOL-USDT",
+        assetId: "crypto:global:SOL-USD",
         timeframe: "1H",
         calculatedAt: timestamp,
         movingAverages: {
@@ -327,7 +366,7 @@ describe("shared contracts", () => {
       position: {
         id: "position-sol-open",
         userId: "user-123",
-        assetId: "crypto:binance:SOL-USDT",
+        assetId: "crypto:global:SOL-USD",
         direction: "long",
         status: "open",
         entryPrice: 148.2,
@@ -359,14 +398,22 @@ describe("shared contracts", () => {
       },
       regime: "trend",
       bias: "bullish",
-      setupQualityScore: 78,
-      confidenceScore: 74,
+      signalStrengthScore: 78,
+      aiConfidence: 74,
+      concerns: ["Overhead resistance remains close to price."],
+      suggestedPositionSize: "conservative",
+      timeframeRelevance: "swing over the next 1-3 days",
       riskFlags: ["overhead_resistance"],
       keyLevels: {
         entry: 148.2,
         stopLoss: 145.9,
         takeProfitLevels: [152],
       },
+      modelUsed: "openai/gpt-4o-mini",
+      promptVersion: "v1.0",
+      snapshotHash: "snapshot-sol-1h-hash",
+      aiLatencyMs: 842,
+      costEstimateUsd: 0.0124,
       generatedAt: timestamp,
       triggeredBy: "manual_position_update",
       notes: "Converted from watchlist mode after manual entry.",

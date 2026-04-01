@@ -2,9 +2,11 @@
   "$schema": "https://turbo.build/schema.json",
   "globalEnv": [
     "DATABASE_URL",
+    "MAX_DAILY_AI_COST_USD",
     "NEXT_PUBLIC_API_BASE_URL",
     "REDIS_URL",
-    "RUN_INFRA_TESTS"
+    "RUN_INFRA_TESTS",
+    "TWELVE_DATA_API_KEY"
   ],
   "tasks": {
     "build": {

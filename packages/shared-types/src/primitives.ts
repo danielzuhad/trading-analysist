@@ -93,6 +93,15 @@ export const analysisBiasValues = [
 export const analysisBiasSchema = z.enum(analysisBiasValues);
 export type AnalysisBias = z.infer<typeof analysisBiasSchema>;
 
+export const suggestedPositionSizeValues = [
+  "none",
+  "conservative",
+  "normal",
+  "aggressive",
+] as const;
+export const suggestedPositionSizeSchema = z.enum(suggestedPositionSizeValues);
+export type SuggestedPositionSize = z.infer<typeof suggestedPositionSizeSchema>;
+
 export const trendDirectionValues = ["up", "down", "flat", "mixed"] as const;
 export const trendDirectionSchema = z.enum(trendDirectionValues);
 export type TrendDirection = z.infer<typeof trendDirectionSchema>;
@@ -120,7 +129,6 @@ export type AnalysisTrigger = z.infer<typeof analysisTriggerSchema>;
 export const notificationChannelValues = [
   "dashboard",
   "whatsapp",
-  "openclaw",
   "email",
   "webhook",
 ] as const;

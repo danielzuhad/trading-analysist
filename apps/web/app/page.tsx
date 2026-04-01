@@ -5,6 +5,7 @@ const stack = [
   "BullMQ worker",
   "Drizzle + PostgreSQL",
   "Redis for queues and coordination",
+  "Crypto market-data baseline via Twelve Data",
 ];
 
 export default function HomePage() {
@@ -13,11 +14,12 @@ export default function HomePage() {
   return (
     <main className="shell">
       <section className="hero">
-        <p className="eyebrow">Sprint 1</p>
-        <h1>Trading Analyst Foundation</h1>
+        <p className="eyebrow">Sprint 1-3 Alignment</p>
+        <h1>Crypto Analyst Baseline</h1>
         <p className="lede">
-          The monorepo, API, worker, web app, and infrastructure scaffolding are
-          in place. Domain logic starts in Sprint 2.
+          The repo currently covers the foundation, shared contracts, and the
+          crypto market-data baseline. Indicator, AI, alerting, and chat-layer
+          features come in later sprints.
         </p>
       </section>
 

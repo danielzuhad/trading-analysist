@@ -29,6 +29,86 @@ Phase 1 implementation should follow these decisions unless the user explicitly 
 - PostgreSQL as the main database
 - Redis for queues and short-lived coordination
 - Docker Compose for local PostgreSQL and Redis
+- Twelve Data as the primary market data provider for the crypto MVP
+- CoinGecko for market context (BTC dominance, total market cap trend) — free tier
+- alternative.me Fear & Greed Index for market sentiment — free, no key required
+- CryptoPanic for crypto news and sentiment per asset — free tier
+- Bybit public REST API for crypto derivatives (funding rate, open interest) — free, no key required, accessible from Indonesia
+- Coinglass is not used for MVP; Bybit public API provides the same derivatives data with better reliability and no rate limit concerns
+- OpenAI as the primary AI analysis provider — provider-agnostic adapter required
+
+### Notification and Chat Layer
+
+The chat and notification layer is called the **chat layer** in this codebase. It is not a specific technology — it is a role.
+
+For MVP, the chat layer is implemented through the **WhatsApp API**.
+Use `chat layer` or `WhatsApp API chat layer` in new code and documentation.
+
+References to "OpenClaw" in older documents mean this chat layer.
+
+### Confidence Scoring
+
+Every AI analysis call must produce two separate confidence values stored as separate DB columns:
+- `signal_strength_score`: calculated deterministically in the Signal Aggregation layer before AI is called
+- `ai_confidence`: AI output, must stay within ±20 of signal_strength_score
+
+The Signal Aggregation layer must always calculate signal_strength_score before calling the AI engine.
+The AI engine must receive signal_strength_score as part of the snapshot input.
+Do not let AI invent a confidence number without a deterministic anchor.
+
+#### Confidence Constraint Enforcement
+
+The ±20 constraint cannot be enforced by prompt alone. The implementation must:
+1. Pass `signal_strength_score` and the valid range explicitly in the prompt: `"Your ai_confidence MUST be between {score-20} and {score+20}."`
+2. After parsing AI output, validate the range programmatically.
+3. If `ai_confidence` is outside range: **clamp to the nearest bound and log a warning** — do not retry the call.
+   - Rationale: retrying doubles cost and AI may still violate the range.
+4. Store the original AI value alongside the clamped value for auditability if they differ.
+
+### AI Cost Management
+
+Every AI call must log `cost_estimate_usd` based on token counts and the model used.
+
+A hard daily cost cap must be configurable via environment variable (`MAX_DAILY_AI_COST_USD`, default `2.00`).
+
+When the daily cap is reached:
+- Skip non-critical re-analysis (WATCH and IGNORE assets)
+- Continue analysis only for assets in PREPARE, ACTIONABLE, IN_POSITION, or EXIT_WARNING state
+- Log a warning and expose the cap-reached state via the API health endpoint
+
+**Default model:** Use `gpt-4o-mini` as the default AI model. Reserve `gpt-4o` or other premium models for explicit comparison testing only. The structured snapshot input already handles the analytical heavy lifting — the AI layer primarily interprets and formats output.
+
+Every analysis record must store `model_used` and `prompt_version` so cost and quality can be tracked per model and per prompt version.
+
+### Architecture: AI Is the Analyst
+
+The AI analysis engine is the core intelligence layer, not a summarization add-on.
+
+The pipeline is:
+1. market data + context + derivatives + news fetched
+2. indicator engine computes technical signals
+3. signal aggregation layer assembles a fully structured typed snapshot
+4. AI receives the snapshot and performs full analysis
+5. AI produces a typed structured output (state, confidence, summary, reasons, plan, invalidation)
+
+The signal aggregation layer (previously called rules engine) does **not** decide state or generate suggestions. Its role is data assembly and deterministic signal labeling only.
+
+### Important: Binance Not Accessible from Indonesia
+
+Binance public API endpoints are not accessible from Indonesian IP addresses.
+Do not use Binance as a data source in any environment.
+Twelve Data is the primary and only OHLCV source for crypto in Phase 1.
+
+### MVP Asset Scope
+
+The MVP focuses on **crypto assets first** (BTC, ETH, SOL, and similar).
+
+US stock support (NVDA, TSLA, AAPL, AMZN, META) and IDX stock support (BBCA, BBRI, and similar)
+will be added as separate adapter extensions post-MVP using the same Twelve Data account.
+IDX stocks will require a separate provider (Sectors.app) due to Twelve Data's limited IDX coverage.
+
+Do not implement stock adapters until crypto ingestion, signal aggregation, and the AI analysis
+pipeline are validated end-to-end.
 
 The database approach is **SQL-first**:
 
