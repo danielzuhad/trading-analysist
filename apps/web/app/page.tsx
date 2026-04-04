@@ -6,6 +6,7 @@ const stack = [
   "Drizzle + PostgreSQL",
   "Redis for queues and coordination",
   "Crypto market-data baseline via Twelve Data",
+  "Deterministic indicator engine foundations",
 ];
 
 export default function HomePage() {
@@ -14,12 +15,13 @@ export default function HomePage() {
   return (
     <main className="shell">
       <section className="hero">
-        <p className="eyebrow">Sprint 1-3 Alignment</p>
-        <h1>Crypto Analyst Baseline</h1>
+        <p className="eyebrow">Sprint 1-4 Foundations</p>
+        <h1>Crypto Analyst Foundation</h1>
         <p className="lede">
-          The repo currently covers the foundation, shared contracts, and the
-          crypto market-data baseline. Indicator, AI, alerting, and chat-layer
-          features come in later sprints.
+          The repo currently covers the foundation, shared contracts, crypto
+          market-data baseline, and reusable indicator calculations. Signal
+          aggregation, AI analysis, alerting, positions, and chat-layer delivery
+          still come in later sprints.
         </p>
       </section>
 

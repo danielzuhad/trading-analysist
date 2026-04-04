@@ -1,10 +1,11 @@
 # Trading Analyst
 
-This repository is currently aligned to Sprint 1-3 of the AI Trading Analyst Dashboard roadmap:
+This repository currently includes the Sprint 1-3 baseline plus Sprint 4 indicator-engine foundations:
 
 - Sprint 1 foundation
 - Sprint 2 shared contracts
 - Sprint 3 crypto market-data baseline
+- Sprint 4 reusable indicator calculations
 
 Agent execution policy lives in `AGENTS.md`.
 
@@ -15,6 +16,7 @@ Agent execution policy lives in `AGENTS.md`.
 - Fastify (`apps/api`)
 - BullMQ (`apps/worker`)
 - Drizzle + PostgreSQL (`packages/db`)
+- Deterministic indicator calculations (`packages/indicators`)
 - Market-data adapters (`packages/market-data`)
 - Zod-backed shared domain contracts (`packages/shared-types`)
 - Biome for linting/formatting
@@ -30,6 +32,7 @@ apps/
 
 packages/
   db/
+  indicators/
   market-data/
   shared-types/
 
@@ -42,7 +45,7 @@ infrastructure/
 1. Copy `.env.development.example` to `.env.development` for local work.
 2. Fill the required PostgreSQL credentials and connection URLs in `.env.development`.
 3. Start PostgreSQL and Redis with Docker Compose.
-4. Add `TWELVE_DATA_API_KEY` to enable market data ingestion. This key is used for both crypto and stock data. The free tier is sufficient for local development.
+4. Add `TWELVE_DATA_API_KEY` to enable the current crypto market-data ingestion path. The same Twelve Data account can be reused later when post-MVP stock adapters are added.
 5. Use Bun `1.3.11` or newer.
 6. Install dependencies with `bun install`.
 7. Run the monorepo with `bun run dev`.
@@ -66,8 +69,9 @@ docker compose -f infrastructure/docker/docker-compose.yml up -d
 Infrastructure-backed integration tests are included for the database, API readiness route, and worker bootstrap.
 Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
 
-`packages/shared-types` is the source of truth for shared Sprint 2 contracts and schema validation.
+`packages/shared-types` is the source of truth for shared Sprint 2 contracts, including the minimal auth/session boundary for future API protection, plus schema validation.
 For the current MVP, monitored timeframes are `1H` and `4H` only. Timeframes `5m`, `15m`, and `1D` are post-MVP.
+`packages/indicators` now contains the reusable Sprint 4 indicator-engine calculations, but the full worker pipeline still only persists market-data snapshots today.
 `packages/market-data` is the Sprint 3 source of truth for normalized market-data ingestion.
 
 **Market data provider: Twelve Data.**
@@ -80,10 +84,16 @@ IDX stock support (BBCA, BBRI, and similar) will be added later via Sectors.app 
 
 **Binance is not used in this repository.**
 
+Current external-provider implementation status through Sprint 4 foundations:
+- Twelve Data: implemented for crypto OHLCV and latest-price ingestion
+- CoinGecko, alternative.me, Bybit, and CryptoPanic: approved MVP providers, but not wired in the current codebase yet
+- OpenAI: approved AI provider, but not wired in the current codebase yet
+- WhatsApp API chat layer: target delivery channel, not implemented in the current codebase yet
+
 Twelve Data plan requirements by phase:
-- Development (Sprint 1–6): Free tier — adequate for local development and pipeline validation
-- MVP live (Sprint 7+): Grow plan ($29/month) — all timeframes including 5m, 15m, 1H, 4H, 1D; no WebSocket
-- Alert Engine (Sprint 10+): Pro plan ($99/month) — WebSocket for real-time event monitoring
+- Sprint 1-4 foundations: Free tier — adequate for local validation of the current `1H` and `4H` crypto ingestion and indicator path
+- Later expansion: upgrade only when asset count, polling frequency, or post-MVP scope requires it
+- Real-time monitoring later: Pro-tier features are only relevant if the repo intentionally adopts WebSocket-driven monitoring in a later phase
 
 The Phase 1 chat layer target is the WhatsApp API. That delivery layer is not implemented in the current Sprint 1-3 codebase yet.
 

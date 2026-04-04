@@ -239,13 +239,13 @@ apps/
 
 packages/
   db/
+  indicators/
   market-data/
   shared-types/
 ```
 
 Planned additions later:
 
-- `packages/indicators`
 - `packages/signal-aggregation`
 - `packages/ai-analysis`
 - `packages/alert-engine`

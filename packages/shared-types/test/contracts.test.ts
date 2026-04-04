@@ -243,6 +243,7 @@ describe("shared contracts", () => {
         atr14: 3.6,
         atrPercent: 2.4,
         baseline: 2.9,
+        regime: "normal",
       },
       volume: {
         current: 1823400,
@@ -254,6 +255,7 @@ describe("shared contracts", () => {
         support: [145.9, 142.2],
         resistance: [149.8, 152.4],
       },
+      structure: "uptrend",
       metadata: {},
     });
 
@@ -379,6 +381,7 @@ describe("shared contracts", () => {
         },
         volatility: {
           atr14: 3.6,
+          regime: "normal",
         },
         volume: {
           current: 1823400,
@@ -388,6 +391,7 @@ describe("shared contracts", () => {
           support: [145.9],
           resistance: [149.8],
         },
+        structure: "uptrend",
         metadata: {},
       },
       position: {

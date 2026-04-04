@@ -5,7 +5,12 @@ import {
   metadataSchema,
   nonNegativeNumberSchema,
 } from "./common.js";
-import { timeframeSchema, trendDirectionSchema } from "./primitives.js";
+import {
+  marketStructureSchema,
+  timeframeSchema,
+  trendDirectionSchema,
+  volatilityRegimeSchema,
+} from "./primitives.js";
 
 export const movingAverageSnapshotSchema = z.object({
   ema20: nonNegativeNumberSchema,
@@ -21,6 +26,7 @@ export const volatilitySnapshotSchema = z.object({
   atr14: nonNegativeNumberSchema,
   atrPercent: nonNegativeNumberSchema.optional(),
   baseline: nonNegativeNumberSchema.optional(),
+  regime: volatilityRegimeSchema,
 });
 
 export const volumeSnapshotSchema = z.object({
@@ -45,6 +51,7 @@ export const indicatorSnapshotSchema = z.object({
   volatility: volatilitySnapshotSchema,
   volume: volumeSnapshotSchema,
   levels: supportResistanceSnapshotSchema,
+  structure: marketStructureSchema,
   metadata: metadataSchema,
 });
 

@@ -106,6 +106,24 @@ export const trendDirectionValues = ["up", "down", "flat", "mixed"] as const;
 export const trendDirectionSchema = z.enum(trendDirectionValues);
 export type TrendDirection = z.infer<typeof trendDirectionSchema>;
 
+export const volatilityRegimeValues = [
+  "compressed",
+  "normal",
+  "expanded",
+  "extreme",
+] as const;
+export const volatilityRegimeSchema = z.enum(volatilityRegimeValues);
+export type VolatilityRegime = z.infer<typeof volatilityRegimeSchema>;
+
+export const marketStructureValues = [
+  "uptrend",
+  "downtrend",
+  "range",
+  "transition",
+] as const;
+export const marketStructureSchema = z.enum(marketStructureValues);
+export type MarketStructure = z.infer<typeof marketStructureSchema>;
+
 export const marketSessionValues = [
   "pre",
   "regular",
