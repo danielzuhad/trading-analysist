@@ -1,11 +1,11 @@
 # Trading Analyst
 
-This repository currently includes the Sprint 1-3 baseline plus Sprint 4 indicator-engine foundations:
+This repository currently includes the Sprint 1-3 baseline plus the Sprint 4 indicator-engine path:
 
 - Sprint 1 foundation
 - Sprint 2 shared contracts
 - Sprint 3 crypto market-data baseline
-- Sprint 4 reusable indicator calculations
+- Sprint 4 indicator calculation, persistence, and read APIs
 
 Agent execution policy lives in `AGENTS.md`.
 
@@ -66,7 +66,7 @@ docker compose -f infrastructure/docker/docker-compose.yml up -d
 - `bun run db:generate` to generate Drizzle migrations
 - `bun run db:migrate` to run Drizzle migrations
 
-Infrastructure-backed integration tests are included for the database, API readiness route, and worker bootstrap.
+Infrastructure-backed integration tests are included for the database, API routes, and worker persistence/bootstrap flows.
 Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
 
 `packages/shared-types` is the source of truth for shared Sprint 2 contracts, including the minimal auth/session boundary for future API protection, plus schema validation.
@@ -89,7 +89,7 @@ IDX stock support (BBCA, BBRI, and similar) will be added later via Sectors.app 
 
 **Binance is not used in this repository.**
 
-Current external-provider implementation status through Sprint 4 foundations:
+Current external-provider implementation status through Sprint 4:
 - Twelve Data: implemented for crypto OHLCV and latest-price ingestion
 - CoinGecko, alternative.me, Bybit, and CryptoPanic: approved MVP providers, but not wired in the current codebase yet
 - OpenAI: approved AI provider, but not wired in the current codebase yet
@@ -100,7 +100,7 @@ Twelve Data plan requirements by phase:
 - Later expansion: upgrade only when asset count, polling frequency, or post-MVP scope requires it
 - Real-time monitoring later: Pro-tier features are only relevant if the repo intentionally adopts WebSocket-driven monitoring in a later phase
 
-The Phase 1 chat layer target is the WhatsApp API. That delivery layer is not implemented in the current Sprint 1-3 codebase yet.
+The Phase 1 chat layer target is the WhatsApp API. That delivery layer is not implemented in the current codebase yet.
 
 Infrastructure credentials are intentionally not hardcoded in the repository.
 Local PostgreSQL values for `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `DATABASE_URL` must be defined through `.env.development`.

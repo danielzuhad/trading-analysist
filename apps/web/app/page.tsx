@@ -6,7 +6,7 @@ const stack = [
   "Drizzle + PostgreSQL",
   "Redis for queues and coordination",
   "Crypto market-data baseline via Twelve Data",
-  "Deterministic indicator engine foundations",
+  "Deterministic indicator engine",
 ];
 
 export default function HomePage() {
@@ -15,7 +15,7 @@ export default function HomePage() {
   return (
     <main className="shell">
       <section className="hero">
-        <p className="eyebrow">Sprint 1-4 Foundations</p>
+        <p className="eyebrow">Sprint 1-4 Baseline</p>
         <h1>Crypto Analyst Foundation</h1>
         <p className="lede">
           The repo currently covers the foundation, shared contracts, crypto
@@ -45,6 +45,18 @@ export default function HomePage() {
           <p>
             Readiness endpoint:{" "}
             {apiBaseUrl ? `${apiBaseUrl}/readyz` : "Requires API base URL"}
+          </p>
+          <p>
+            Market snapshot:{" "}
+            {apiBaseUrl
+              ? `${apiBaseUrl}/market-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=1H`
+              : "Requires API base URL"}
+          </p>
+          <p>
+            Indicator snapshot:{" "}
+            {apiBaseUrl
+              ? `${apiBaseUrl}/indicator-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=1H`
+              : "Requires API base URL"}
           </p>
         </article>
       </section>
