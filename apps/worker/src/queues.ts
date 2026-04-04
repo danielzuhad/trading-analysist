@@ -1,6 +1,13 @@
-export const analysisQueueName = "analysis";
+import type { SupportedTimeframe } from "@trading-analyst/shared-types";
 
-export type AnalysisJobData = {
+export const analysisQueueName = "analysis";
+export const marketSnapshotJobName = "fetch-market-snapshot";
+
+export type WorkerJobTrigger = "bootstrap" | "manual" | "scheduled";
+
+export type MarketSnapshotJobData = {
+  assetId: string;
   requestedAt: string;
-  trigger: "bootstrap" | "manual";
+  timeframe: SupportedTimeframe;
+  trigger: WorkerJobTrigger;
 };

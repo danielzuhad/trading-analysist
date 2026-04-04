@@ -4,7 +4,9 @@ export const workerEnvSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
+  DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
+  TWELVE_DATA_API_KEY: z.string().trim().min(1).optional(),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(1),
 });
 

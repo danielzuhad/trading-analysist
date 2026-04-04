@@ -8,6 +8,8 @@ import {
 } from "@trading-analyst/market-data";
 import type { Asset, SupportedTimeframe } from "@trading-analyst/shared-types";
 
+type Logger = Pick<typeof console, "error" | "log" | "warn">;
+
 export const defaultCryptoWatchlistAssets: Asset[] = [
   {
     id: "crypto:global:BTC-USD",
@@ -70,10 +72,44 @@ type IngestLatestMarketDataOptions = {
   timeframe: SupportedTimeframe;
 };
 
+type ProcessMarketSnapshotJobOptions = {
+  apiKey?: string;
+  assetId: string;
+  connectionString?: string;
+  fetchService?: MarketFetchServiceLike;
+  logger?: Logger;
+  persistLatestMarketData?: (
+    data: LatestMarketData,
+    connectionString?: string,
+  ) => Promise<LatestMarketData>;
+  requestedAt: string;
+  timeframe: SupportedTimeframe;
+};
+
+export type MarketSnapshotJobResult =
+  | {
+      assetId: string;
+      requestedAt: string;
+      snapshotId: string;
+      status: "stored";
+      timeframe: SupportedTimeframe;
+    }
+  | {
+      assetId: string;
+      reason: "asset_not_supported" | "missing_api_key";
+      requestedAt: string;
+      status: "skipped";
+      timeframe: SupportedTimeframe;
+    };
+
 export function createMarketFetchService(apiKey: string) {
   return new MarketFetchService({
     adapters: [new TwelveDataMarketDataAdapter({ apiKey })],
   });
+}
+
+export function findDefaultCryptoAsset(assetId: string) {
+  return defaultCryptoWatchlistAssets.find((asset) => asset.id === assetId);
 }
 
 export async function ingestLatestMarketData({
@@ -92,4 +128,66 @@ export async function ingestLatestMarketData({
   await persistLatestMarketData(marketData, connectionString);
 
   return marketData;
+}
+
+export async function processMarketSnapshotJob({
+  apiKey,
+  assetId,
+  connectionString,
+  fetchService,
+  logger = console,
+  persistLatestMarketData,
+  requestedAt,
+  timeframe,
+}: ProcessMarketSnapshotJobOptions): Promise<MarketSnapshotJobResult> {
+  const asset = findDefaultCryptoAsset(assetId);
+
+  if (!asset) {
+    logger.warn(
+      `[worker] skipped market snapshot job for unsupported asset "${assetId}"`,
+    );
+
+    return {
+      assetId,
+      reason: "asset_not_supported",
+      requestedAt,
+      status: "skipped",
+      timeframe,
+    };
+  }
+
+  if (!apiKey) {
+    logger.warn(
+      `[worker] skipped market snapshot job for ${asset.displaySymbol} because TWELVE_DATA_API_KEY is not configured`,
+    );
+
+    return {
+      assetId,
+      reason: "missing_api_key",
+      requestedAt,
+      status: "skipped",
+      timeframe,
+    };
+  }
+
+  const marketData = await ingestLatestMarketData({
+    apiKey,
+    asset,
+    timeframe,
+    ...(connectionString ? { connectionString } : {}),
+    ...(fetchService ? { fetchService } : {}),
+    ...(persistLatestMarketData ? { persistLatestMarketData } : {}),
+  });
+
+  logger.log(
+    `[worker] stored market snapshot ${marketData.snapshot.id} for ${asset.displaySymbol} ${timeframe}`,
+  );
+
+  return {
+    assetId,
+    requestedAt,
+    snapshotId: marketData.snapshot.id,
+    status: "stored",
+    timeframe,
+  };
 }

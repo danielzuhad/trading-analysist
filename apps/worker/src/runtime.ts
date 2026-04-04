@@ -1,12 +1,17 @@
 import { type Job, Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { loadWorkerEnv, type WorkerEnv } from "./env.js";
-import { type AnalysisJobData, analysisQueueName } from "./queues.js";
+import { processMarketSnapshotJob } from "./market-data.js";
+import {
+  analysisQueueName,
+  type MarketSnapshotJobData,
+  marketSnapshotJobName,
+} from "./queues.js";
 
-type Logger = Pick<typeof console, "error" | "log">;
+type Logger = Pick<typeof console, "error" | "log" | "warn">;
 
 export type AnalysisJobProcessor = (
-  job: Job<AnalysisJobData>,
+  job: Job<MarketSnapshotJobData>,
 ) => Promise<void> | void;
 
 type CreateWorkerRuntimeOptions = {
@@ -21,19 +26,39 @@ type StartWorkerRuntimeOptions = CreateWorkerRuntimeOptions & {
 };
 
 export type WorkerRuntime = {
-  analysisQueue: Queue<AnalysisJobData>;
+  analysisQueue: Queue<MarketSnapshotJobData>;
   env: WorkerEnv;
   queueName: string;
   queueConnection: Redis;
   shutdown: () => Promise<void>;
-  worker: Worker<AnalysisJobData>;
+  worker: Worker<MarketSnapshotJobData>;
   workerConnection: Redis;
 };
 
-async function defaultProcessor(job: Job<AnalysisJobData>, logger: Logger) {
-  logger.log(
-    `[worker] processed ${job.name} from ${job.data.trigger} at ${job.data.requestedAt}`,
-  );
+async function defaultProcessor(
+  job: Job<MarketSnapshotJobData>,
+  env: WorkerEnv,
+  logger: Logger,
+) {
+  if (job.name !== marketSnapshotJobName) {
+    logger.warn(`[worker] skipped unsupported job name "${job.name}"`);
+    return;
+  }
+
+  const result = await processMarketSnapshotJob({
+    assetId: job.data.assetId,
+    connectionString: env.DATABASE_URL,
+    logger,
+    requestedAt: job.data.requestedAt,
+    timeframe: job.data.timeframe,
+    ...(env.TWELVE_DATA_API_KEY ? { apiKey: env.TWELVE_DATA_API_KEY } : {}),
+  });
+
+  if (result.status === "skipped") {
+    logger.warn(
+      `[worker] market snapshot job skipped for ${result.assetId}: ${result.reason}`,
+    );
+  }
 }
 
 export function createWorkerRuntime({
@@ -50,15 +75,17 @@ export function createWorkerRuntime({
     maxRetriesPerRequest: null,
   });
 
-  const analysisQueue = new Queue<AnalysisJobData>(queueName, {
+  const analysisQueue = new Queue<MarketSnapshotJobData>(queueName, {
     connection: queueConnection,
   });
 
-  const worker = new Worker<AnalysisJobData>(
+  const worker = new Worker<MarketSnapshotJobData>(
     queueName,
     async (job) => {
       const processJob =
-        processor ?? ((currentJob) => defaultProcessor(currentJob, logger));
+        processor ??
+        ((currentJob: Job<MarketSnapshotJobData>) =>
+          defaultProcessor(currentJob, env, logger));
       await processJob(job);
     },
     {
@@ -106,8 +133,10 @@ export async function startWorkerRuntime(
   );
 
   if (shouldEnqueueBootstrapJob) {
-    await runtime.analysisQueue.add("bootstrap-analysis", {
+    await runtime.analysisQueue.add(marketSnapshotJobName, {
+      assetId: "crypto:global:BTC-USD",
       requestedAt: new Date().toISOString(),
+      timeframe: "1H",
       trigger: "bootstrap",
     });
   }
