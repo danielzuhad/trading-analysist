@@ -71,8 +71,13 @@ Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
 
 `packages/shared-types` is the source of truth for shared Sprint 2 contracts, including the minimal auth/session boundary for future API protection, plus schema validation.
 For the current MVP, monitored timeframes are `1H` and `4H` only. Timeframes `5m`, `15m`, and `1D` are post-MVP.
-`packages/indicators` now contains the reusable Sprint 4 indicator-engine calculations, but the full worker pipeline still only persists market-data snapshots today.
+`packages/indicators` now contains the reusable Sprint 4 indicator-engine calculations.
+The worker now calculates and persists latest indicator snapshots alongside latest market-data snapshots.
 `packages/market-data` is the Sprint 3 source of truth for normalized market-data ingestion.
+
+Current read endpoints:
+- `GET /market-snapshots/latest?assetId=...&timeframe=...`
+- `GET /indicator-snapshots/latest?assetId=...&timeframe=...`
 
 **Market data provider: Twelve Data.**
 Twelve Data is the primary provider for the crypto MVP market-data path.

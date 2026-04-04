@@ -1,5 +1,6 @@
 import {
   closeDatabase,
+  getLatestIndicatorSnapshot,
   getLatestMarketData,
   pingDatabase,
 } from "@trading-analyst/db";
@@ -25,6 +26,8 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
     redis,
   });
   await registerMarketDataRoutes(app, {
+    getLatestIndicatorSnapshot: (assetId, timeframe) =>
+      getLatestIndicatorSnapshot(assetId, timeframe, env.DATABASE_URL),
     getLatestMarketData: (assetId, timeframe) =>
       getLatestMarketData(assetId, timeframe, env.DATABASE_URL),
   });

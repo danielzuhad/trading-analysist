@@ -1,4 +1,5 @@
 import type {
+  IndicatorSnapshot,
   MarketCandle,
   MarketSnapshot,
   OhlcvCandle,
@@ -46,7 +47,35 @@ export const marketLatestSnapshots = pgTable("market_latest_snapshots", {
     .defaultNow(),
 });
 
+export const indicatorLatestSnapshots = pgTable("indicator_latest_snapshots", {
+  id: text("id").primaryKey(),
+  assetId: text("asset_id").notNull(),
+  timeframe: text("timeframe").notNull(),
+  calculatedAt: timestamp("calculated_at", {
+    withTimezone: true,
+  }).notNull(),
+  movingAverages: jsonb("moving_averages")
+    .$type<IndicatorSnapshot["movingAverages"]>()
+    .notNull(),
+  oscillators: jsonb("oscillators")
+    .$type<IndicatorSnapshot["oscillators"]>()
+    .notNull(),
+  volatility: jsonb("volatility")
+    .$type<IndicatorSnapshot["volatility"]>()
+    .notNull(),
+  volume: jsonb("volume").$type<IndicatorSnapshot["volume"]>().notNull(),
+  levels: jsonb("levels").$type<IndicatorSnapshot["levels"]>().notNull(),
+  structure: text("structure").notNull(),
+  metadata: jsonb("metadata").$type<IndicatorSnapshot["metadata"]>().notNull(),
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
+});
+
 export const schema = {
+  indicatorLatestSnapshots,
   marketLatestSnapshots,
   serviceHeartbeats,
 };

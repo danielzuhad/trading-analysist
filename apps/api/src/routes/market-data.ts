@@ -1,4 +1,8 @@
 import type { LatestMarketData } from "@trading-analyst/db";
+import type {
+  IndicatorSnapshot,
+  SupportedTimeframe,
+} from "@trading-analyst/shared-types";
 import { supportedTimeframeSchema } from "@trading-analyst/shared-types";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
@@ -13,6 +17,10 @@ type Dependencies = {
     assetId: string,
     timeframe: "1H" | "4H",
   ) => Promise<LatestMarketData | null>;
+  getLatestIndicatorSnapshot: (
+    assetId: string,
+    timeframe: SupportedTimeframe,
+  ) => Promise<IndicatorSnapshot | null>;
 };
 
 export async function registerMarketDataRoutes(
@@ -46,6 +54,35 @@ export async function registerMarketDataRoutes(
     return {
       series: latestMarketData.series,
       snapshot: latestMarketData.snapshot,
+    };
+  });
+
+  app.get("/indicator-snapshots/latest", async (request, reply) => {
+    const queryResult = latestMarketDataQuerySchema.safeParse(request.query);
+
+    if (!queryResult.success) {
+      return reply.code(400).send({
+        error: "INVALID_QUERY",
+        issues: queryResult.error.issues,
+      });
+    }
+
+    const { assetId, timeframe } = queryResult.data;
+    const indicatorSnapshot = await dependencies.getLatestIndicatorSnapshot(
+      assetId,
+      timeframe,
+    );
+
+    if (!indicatorSnapshot) {
+      return reply.code(404).send({
+        error: "INDICATOR_SNAPSHOT_NOT_FOUND",
+        assetId,
+        timeframe,
+      });
+    }
+
+    return {
+      snapshot: indicatorSnapshot,
     };
   });
 }

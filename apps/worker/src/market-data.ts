@@ -1,12 +1,18 @@
 import {
   type LatestMarketData,
+  saveLatestIndicatorSnapshot,
   saveLatestMarketData,
 } from "@trading-analyst/db";
+import { buildIndicatorSnapshot } from "@trading-analyst/indicators";
 import {
   MarketFetchService,
   TwelveDataMarketDataAdapter,
 } from "@trading-analyst/market-data";
-import type { Asset, SupportedTimeframe } from "@trading-analyst/shared-types";
+import type {
+  Asset,
+  IndicatorSnapshot,
+  SupportedTimeframe,
+} from "@trading-analyst/shared-types";
 
 type Logger = Pick<typeof console, "error" | "log" | "warn">;
 
@@ -63,8 +69,13 @@ type MarketFetchServiceLike = Pick<MarketFetchService, "fetchMarketData">;
 type IngestLatestMarketDataOptions = {
   apiKey: string;
   asset: Asset;
+  buildIndicator?: (data: LatestMarketData["series"]) => IndicatorSnapshot;
   connectionString?: string;
   fetchService?: MarketFetchServiceLike;
+  persistLatestIndicatorSnapshot?: (
+    snapshot: IndicatorSnapshot,
+    connectionString?: string,
+  ) => Promise<IndicatorSnapshot>;
   persistLatestMarketData?: (
     data: LatestMarketData,
     connectionString?: string,
@@ -75,9 +86,14 @@ type IngestLatestMarketDataOptions = {
 type ProcessMarketSnapshotJobOptions = {
   apiKey?: string;
   assetId: string;
+  buildIndicator?: (data: LatestMarketData["series"]) => IndicatorSnapshot;
   connectionString?: string;
   fetchService?: MarketFetchServiceLike;
   logger?: Logger;
+  persistLatestIndicatorSnapshot?: (
+    snapshot: IndicatorSnapshot,
+    connectionString?: string,
+  ) => Promise<IndicatorSnapshot>;
   persistLatestMarketData?: (
     data: LatestMarketData,
     connectionString?: string,
@@ -89,6 +105,7 @@ type ProcessMarketSnapshotJobOptions = {
 export type MarketSnapshotJobResult =
   | {
       assetId: string;
+      indicatorSnapshotId: string;
       requestedAt: string;
       snapshotId: string;
       status: "stored";
@@ -115,8 +132,10 @@ export function findDefaultCryptoAsset(assetId: string) {
 export async function ingestLatestMarketData({
   apiKey,
   asset,
+  buildIndicator = (series) => buildIndicatorSnapshot({ marketSeries: series }),
   connectionString,
   fetchService = createMarketFetchService(apiKey),
+  persistLatestIndicatorSnapshot = saveLatestIndicatorSnapshot,
   persistLatestMarketData = saveLatestMarketData,
   timeframe,
 }: IngestLatestMarketDataOptions) {
@@ -126,16 +145,23 @@ export async function ingestLatestMarketData({
   });
 
   await persistLatestMarketData(marketData, connectionString);
+  const indicatorSnapshot = buildIndicator(marketData.series);
+  await persistLatestIndicatorSnapshot(indicatorSnapshot, connectionString);
 
-  return marketData;
+  return {
+    indicatorSnapshot,
+    marketData,
+  };
 }
 
 export async function processMarketSnapshotJob({
   apiKey,
   assetId,
+  buildIndicator,
   connectionString,
   fetchService,
   logger = console,
+  persistLatestIndicatorSnapshot,
   persistLatestMarketData,
   requestedAt,
   timeframe,
@@ -170,21 +196,26 @@ export async function processMarketSnapshotJob({
     };
   }
 
-  const marketData = await ingestLatestMarketData({
+  const { indicatorSnapshot, marketData } = await ingestLatestMarketData({
     apiKey,
     asset,
     timeframe,
+    ...(buildIndicator ? { buildIndicator } : {}),
     ...(connectionString ? { connectionString } : {}),
     ...(fetchService ? { fetchService } : {}),
+    ...(persistLatestIndicatorSnapshot
+      ? { persistLatestIndicatorSnapshot }
+      : {}),
     ...(persistLatestMarketData ? { persistLatestMarketData } : {}),
   });
 
   logger.log(
-    `[worker] stored market snapshot ${marketData.snapshot.id} for ${asset.displaySymbol} ${timeframe}`,
+    `[worker] stored market snapshot ${marketData.snapshot.id} and indicator snapshot ${indicatorSnapshot.id} for ${asset.displaySymbol} ${timeframe}`,
   );
 
   return {
     assetId,
+    indicatorSnapshotId: indicatorSnapshot.id,
     requestedAt,
     snapshotId: marketData.snapshot.id,
     status: "stored",

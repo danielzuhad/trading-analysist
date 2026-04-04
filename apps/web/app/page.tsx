@@ -19,7 +19,7 @@ export default function HomePage() {
         <h1>Crypto Analyst Foundation</h1>
         <p className="lede">
           The repo currently covers the foundation, shared contracts, crypto
-          market-data baseline, and reusable indicator calculations. Signal
+          market-data baseline, and persisted indicator snapshots. Signal
           aggregation, AI analysis, alerting, positions, and chat-layer delivery
           still come in later sprints.
         </p>

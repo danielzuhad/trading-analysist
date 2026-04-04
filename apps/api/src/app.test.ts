@@ -1,9 +1,13 @@
-import { getLatestMarketData } from "@trading-analyst/db";
+import {
+  getLatestIndicatorSnapshot,
+  getLatestMarketData,
+} from "@trading-analyst/db";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
 
 vi.mock("@trading-analyst/db", () => ({
   closeDatabase: vi.fn(async () => undefined),
+  getLatestIndicatorSnapshot: vi.fn(async () => null),
   getLatestMarketData: vi.fn(async () => null),
   pingDatabase: vi.fn(async () => undefined),
 }));
@@ -109,6 +113,55 @@ describe("api health routes", () => {
       error: "MARKET_SNAPSHOT_NOT_FOUND",
       assetId: "crypto:global:ETH-USD",
       timeframe: "4H",
+    });
+  });
+
+  it("returns the latest indicator snapshot when it exists", async () => {
+    vi.mocked(getLatestIndicatorSnapshot).mockResolvedValueOnce({
+      id: "indicator:crypto:global:BTC-USD:1H",
+      assetId: "crypto:global:BTC-USD",
+      timeframe: "1H",
+      calculatedAt: "2026-04-04T04:00:00.000Z",
+      movingAverages: {
+        ema20: 84210.2,
+        ema50: 83820.4,
+        ema200: 80155.7,
+      },
+      oscillators: {
+        rsi14: 62.4,
+      },
+      volatility: {
+        atr14: 1210.5,
+        atrPercent: 1.44,
+        baseline: 1.2,
+        regime: "expanded",
+      },
+      volume: {
+        current: 1310.4,
+        average20: 1180.2,
+        relativeVolume: 1.11,
+        trend: "up",
+      },
+      levels: {
+        support: [83200, 82450],
+        resistance: [84880, 85520],
+      },
+      structure: "uptrend",
+      metadata: {},
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/indicator-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=1H",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      snapshot: {
+        assetId: "crypto:global:BTC-USD",
+        structure: "uptrend",
+        timeframe: "1H",
+      },
     });
   });
 });

@@ -2,9 +2,11 @@ import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   closeDatabase,
+  getLatestIndicatorSnapshot,
   getLatestMarketData,
   pingDatabase,
   runRawQuery,
+  saveLatestIndicatorSnapshot,
   saveLatestMarketData,
 } from "../src/index.js";
 
@@ -33,11 +35,16 @@ describeInfrastructure("database integration", () => {
         where table_schema = 'public' and table_name in ($1, $2)
         order by table_name
       `,
-      ["market_latest_snapshots", "service_heartbeats"],
+      [
+        "indicator_latest_snapshots",
+        "market_latest_snapshots",
+        "service_heartbeats",
+      ],
       databaseUrl,
     );
 
     expect(result.rows).toEqual([
+      { table_name: "indicator_latest_snapshots" },
       { table_name: "market_latest_snapshots" },
       { table_name: "service_heartbeats" },
     ]);
@@ -130,5 +137,52 @@ describeInfrastructure("database integration", () => {
     expect(result).not.toBeNull();
     expect(result?.snapshot.id).toBe(snapshotId);
     expect(result?.series.candles).toHaveLength(1);
+  });
+
+  it("upserts and reads the latest indicator snapshot", async () => {
+    const assetId = `crypto:test:${randomUUID()}`;
+    const indicatorId = `indicator:${assetId}:1H`;
+
+    await saveLatestIndicatorSnapshot(
+      {
+        id: indicatorId,
+        assetId,
+        timeframe: "1H",
+        calculatedAt: "2026-04-04T04:00:00.000Z",
+        movingAverages: {
+          ema20: 84210.2,
+          ema50: 83820.4,
+          ema200: 80155.7,
+        },
+        oscillators: {
+          rsi14: 62.4,
+        },
+        volatility: {
+          atr14: 1210.5,
+          atrPercent: 1.44,
+          baseline: 1.2,
+          regime: "expanded",
+        },
+        volume: {
+          current: 1310.4,
+          average20: 1180.2,
+          relativeVolume: 1.11,
+          trend: "up",
+        },
+        levels: {
+          support: [83200, 82450],
+          resistance: [84880, 85520],
+        },
+        structure: "uptrend",
+        metadata: {},
+      },
+      databaseUrl,
+    );
+
+    const result = await getLatestIndicatorSnapshot(assetId, "1H", databaseUrl);
+
+    expect(result).not.toBeNull();
+    expect(result?.id).toBe(indicatorId);
+    expect(result?.structure).toBe("uptrend");
   });
 });

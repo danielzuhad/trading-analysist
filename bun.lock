@@ -39,6 +39,7 @@
       "name": "@trading-analyst/worker",
       "dependencies": {
         "@trading-analyst/db": "workspace:*",
+        "@trading-analyst/indicators": "workspace:*",
         "@trading-analyst/market-data": "workspace:*",
         "@trading-analyst/shared-types": "workspace:*",
         "bullmq": "^5.71.1",
@@ -53,6 +54,12 @@
         "dotenv": "^17.3.1",
         "drizzle-orm": "^0.45.2",
         "pg": "^8.20.0",
+      },
+    },
+    "packages/indicators": {
+      "name": "@trading-analyst/indicators",
+      "dependencies": {
+        "@trading-analyst/shared-types": "workspace:*",
       },
     },
     "packages/market-data": {
@@ -293,6 +300,8 @@
     "@trading-analyst/api": ["@trading-analyst/api@workspace:apps/api"],
 
     "@trading-analyst/db": ["@trading-analyst/db@workspace:packages/db"],
+
+    "@trading-analyst/indicators": ["@trading-analyst/indicators@workspace:packages/indicators"],
 
     "@trading-analyst/market-data": ["@trading-analyst/market-data@workspace:packages/market-data"],
 
