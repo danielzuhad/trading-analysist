@@ -1,0 +1,20 @@
+CREATE TABLE "market_latest_snapshots" (
+	"id" text PRIMARY KEY NOT NULL,
+	"asset_id" text NOT NULL,
+	"provider" text NOT NULL,
+	"timeframe" text NOT NULL,
+	"captured_at" timestamp with time zone NOT NULL,
+	"last_price" text NOT NULL,
+	"bid_price" text,
+	"ask_price" text,
+	"candle" jsonb NOT NULL,
+	"candles" jsonb NOT NULL,
+	"market_session" text NOT NULL,
+	"price_change_percent" text,
+	"volume_weighted_average_price" text,
+	"quote_currency" text,
+	"base_currency" text,
+	"event_flags" jsonb NOT NULL,
+	"metadata" jsonb NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);

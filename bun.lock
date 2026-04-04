@@ -21,6 +21,7 @@
       "name": "@trading-analyst/api",
       "dependencies": {
         "@trading-analyst/db": "workspace:*",
+        "@trading-analyst/shared-types": "workspace:*",
         "fastify": "^5.8.4",
         "ioredis": "^5.10.1",
         "zod": "^4.3.6",
@@ -37,6 +38,9 @@
     "apps/worker": {
       "name": "@trading-analyst/worker",
       "dependencies": {
+        "@trading-analyst/db": "workspace:*",
+        "@trading-analyst/market-data": "workspace:*",
+        "@trading-analyst/shared-types": "workspace:*",
         "bullmq": "^5.71.1",
         "ioredis": "^5.10.1",
         "zod": "^4.3.6",
@@ -45,6 +49,7 @@
     "packages/db": {
       "name": "@trading-analyst/db",
       "dependencies": {
+        "@trading-analyst/shared-types": "workspace:*",
         "dotenv": "^17.3.1",
         "drizzle-orm": "^0.45.2",
         "pg": "^8.20.0",

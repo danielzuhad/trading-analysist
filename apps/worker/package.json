@@ -11,6 +11,9 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@trading-analyst/db": "workspace:*",
+    "@trading-analyst/market-data": "workspace:*",
+    "@trading-analyst/shared-types": "workspace:*",
     "bullmq": "^5.71.1",
     "ioredis": "^5.10.1",
     "zod": "^4.3.6"

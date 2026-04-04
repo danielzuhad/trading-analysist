@@ -8,6 +8,13 @@
       "when": 1774846210464,
       "tag": "0000_worthless_hex",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775272504132,
+      "tag": "0001_broken_shaman",
+      "breakpoints": true
     }
   ]
 }

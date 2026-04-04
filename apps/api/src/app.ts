@@ -1,8 +1,13 @@
-import { closeDatabase, pingDatabase } from "@trading-analyst/db";
+import {
+  closeDatabase,
+  getLatestMarketData,
+  pingDatabase,
+} from "@trading-analyst/db";
 import Fastify from "fastify";
 import { Redis } from "ioredis";
 import { type ApiEnv, loadApiEnv } from "./env.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerMarketDataRoutes } from "./routes/market-data.js";
 
 export async function buildApp(env: ApiEnv = loadApiEnv()) {
   const app = Fastify({
@@ -18,6 +23,10 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
     env,
     checkDatabase: () => pingDatabase(env.DATABASE_URL),
     redis,
+  });
+  await registerMarketDataRoutes(app, {
+    getLatestMarketData: (assetId, timeframe) =>
+      getLatestMarketData(assetId, timeframe, env.DATABASE_URL),
   });
 
   app.addHook("onClose", async () => {
