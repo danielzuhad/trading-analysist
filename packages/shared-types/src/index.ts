@@ -1,6 +1,7 @@
 export * from "./alert.js";
 export * from "./analysis.js";
 export * from "./asset.js";
+export * from "./auth.js";
 export * from "./common.js";
 export * from "./decision-card.js";
 export * from "./execution.js";

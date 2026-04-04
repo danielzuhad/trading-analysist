@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   alertSchema,
+  apiAuthContextSchema,
   assetAnalysisSchema,
   assetSchema,
   assetStateTransitionSchema,
+  authSessionSchema,
   decisionCardSchema,
   executionRecordSchema,
   indicatorSnapshotSchema,
@@ -35,6 +37,31 @@ describe("shared contracts", () => {
     });
 
     expect(result.id).toBe("crypto:global:SOL-USD");
+  });
+
+  it("parses a minimal auth session and API auth context", () => {
+    const session = authSessionSchema.parse({
+      id: "session-user-123",
+      userId: "user-123",
+      roles: ["member"],
+      scopes: ["market:read", "watchlist:read"],
+      status: "active",
+      issuedAt: timestamp,
+      expiresAt: "2026-03-31T17:00:00.000Z",
+      lastValidatedAt: timestamp,
+      metadata: {},
+    });
+
+    const authContext = apiAuthContextSchema.parse({
+      userId: session.userId,
+      sessionId: session.id,
+      roles: session.roles,
+      scopes: session.scopes,
+      metadata: {},
+    });
+
+    expect(authContext.sessionId).toBe(session.id);
+    expect(authContext.scopes).toContain("market:read");
   });
 
   it("requires a fully populated decision card contract", () => {
