@@ -43,8 +43,12 @@ describeInfrastructure("api readiness route", () => {
       service: "api",
       status: "ready",
       checks: {
-        database: true,
-        redis: true,
+        database: {
+          ok: true,
+        },
+        redis: {
+          ok: true,
+        },
       },
     });
   });

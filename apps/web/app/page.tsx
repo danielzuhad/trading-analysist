@@ -1,3 +1,8 @@
+import { loadWebEnv } from "../env";
+import { loadInfrastructureStatus } from "../status";
+
+export const dynamic = "force-dynamic";
+
 const stack = [
   "Bun workspaces + Turborepo",
   "Next.js web dashboard",
@@ -9,8 +14,9 @@ const stack = [
   "Deterministic indicator engine",
 ];
 
-export default function HomePage() {
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
+export default async function HomePage() {
+  const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
+  const infrastructureStatus = await loadInfrastructureStatus(apiBaseUrl);
 
   return (
     <main className="shell">
@@ -58,6 +64,34 @@ export default function HomePage() {
               ? `${apiBaseUrl}/indicator-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=1H`
               : "Requires API base URL"}
           </p>
+        </article>
+
+        <article className="card">
+          <h2>Infrastructure Status</h2>
+          <p>Status: {infrastructureStatus.status}</p>
+          <p>{infrastructureStatus.message}</p>
+          {infrastructureStatus.checks ? (
+            <>
+              <p>
+                PostgreSQL:{" "}
+                {infrastructureStatus.checks.database.ok
+                  ? `reachable${infrastructureStatus.checks.database.target ? ` at ${infrastructureStatus.checks.database.target}` : ""}`
+                  : infrastructureStatus.checks.database.message}
+              </p>
+              <p>
+                Redis:{" "}
+                {infrastructureStatus.checks.redis.ok
+                  ? `reachable${infrastructureStatus.checks.redis.target ? ` at ${infrastructureStatus.checks.redis.target}` : ""}`
+                  : infrastructureStatus.checks.redis.message}
+              </p>
+              {infrastructureStatus.checks.redis.hint ? (
+                <p>Worker note: {infrastructureStatus.checks.redis.hint}</p>
+              ) : null}
+            </>
+          ) : null}
+          {infrastructureStatus.issues.map((issue) => (
+            <p key={issue}>{issue}</p>
+          ))}
         </article>
       </section>
     </main>

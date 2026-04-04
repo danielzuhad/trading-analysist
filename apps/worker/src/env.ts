@@ -1,3 +1,7 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import dotenv from "dotenv";
 import { z } from "zod";
 
 export const workerEnvSchema = z.object({
@@ -11,12 +15,82 @@ export const workerEnvSchema = z.object({
 });
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;
+type WorkerEnvOptions = {
+  appDir?: string;
+  env?: NodeJS.ProcessEnv;
+};
+
+const requiredWorkerEnvKeys = ["DATABASE_URL", "REDIS_URL"] as const;
+const { config: loadDotEnv } = dotenv;
+const workerAppDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+
+function getEnvFiles(nodeEnv: string | undefined): string[] {
+  const mode =
+    nodeEnv === "production" || nodeEnv === "test" ? nodeEnv : "development";
+
+  return [".env", `.env.${mode}`, ".env.local"];
+}
+
+export function shouldLoadWorkspaceEnv(
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  return requiredWorkerEnvKeys.some((key) => env[key] === undefined);
+}
+
+export function ensureWorkspaceEnvLoaded(
+  options: WorkerEnvOptions = {},
+): boolean {
+  const env = options.env ?? process.env;
+
+  if (!shouldLoadWorkspaceEnv(env)) {
+    return false;
+  }
+
+  const loadedEnv: Record<string, string | undefined> = {};
+  const workspaceRoot = path.resolve(options.appDir ?? workerAppDir, "../..");
+
+  for (const envFile of getEnvFiles(env.NODE_ENV)) {
+    loadDotEnv({
+      path: path.join(workspaceRoot, envFile),
+      processEnv: loadedEnv,
+      override: true,
+      quiet: true,
+    });
+  }
+
+  let didLoad = false;
+
+  for (const [key, value] of Object.entries(loadedEnv)) {
+    if (env[key] === undefined) {
+      env[key] = value;
+      didLoad = true;
+    }
+  }
+
+  return didLoad;
+}
 
 export function loadWorkerEnv(
   overrides?: Partial<NodeJS.ProcessEnv>,
+  options: WorkerEnvOptions = {},
 ): WorkerEnv {
-  return workerEnvSchema.parse({
-    ...process.env,
+  const env = {
+    ...(options.env ?? process.env),
     ...overrides,
+  };
+
+  const loadOptions: WorkerEnvOptions = { env };
+
+  if (options.appDir !== undefined) {
+    loadOptions.appDir = options.appDir;
+  }
+
+  ensureWorkspaceEnvLoaded(loadOptions);
+
+  return workerEnvSchema.parse({
+    ...env,
   });
 }

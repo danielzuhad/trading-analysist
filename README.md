@@ -78,6 +78,7 @@ The worker now calculates and persists latest indicator snapshots alongside late
 Current read endpoints:
 - `GET /market-snapshots/latest?assetId=...&timeframe=...`
 - `GET /indicator-snapshots/latest?assetId=...&timeframe=...`
+- `GET /readyz` returns PostgreSQL and Redis readiness with developer-facing issue messages
 
 **Market data provider: Twelve Data.**
 Twelve Data is the primary provider for the crypto MVP market-data path.
@@ -106,7 +107,7 @@ Infrastructure credentials are intentionally not hardcoded in the repository.
 Local PostgreSQL values for `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `DATABASE_URL` must be defined through `.env.development`.
 Production values should live in `.env.production` or in your VPS/process manager secret store, and they will usually differ from local development values.
 
-Bun automatically loads `.env`, then `.env.development` or `.env.production` based on `NODE_ENV`, then `.env.local` with increasing precedence. Source: https://bun.sh/docs/runtime/environment-variables
+The repo keeps environment files at the workspace root. Web, API, and worker startup now load root `.env`, `.env.development` or `.env.production`, then `.env.local` with increasing precedence so `bun run dev` works consistently through Turbo from the repo root.
 
 ## Git Hooks
 

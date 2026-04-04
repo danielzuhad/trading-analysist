@@ -22,6 +22,7 @@
       "dependencies": {
         "@trading-analyst/db": "workspace:*",
         "@trading-analyst/shared-types": "workspace:*",
+        "dotenv": "^17.3.1",
         "fastify": "^5.8.4",
         "ioredis": "^5.10.1",
         "zod": "^4.3.6",
@@ -30,6 +31,7 @@
     "apps/web": {
       "name": "@trading-analyst/web",
       "dependencies": {
+        "dotenv": "^17.3.1",
         "next": "^16.2.1",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
@@ -43,6 +45,7 @@
         "@trading-analyst/market-data": "workspace:*",
         "@trading-analyst/shared-types": "workspace:*",
         "bullmq": "^5.71.1",
+        "dotenv": "^17.3.1",
         "ioredis": "^5.10.1",
         "zod": "^4.3.6",
       },

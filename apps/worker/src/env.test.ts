@@ -1,7 +1,25 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
-import { workerEnvSchema } from "./env.js";
+import {
+  loadWorkerEnv,
+  shouldLoadWorkspaceEnv,
+  workerEnvSchema,
+} from "./env.js";
 
 const validTestUrl = (service: string) => `https://${service}.invalid`;
+
+function createWorkerAppDir(envContents: string): string {
+  const workspaceRoot = mkdtempSync(path.join(tmpdir(), "worker-env-"));
+  const appDir = path.join(workspaceRoot, "apps", "worker");
+
+  mkdirSync(appDir, { recursive: true });
+  writeFileSync(path.join(workspaceRoot, ".env.development"), envContents);
+
+  return appDir;
+}
 
 describe("worker environment", () => {
   it("requires explicit database and redis URLs", () => {
@@ -34,5 +52,35 @@ describe("worker environment", () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("loads infrastructure URLs from the workspace root when missing", () => {
+    const appDir = createWorkerAppDir(
+      `DATABASE_URL=${validTestUrl("database")}\nREDIS_URL=${validTestUrl("redis")}\n`,
+    );
+    const env: NodeJS.ProcessEnv = {
+      NODE_ENV: "development",
+      WORKER_CONCURRENCY: "1",
+    };
+
+    try {
+      expect(shouldLoadWorkspaceEnv(env)).toBe(true);
+      expect(
+        loadWorkerEnv(undefined, {
+          appDir,
+          env,
+        }),
+      ).toEqual({
+        NODE_ENV: "development",
+        DATABASE_URL: validTestUrl("database"),
+        REDIS_URL: validTestUrl("redis"),
+        WORKER_CONCURRENCY: 1,
+      });
+    } finally {
+      rmSync(path.resolve(appDir, "../.."), {
+        recursive: true,
+        force: true,
+      });
+    }
   });
 });

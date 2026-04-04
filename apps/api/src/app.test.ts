@@ -1,6 +1,7 @@
 import {
   getLatestIndicatorSnapshot,
   getLatestMarketData,
+  pingDatabase,
 } from "@trading-analyst/db";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
@@ -12,8 +13,14 @@ vi.mock("@trading-analyst/db", () => ({
   pingDatabase: vi.fn(async () => undefined),
 }));
 
+const pingRedisMock = vi.fn(async () => "PONG");
+
 vi.mock("ioredis", () => ({
   Redis: class {
+    ping() {
+      return pingRedisMock();
+    }
+
     quit() {
       return Promise.resolve();
     }
@@ -24,8 +31,8 @@ const app = await buildApp({
   NODE_ENV: "test",
   API_HOST: "api.invalid",
   API_PORT: 3001,
-  DATABASE_URL: "unused-database-connection",
-  REDIS_URL: "unused-redis-connection",
+  DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+  REDIS_URL: "redis://127.0.0.1:6379",
 });
 
 describe("api health routes", () => {
@@ -41,6 +48,40 @@ describe("api health routes", () => {
       status: "ok",
       environment: "test",
     });
+  });
+
+  it("returns detailed readiness issues when Redis is unavailable", async () => {
+    vi.mocked(pingDatabase).mockResolvedValueOnce(undefined);
+    pingRedisMock.mockRejectedValueOnce(
+      Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:6379"), {
+        code: "ECONNREFUSED",
+      }),
+    );
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/readyz",
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      service: "api",
+      status: "degraded",
+      checks: {
+        database: {
+          ok: true,
+          target: "127.0.0.1:5432",
+        },
+        redis: {
+          hint: "Start Redis or Docker Compose, then retry the worker and API.",
+          ok: false,
+          target: "127.0.0.1:6379",
+        },
+      },
+    });
+    expect(response.json().issues).toContain(
+      "Redis is not reachable at 127.0.0.1:6379. The worker will keep logging connection errors until Redis is available.",
+    );
   });
 
   it("returns the latest market snapshot when it exists", async () => {
