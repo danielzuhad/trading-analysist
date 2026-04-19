@@ -241,12 +241,12 @@ packages/
   db/
   indicators/
   market-data/
+  signal-aggregation/
   shared-types/
 ```
 
 Planned additions later:
 
-- `packages/signal-aggregation`
 - `packages/ai-analysis`
 - `packages/alert-engine`
 - `apps/chat-layer`

@@ -12,6 +12,7 @@ import {
   marketCandleSeriesSchema,
   marketSnapshotSchema,
   positionSchema,
+  signalAggregationSnapshotSchema,
   userPreferenceSchema,
   userWatchlistSchema,
 } from "../src/index.js";
@@ -491,5 +492,106 @@ describe("shared contracts", () => {
 
     expect(alert.positionId).toBe(transition.positionId);
     expect(alert.currentState).toBe("IN_POSITION");
+  });
+
+  it("parses a typed signal aggregation snapshot for the future AI input boundary", () => {
+    const snapshot = signalAggregationSnapshotSchema.parse({
+      id: "signal:crypto:global:SOL-USD:1H:2026-03-31T09:00:00.000Z",
+      asset: {
+        id: "crypto:global:SOL-USD",
+        symbol: "SOL",
+        displaySymbol: "SOL/USD",
+        name: "Solana",
+        assetClass: "crypto",
+        market: "global",
+        exchange: "global",
+        instrumentType: "spot",
+        baseCurrency: "SOL",
+        quoteCurrency: "USD",
+        providerSymbol: "SOL/USD",
+        isActive: true,
+        metadata: {},
+      },
+      marketSnapshot: {
+        id: "market-sol-1h",
+        assetId: "crypto:global:SOL-USD",
+        provider: "twelve-data",
+        timeframe: "1H",
+        capturedAt: timestamp,
+        lastPrice: 148.2,
+        candle: {
+          open: 146.4,
+          high: 149.1,
+          low: 145.9,
+          close: 148.2,
+          volume: 1823400,
+        },
+        marketSession: "continuous",
+        eventFlags: [],
+        metadata: {},
+      },
+      indicatorSnapshot: {
+        id: "indicator-sol-1h",
+        assetId: "crypto:global:SOL-USD",
+        timeframe: "1H",
+        calculatedAt: timestamp,
+        movingAverages: {
+          ema20: 146.8,
+          ema50: 143.4,
+          ema200: 129.2,
+        },
+        oscillators: {
+          rsi14: 61.4,
+        },
+        volatility: {
+          atr14: 3.6,
+          atrPercent: 2.4,
+          baseline: 2.9,
+          regime: "normal",
+        },
+        volume: {
+          current: 1823400,
+          average20: 1245000,
+          relativeVolume: 1.46,
+          trend: "up",
+        },
+        levels: {
+          support: [145.9, 142.2],
+          resistance: [149.8, 152.4],
+        },
+        structure: "uptrend",
+        metadata: {},
+      },
+      generatedAt: timestamp,
+      signalStrengthScore: 78,
+      bias: "bullish",
+      regime: "trend",
+      timeframeRelevance:
+        "Fast confirmation layer for crypto watchlist monitoring.",
+      riskFlags: ["price_near_resistance"],
+      keyLevels: {
+        nearestSupport: 145.9,
+        nearestResistance: 149.8,
+        invalidation: 144.1,
+      },
+      labels: [
+        {
+          key: "trend_alignment",
+          title: "Trend Alignment",
+          sentiment: "bullish",
+          scoreContribution: 30,
+          details:
+            "Price holds above a fully bullish EMA20/EMA50/EMA200 stack.",
+        },
+      ],
+      summary: "Bullish trend context led by trend alignment and structure.",
+      snapshotHash: "signal-hash-sol-1h",
+      metadata: {
+        signalAggregationVersion: "signal-aggregation:v1",
+      },
+    });
+
+    expect(snapshot.signalStrengthScore).toBe(78);
+    expect(snapshot.labels[0]?.key).toBe("trend_alignment");
   });
 });

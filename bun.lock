@@ -44,6 +44,7 @@
         "@trading-analyst/indicators": "workspace:*",
         "@trading-analyst/market-data": "workspace:*",
         "@trading-analyst/shared-types": "workspace:*",
+        "@trading-analyst/signal-aggregation": "workspace:*",
         "bullmq": "^5.71.1",
         "dotenv": "^17.3.1",
         "ioredis": "^5.10.1",
@@ -76,6 +77,12 @@
       "name": "@trading-analyst/shared-types",
       "dependencies": {
         "zod": "^4.3.6",
+      },
+    },
+    "packages/signal-aggregation": {
+      "name": "@trading-analyst/signal-aggregation",
+      "dependencies": {
+        "@trading-analyst/shared-types": "workspace:*",
       },
     },
   },
@@ -309,6 +316,8 @@
     "@trading-analyst/market-data": ["@trading-analyst/market-data@workspace:packages/market-data"],
 
     "@trading-analyst/shared-types": ["@trading-analyst/shared-types@workspace:packages/shared-types"],
+
+    "@trading-analyst/signal-aggregation": ["@trading-analyst/signal-aggregation@workspace:packages/signal-aggregation"],
 
     "@trading-analyst/web": ["@trading-analyst/web@workspace:apps/web"],
 

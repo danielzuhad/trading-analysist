@@ -14,6 +14,7 @@
     "@trading-analyst/db": "workspace:*",
     "@trading-analyst/indicators": "workspace:*",
     "@trading-analyst/market-data": "workspace:*",
+    "@trading-analyst/signal-aggregation": "workspace:*",
     "@trading-analyst/shared-types": "workspace:*",
     "bullmq": "^5.71.1",
     "dotenv": "^17.3.1",

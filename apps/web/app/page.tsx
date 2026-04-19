@@ -12,6 +12,7 @@ const stack = [
   "Redis for queues and coordination",
   "Crypto market-data baseline via Twelve Data",
   "Deterministic indicator engine",
+  "Deterministic signal aggregation",
 ];
 
 export default async function HomePage() {
@@ -21,13 +22,13 @@ export default async function HomePage() {
   return (
     <main className="shell">
       <section className="hero">
-        <p className="eyebrow">Sprint 1-4 Baseline</p>
+        <p className="eyebrow">Sprint 1-5 Foundation</p>
         <h1>Crypto Analyst Foundation</h1>
         <p className="lede">
           The repo currently covers the foundation, shared contracts, crypto
-          market-data baseline, and persisted indicator snapshots. Signal
-          aggregation, AI analysis, alerting, positions, and chat-layer delivery
-          still come in later sprints.
+          market-data baseline, persisted indicator snapshots, and deterministic
+          signal aggregation. AI analysis, alerting, positions, and chat-layer
+          delivery still come in later sprints.
         </p>
       </section>
 

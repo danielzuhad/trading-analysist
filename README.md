@@ -1,11 +1,12 @@
 # Trading Analyst
 
-This repository currently includes the Sprint 1-3 baseline plus the Sprint 4 indicator-engine path:
+This repository currently includes the Sprint 1-4 baseline plus the Sprint 5 signal-aggregation foundation:
 
 - Sprint 1 foundation
 - Sprint 2 shared contracts
 - Sprint 3 crypto market-data baseline
 - Sprint 4 indicator calculation, persistence, and read APIs
+- Sprint 5 signal aggregation snapshot assembly and deterministic scoring
 
 Agent execution policy lives in `AGENTS.md`.
 
@@ -17,6 +18,7 @@ Agent execution policy lives in `AGENTS.md`.
 - BullMQ (`apps/worker`)
 - Drizzle + PostgreSQL (`packages/db`)
 - Deterministic indicator calculations (`packages/indicators`)
+- Signal aggregation snapshot assembly (`packages/signal-aggregation`)
 - Market-data adapters (`packages/market-data`)
 - Zod-backed shared domain contracts (`packages/shared-types`)
 - Biome for linting/formatting
@@ -34,6 +36,7 @@ packages/
   db/
   indicators/
   market-data/
+  signal-aggregation/
   shared-types/
 
 infrastructure/
@@ -72,7 +75,8 @@ Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
 `packages/shared-types` is the source of truth for shared Sprint 2 contracts, including the minimal auth/session boundary for future API protection, plus schema validation.
 For the current MVP, monitored timeframes are `1H` and `4H` only. Timeframes `5m`, `15m`, and `1D` are post-MVP.
 `packages/indicators` now contains the reusable Sprint 4 indicator-engine calculations.
-The worker now calculates and persists latest indicator snapshots alongside latest market-data snapshots.
+`packages/signal-aggregation` now assembles the typed snapshot and deterministic `signal_strength_score` that will feed the future AI analysis layer.
+The worker now calculates latest signal aggregation snapshots in-memory alongside persisted market-data and indicator snapshots.
 `packages/market-data` is the Sprint 3 source of truth for normalized market-data ingestion.
 
 Current read endpoints:

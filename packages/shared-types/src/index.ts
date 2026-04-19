@@ -10,4 +10,5 @@ export * from "./market.js";
 export * from "./position.js";
 export * from "./preferences.js";
 export * from "./primitives.js";
+export * from "./signal.js";
 export * from "./watchlist.js";

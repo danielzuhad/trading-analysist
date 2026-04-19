@@ -80,6 +80,53 @@ const indicatorSnapshotFixture = {
   metadata: {},
 };
 
+const signalAggregationSnapshotFixture = {
+  id: "signal:crypto:global:BTC-USD:1H:2026-04-04T04:00:00.000Z",
+  asset: {
+    id: "crypto:global:BTC-USD",
+    symbol: "BTC",
+    displaySymbol: "BTC/USD",
+    name: "Bitcoin",
+    assetClass: "crypto" as const,
+    market: "global",
+    exchange: "global",
+    instrumentType: "spot",
+    baseCurrency: "BTC",
+    quoteCurrency: "USD",
+    providerSymbol: "BTC/USD",
+    isActive: true,
+    metadata: {},
+  },
+  marketSnapshot: marketDataFixture.snapshot,
+  indicatorSnapshot: indicatorSnapshotFixture,
+  generatedAt: "2026-04-04T04:00:00.000Z",
+  signalStrengthScore: 82,
+  bias: "bullish" as const,
+  regime: "trend" as const,
+  timeframeRelevance:
+    "Fast confirmation layer for crypto watchlist monitoring.",
+  riskFlags: [],
+  keyLevels: {
+    nearestSupport: 83200,
+    nearestResistance: 84880,
+    invalidation: 82594.75,
+  },
+  labels: [
+    {
+      key: "trend_alignment",
+      title: "Trend Alignment",
+      sentiment: "bullish" as const,
+      scoreContribution: 30,
+      details: "Price holds above a fully bullish EMA20/EMA50/EMA200 stack.",
+    },
+  ],
+  summary: "Bullish trend context led by trend alignment and structure.",
+  snapshotHash: "signal-hash-btc-1h",
+  metadata: {
+    signalAggregationVersion: "signal-aggregation:v1",
+  },
+};
+
 describe("market-data ingestion prep", () => {
   it("ships with a default crypto watchlist seed for the MVP", () => {
     expect(defaultCryptoWatchlistAssets.map((asset) => asset.symbol)).toEqual([
@@ -97,6 +144,9 @@ describe("market-data ingestion prep", () => {
   it("fetches and persists latest market data through injectable dependencies", async () => {
     const fetchMarketData = vi.fn(async () => marketDataFixture);
     const buildIndicator = vi.fn(() => indicatorSnapshotFixture);
+    const buildSignalAggregation = vi.fn(
+      () => signalAggregationSnapshotFixture,
+    );
     const persistLatestIndicatorSnapshot = vi.fn(
       async () => indicatorSnapshotFixture,
     );
@@ -111,6 +161,7 @@ describe("market-data ingestion prep", () => {
       apiKey: "test-key",
       asset,
       buildIndicator,
+      buildSignalAggregation,
       connectionString: "postgresql://db.invalid/trading_analyst",
       fetchService: {
         fetchMarketData,
@@ -129,12 +180,18 @@ describe("market-data ingestion prep", () => {
       "postgresql://db.invalid/trading_analyst",
     );
     expect(buildIndicator).toHaveBeenCalledWith(marketDataFixture.series);
+    expect(buildSignalAggregation).toHaveBeenCalledWith({
+      asset,
+      indicatorSnapshot: indicatorSnapshotFixture,
+      marketData: marketDataFixture,
+    });
     expect(persistLatestIndicatorSnapshot).toHaveBeenCalledWith(
       indicatorSnapshotFixture,
       "postgresql://db.invalid/trading_analyst",
     );
     expect(result.marketData.snapshot.assetId).toBe("crypto:global:BTC-USD");
     expect(result.indicatorSnapshot.structure).toBe("uptrend");
+    expect(result.signalAggregationSnapshot.signalStrengthScore).toBe(82);
   });
 
   it("skips a market snapshot job when the API key is missing", async () => {
@@ -164,6 +221,9 @@ describe("market-data ingestion prep", () => {
   it("stores a market snapshot job when dependencies are available", async () => {
     const fetchMarketData = vi.fn(async () => marketDataFixture);
     const buildIndicator = vi.fn(() => indicatorSnapshotFixture);
+    const buildSignalAggregation = vi.fn(
+      () => signalAggregationSnapshotFixture,
+    );
     const persistLatestIndicatorSnapshot = vi.fn(
       async () => indicatorSnapshotFixture,
     );
@@ -174,6 +234,7 @@ describe("market-data ingestion prep", () => {
       apiKey: "test-key",
       assetId: "crypto:global:BTC-USD",
       buildIndicator,
+      buildSignalAggregation,
       connectionString: "postgresql://db.invalid/trading_analyst",
       fetchService: {
         fetchMarketData,
@@ -194,10 +255,19 @@ describe("market-data ingestion prep", () => {
       indicatorSnapshotId: "indicator:crypto:global:BTC-USD:1H",
       requestedAt: "2026-04-04T04:00:00.000Z",
       snapshotId: "market:twelve-data:crypto:global:BTC-USD:1H",
+      signalBias: "bullish",
+      signalSnapshotId:
+        "signal:crypto:global:BTC-USD:1H:2026-04-04T04:00:00.000Z",
+      signalStrengthScore: 82,
       status: "stored",
       timeframe: "1H",
     });
     expect(buildIndicator).toHaveBeenCalledWith(marketDataFixture.series);
+    expect(buildSignalAggregation).toHaveBeenCalledWith({
+      asset: defaultCryptoWatchlistAssets[0],
+      indicatorSnapshot: indicatorSnapshotFixture,
+      marketData: marketDataFixture,
+    });
     expect(log).toHaveBeenCalledOnce();
   });
 });

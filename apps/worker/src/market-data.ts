@@ -11,8 +11,10 @@ import {
 import type {
   Asset,
   IndicatorSnapshot,
+  SignalAggregationSnapshot,
   SupportedTimeframe,
 } from "@trading-analyst/shared-types";
+import { buildSignalAggregationSnapshot } from "@trading-analyst/signal-aggregation";
 
 type Logger = Pick<typeof console, "error" | "log" | "warn">;
 
@@ -70,6 +72,11 @@ type IngestLatestMarketDataOptions = {
   apiKey: string;
   asset: Asset;
   buildIndicator?: (data: LatestMarketData["series"]) => IndicatorSnapshot;
+  buildSignalAggregation?: (input: {
+    asset: Asset;
+    indicatorSnapshot: IndicatorSnapshot;
+    marketData: LatestMarketData;
+  }) => SignalAggregationSnapshot;
   connectionString?: string;
   fetchService?: MarketFetchServiceLike;
   persistLatestIndicatorSnapshot?: (
@@ -87,6 +94,11 @@ type ProcessMarketSnapshotJobOptions = {
   apiKey?: string;
   assetId: string;
   buildIndicator?: (data: LatestMarketData["series"]) => IndicatorSnapshot;
+  buildSignalAggregation?: (input: {
+    asset: Asset;
+    indicatorSnapshot: IndicatorSnapshot;
+    marketData: LatestMarketData;
+  }) => SignalAggregationSnapshot;
   connectionString?: string;
   fetchService?: MarketFetchServiceLike;
   logger?: Logger;
@@ -108,6 +120,9 @@ export type MarketSnapshotJobResult =
       indicatorSnapshotId: string;
       requestedAt: string;
       snapshotId: string;
+      signalBias: SignalAggregationSnapshot["bias"];
+      signalSnapshotId: string;
+      signalStrengthScore: number;
       status: "stored";
       timeframe: SupportedTimeframe;
     }
@@ -133,6 +148,17 @@ export async function ingestLatestMarketData({
   apiKey,
   asset,
   buildIndicator = (series) => buildIndicatorSnapshot({ marketSeries: series }),
+  buildSignalAggregation = ({
+    asset: currentAsset,
+    indicatorSnapshot,
+    marketData,
+  }) =>
+    buildSignalAggregationSnapshot({
+      asset: currentAsset,
+      generatedAt: marketData.snapshot.capturedAt,
+      indicatorSnapshot,
+      marketSnapshot: marketData.snapshot,
+    }),
   connectionString,
   fetchService = createMarketFetchService(apiKey),
   persistLatestIndicatorSnapshot = saveLatestIndicatorSnapshot,
@@ -147,10 +173,16 @@ export async function ingestLatestMarketData({
   await persistLatestMarketData(marketData, connectionString);
   const indicatorSnapshot = buildIndicator(marketData.series);
   await persistLatestIndicatorSnapshot(indicatorSnapshot, connectionString);
+  const signalAggregationSnapshot = buildSignalAggregation({
+    asset,
+    indicatorSnapshot,
+    marketData,
+  });
 
   return {
     indicatorSnapshot,
     marketData,
+    signalAggregationSnapshot,
   };
 }
 
@@ -158,6 +190,7 @@ export async function processMarketSnapshotJob({
   apiKey,
   assetId,
   buildIndicator,
+  buildSignalAggregation,
   connectionString,
   fetchService,
   logger = console,
@@ -196,21 +229,23 @@ export async function processMarketSnapshotJob({
     };
   }
 
-  const { indicatorSnapshot, marketData } = await ingestLatestMarketData({
-    apiKey,
-    asset,
-    timeframe,
-    ...(buildIndicator ? { buildIndicator } : {}),
-    ...(connectionString ? { connectionString } : {}),
-    ...(fetchService ? { fetchService } : {}),
-    ...(persistLatestIndicatorSnapshot
-      ? { persistLatestIndicatorSnapshot }
-      : {}),
-    ...(persistLatestMarketData ? { persistLatestMarketData } : {}),
-  });
+  const { indicatorSnapshot, marketData, signalAggregationSnapshot } =
+    await ingestLatestMarketData({
+      apiKey,
+      asset,
+      timeframe,
+      ...(buildIndicator ? { buildIndicator } : {}),
+      ...(buildSignalAggregation ? { buildSignalAggregation } : {}),
+      ...(connectionString ? { connectionString } : {}),
+      ...(fetchService ? { fetchService } : {}),
+      ...(persistLatestIndicatorSnapshot
+        ? { persistLatestIndicatorSnapshot }
+        : {}),
+      ...(persistLatestMarketData ? { persistLatestMarketData } : {}),
+    });
 
   logger.log(
-    `[worker] stored market snapshot ${marketData.snapshot.id} and indicator snapshot ${indicatorSnapshot.id} for ${asset.displaySymbol} ${timeframe}`,
+    `[worker] stored market snapshot ${marketData.snapshot.id}, indicator snapshot ${indicatorSnapshot.id}, and signal snapshot ${signalAggregationSnapshot.id} for ${asset.displaySymbol} ${timeframe} with score ${signalAggregationSnapshot.signalStrengthScore}`,
   );
 
   return {
@@ -218,6 +253,9 @@ export async function processMarketSnapshotJob({
     indicatorSnapshotId: indicatorSnapshot.id,
     requestedAt,
     snapshotId: marketData.snapshot.id,
+    signalBias: signalAggregationSnapshot.bias,
+    signalSnapshotId: signalAggregationSnapshot.id,
+    signalStrengthScore: signalAggregationSnapshot.signalStrengthScore,
     status: "stored",
     timeframe,
   };
