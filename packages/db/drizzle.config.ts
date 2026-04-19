@@ -1,5 +1,7 @@
-import "dotenv/config";
 import { defineConfig } from "drizzle-kit";
+import { ensureWorkspaceEnvLoaded } from "./src/env.js";
+
+ensureWorkspaceEnvLoaded();
 
 const databaseUrl = process.env.DATABASE_URL;
 

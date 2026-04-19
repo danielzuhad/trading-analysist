@@ -1,131 +1,118 @@
-# Trading Analyst
+# AI Trading Analyst Dashboard
 
-This repository currently includes the Sprint 1-4 baseline plus the Sprint 5 signal-aggregation foundation:
+AI Trading Analyst Dashboard adalah sistem pendukung keputusan untuk trading crypto manual.
 
-- Sprint 1 foundation
-- Sprint 2 shared contracts
-- Sprint 3 crypto market-data baseline
-- Sprint 4 indicator calculation, persistence, and read APIs
-- Sprint 5 signal aggregation snapshot assembly and deterministic scoring
+Produk ini membantu pengguna memantau watchlist, memahami kondisi pasar lebih cepat, menerima analisis dan alert yang terstruktur, lalu menjaga keputusan tetap konsisten antara dashboard web dan chat layer. Eksekusi trading tetap dilakukan di aplikasi broker atau exchange eksternal.
 
-Agent execution policy lives in `AGENTS.md`.
+## Product Intent
 
-## Stack
+Fokus utama produk ini adalah mengubah data pasar yang tersebar menjadi keputusan yang lebih jelas dan bisa diaudit. Sistem ini tidak mengejar spam sinyal atau automasi order, tetapi membantu pengguna menjawab pertanyaan inti:
 
-- Bun workspaces + Turborepo
-- Next.js (`apps/web`)
-- Fastify (`apps/api`)
-- BullMQ (`apps/worker`)
-- Drizzle + PostgreSQL (`packages/db`)
-- Deterministic indicator calculations (`packages/indicators`)
-- Signal aggregation snapshot assembly (`packages/signal-aggregation`)
-- Market-data adapters (`packages/market-data`)
-- Zod-backed shared domain contracts (`packages/shared-types`)
-- Biome for linting/formatting
-- Vitest for testing
+- aset mana yang layak diperhatikan sekarang
+- mengapa aset itu menarik atau berisiko
+- apa rencana aksi yang masuk akal
+- kapan kondisi analisis sudah tidak valid
+- bagaimana analisis berubah saat pengguna sudah punya posisi
 
-## Workspace Layout
+Produk ini bukan:
 
-```text
-apps/
-  web/
-  api/
-  worker/
+- auto-trading bot
+- broker atau exchange
+- alat eksekusi order
+- sistem copy-trading
 
-packages/
-  db/
-  indicators/
-  market-data/
-  signal-aggregation/
-  shared-types/
+## MVP Scope
 
-infrastructure/
-  docker/
-```
+Phase 1 bersifat crypto-first.
 
-## Getting Started
+Lingkup MVP saat ini:
 
-1. Copy `.env.development.example` to `.env.development` for local work.
-2. Fill the required PostgreSQL credentials and connection URLs in `.env.development`.
-3. Start PostgreSQL and Redis with Docker Compose.
-4. Add `TWELVE_DATA_API_KEY` to enable the current crypto market-data ingestion path. The same Twelve Data account can be reused later when post-MVP stock adapters are added.
-5. Use Bun `1.3.11` or newer.
-6. Install dependencies with `bun install`.
-7. Run the monorepo with `bun run dev`.
+- fokus pada aset crypto likuid seperti BTC, ETH, dan SOL
+- analisis berjalan pada timeframe `1H` dan `4H`
+- sistem menghasilkan ranking watchlist, decision card aset, alert bermakna, dan dukungan posisi manual
+- hasil analisis tersedia lewat dashboard web dan WhatsApp API chat layer
 
-To start the local infrastructure:
+Di luar MVP:
 
-```bash
-docker compose -f infrastructure/docker/docker-compose.yml up -d
-```
+- saham US
+- saham IDX
+- sinkronisasi broker
+- akuntansi portofolio penuh
+- semi-automated trading
 
-## Commands
+## Business Flow
 
-- `bun run dev` to run all apps
-- `bun run build` to build the workspace
-- `bun run lint` to lint all packages
-- `bun run typecheck` to type-check all packages
-- `bun run test` to run tests
-- `bun run db:generate` to generate Drizzle migrations
-- `bun run db:migrate` to run Drizzle migrations
+Alur bisnis produk ini secara garis besar adalah:
 
-Infrastructure-backed integration tests are included for the database, API routes, and worker persistence/bootstrap flows.
-Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
+1. Sistem memantau aset pada watchlist pengguna.
+2. Data harga, konteks pasar, sentimen, derivatif, dan berita dikumpulkan untuk aset yang relevan.
+3. Mesin indikator menghitung sinyal teknikal deterministik.
+4. Signal aggregation layer menyusun snapshot terstruktur dan menghitung `signal_strength_score`.
+5. AI analysis engine membaca snapshot tersebut dan menghasilkan analisis penuh, termasuk state, alasan utama, concern, rencana aksi, dan invalidation.
+6. Sistem mendeteksi perubahan kondisi penting lalu mengirimkan hasil ke dashboard dan chat layer.
+7. Saat pengguna mencatat posisi manual, analisis berikutnya menjadi position-aware dan alert ikut menyesuaikan konteks posisi.
 
-`packages/shared-types` is the source of truth for shared Sprint 2 contracts, including the minimal auth/session boundary for future API protection, plus schema validation.
-For the current MVP, monitored timeframes are `1H` and `4H` only. Timeframes `5m`, `15m`, and `1D` are post-MVP.
-`packages/indicators` now contains the reusable Sprint 4 indicator-engine calculations.
-`packages/signal-aggregation` now assembles the typed snapshot and deterministic `signal_strength_score` that will feed the future AI analysis layer.
-The worker now persists latest signal aggregation snapshots alongside persisted market-data and indicator snapshots.
-`packages/market-data` is the Sprint 3 source of truth for normalized market-data ingestion.
+## High-Level Architecture
 
-Current read endpoints:
-- `GET /market-snapshots/latest?assetId=...&timeframe=...`
-- `GET /indicator-snapshots/latest?assetId=...&timeframe=...`
-- `GET /signal-snapshots/latest?assetId=...&timeframe=...`
-- `GET /readyz` returns PostgreSQL and Redis readiness with developer-facing issue messages
+Arsitektur produk ini dibagi ke beberapa lapisan utama:
 
-**Market data provider: Twelve Data.**
-Twelve Data is the primary provider for the crypto MVP market-data path.
-`TWELVE_DATA_API_KEY` is required for market-data ingestion.
+- Data ingestion layer
+Mengumpulkan data market, market context, derivatives context, dan news dari provider yang sudah disetujui untuk MVP.
 
-Current MVP scope is crypto-first.
-US stock support will be added post-MVP as a separate extension using the same Twelve Data account.
-IDX stock support (BBCA, BBRI, and similar) will be added later via Sectors.app as a separate adapter.
+- Indicator engine
+Mengubah data mentah menjadi sinyal teknikal yang konsisten dan bisa dihitung ulang secara deterministik.
 
-**Binance is not used in this repository.**
+- Signal aggregation layer
+Menyusun snapshot terstruktur dan menghitung `signal_strength_score`. Layer ini tidak memutuskan state atau saran trading.
 
-Current external-provider implementation status through Sprint 4:
-- Twelve Data: implemented for crypto OHLCV and latest-price ingestion
-- CoinGecko, alternative.me, Bybit, and CryptoPanic: approved MVP providers, but not wired in the current codebase yet
-- OpenAI: approved AI provider, but not wired in the current codebase yet
-- WhatsApp API chat layer: target delivery channel, not implemented in the current codebase yet
+- AI analysis layer
+Menjadi inti analisis. AI menerima snapshot yang sudah terstruktur, lalu menghasilkan output typed yang berisi state, confidence, summary, alasan, action plan, dan invalidation.
 
-Twelve Data plan requirements by phase:
-- Sprint 1-4 foundations: Free tier — adequate for local validation of the current `1H` and `4H` crypto ingestion and indicator path
-- Later expansion: upgrade only when asset count, polling frequency, or post-MVP scope requires it
-- Real-time monitoring later: Pro-tier features are only relevant if the repo intentionally adopts WebSocket-driven monitoring in a later phase
+- Delivery layer
+Menyajikan hasil melalui web dashboard, alert pipeline, dan WhatsApp API chat layer.
 
-The Phase 1 chat layer target is the WhatsApp API. That delivery layer is not implemented in the current codebase yet.
+- Persistence and audit layer
+Menyimpan snapshot, hasil analisis, confidence, dan metadata audit agar keputusan bisa dilacak dari waktu ke waktu.
 
-Infrastructure credentials are intentionally not hardcoded in the repository.
-Local PostgreSQL values for `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `DATABASE_URL` must be defined through `.env.development`.
-Production values should live in `.env.production` or in your VPS/process manager secret store, and they will usually differ from local development values.
+## Operating Principles
 
-The repo keeps environment files at the workspace root. Web, API, and worker startup now load root `.env`, `.env.development` or `.env.production`, then `.env.local` with increasing precedence so `bun run dev` works consistently through Turbo from the repo root.
+Beberapa prinsip arsitektur yang menjadi pegangan repo ini:
 
-## Git Hooks
+- AI adalah analyst utama, bukan sekadar summarizer
+- `signal_strength_score` harus dihitung secara deterministik sebelum AI dipanggil
+- `ai_confidence` harus tetap berada dalam rentang `signal_strength_score +/- 20`
+- crypto adalah prioritas MVP sebelum ekspansi ke saham
+- Binance tidak dipakai dalam repository ini
+- chat layer pada MVP menggunakan WhatsApp API
 
-Husky is enabled in this repository.
+## Key Outputs
 
-- `pre-commit` runs `bun run lint`, `bun run typecheck`, and `bun run test`
+Setiap aset yang dianalisis diharapkan menghasilkan output inti berikut:
 
-This means commit-time quality checks happen automatically before a commit is accepted. Build verification still runs in CI and remains part of the required validation commands.
+- state aset
+- deterministic signal strength
+- AI confidence
+- ringkasan kondisi
+- alasan utama dan concern
+- rencana aksi
+- invalidation
+- panduan risiko dan relevansi timeframe
 
-## Local Infrastructure
+State utama yang dipakai produk ini:
 
-Docker is expected for local PostgreSQL and Redis. In this WSL environment, Docker Desktop WSL integration must be enabled before `docker compose` commands will work.
+- `IGNORE`
+- `WATCH`
+- `PREPARE`
+- `ACTIONABLE`
+- `IN_POSITION`
+- `EXIT_WARNING`
+- `INVALID`
 
-If `bun` still resolves to the Windows-side installation inside WSL, prefer a native WSL Bun binary on your shell `PATH`.
+## Repository Guide
 
-The CI workflow provisions PostgreSQL and Redis services, runs `bun run db:migrate`, and then executes the full test suite with `RUN_INFRA_TESTS=true`.
+Dokumen utama repo ini:
+
+- [architecture.md](architecture.md) untuk arah produk dan sistem
+- [sprints.md](sprints.md) untuk urutan delivery
+- [AGENTS.md](AGENTS.md) untuk aturan eksekusi implementasi
+- [docs/development.md](docs/development.md) untuk setup lokal, environment, commands, dan catatan teknis repo
