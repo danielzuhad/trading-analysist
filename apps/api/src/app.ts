@@ -1,5 +1,6 @@
 import {
   closeDatabase,
+  getLatestAssetAnalysis,
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
@@ -29,6 +30,8 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
     redis,
   });
   await registerMarketDataRoutes(app, {
+    getLatestAssetAnalysis: (assetId, timeframe) =>
+      getLatestAssetAnalysis(assetId, timeframe, env.DATABASE_URL),
     getLatestIndicatorSnapshot: (assetId, timeframe) =>
       getLatestIndicatorSnapshot(assetId, timeframe, env.DATABASE_URL),
     getLatestMarketData: (assetId, timeframe) =>

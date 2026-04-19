@@ -11,6 +11,8 @@ export const workerEnvSchema = z.object({
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
   TWELVE_DATA_API_KEY: z.string().trim().min(1).optional(),
+  OPENAI_API_KEY: z.string().trim().min(1).optional(),
+  MAX_DAILY_AI_COST_USD: z.coerce.number().finite().min(0).default(2),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(1),
 });
 

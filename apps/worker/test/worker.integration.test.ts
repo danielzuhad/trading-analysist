@@ -37,6 +37,7 @@ describeInfrastructure("worker bootstrap", () => {
     runtime = await startWorkerRuntime({
       env: {
         DATABASE_URL: "https://database.invalid",
+        MAX_DAILY_AI_COST_USD: 2,
         NODE_ENV: "test",
         REDIS_URL: requireRedisUrl(),
         TWELVE_DATA_API_KEY: "test-key",

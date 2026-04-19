@@ -11,6 +11,7 @@ Repository ini saat ini mencakup:
 - Sprint 3 crypto market-data baseline
 - Sprint 4 indicator calculation, persistence, and read APIs
 - Sprint 5 signal aggregation snapshot assembly and deterministic scoring
+- Sprint 6 AI analysis engine, persistence, and read API
 
 ## Workspace Layout
 
@@ -21,6 +22,7 @@ apps/
   worker/
 
 packages/
+  ai-analysis/
   db/
   indicators/
   market-data/
@@ -37,9 +39,10 @@ infrastructure/
 2. Isi PostgreSQL credentials dan connection URLs di `.env.development`.
 3. Jalankan PostgreSQL dan Redis untuk local development.
 4. Isi `TWELVE_DATA_API_KEY` untuk mengaktifkan market-data ingestion path saat ini.
-5. Gunakan Bun `1.3.11` atau lebih baru.
-6. Jalankan `bun install`.
-7. Jalankan monorepo dengan `bun run dev`.
+5. Isi `OPENAI_API_KEY` jika ingin menjalankan AI analysis path secara live.
+6. Gunakan Bun `1.3.11` atau lebih baru.
+7. Jalankan `bun install`.
+8. Jalankan monorepo dengan `bun run dev`.
 
 Untuk menjalankan local infrastructure:
 
@@ -72,6 +75,11 @@ Untuk local development, nilai berikut harus didefinisikan di `.env.development`
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
 - `REDIS_URL`
+- `TWELVE_DATA_API_KEY`
+
+Nilai berikut dibutuhkan saat AI analysis live ingin dijalankan:
+
+- `OPENAI_API_KEY`
 
 Tooling database seperti `bun run db:migrate` membaca env dari workspace root dengan urutan `.env`, `.env.development` atau `.env.production`, lalu `.env.local`.
 
@@ -86,15 +94,16 @@ Endpoint read yang tersedia saat ini:
 - `GET /market-snapshots/latest?assetId=...&timeframe=...`
 - `GET /indicator-snapshots/latest?assetId=...&timeframe=...`
 - `GET /signal-snapshots/latest?assetId=...&timeframe=...`
+- `GET /asset-analyses/latest?assetId=...&timeframe=...`
 - `GET /readyz`
 
 ## Provider Notes
 
-Current external-provider implementation status through Sprint 4:
+Current external-provider implementation status through Sprint 6:
 
 - Twelve Data: implemented untuk crypto OHLCV dan latest-price ingestion
 - CoinGecko, alternative.me, Bybit, dan CryptoPanic: approved untuk MVP, belum wired di codebase saat ini
-- OpenAI: approved AI provider, belum wired di codebase saat ini
+- OpenAI: wired untuk AI analysis engine melalui provider adapter dan `OPENAI_API_KEY`
 - WhatsApp API chat layer: target delivery channel, belum implemented di codebase saat ini
 
 Twelve Data tetap menjadi provider utama untuk crypto MVP.

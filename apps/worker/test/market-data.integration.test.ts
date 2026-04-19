@@ -3,8 +3,8 @@ import {
   closeDatabase,
   getLatestIndicatorSnapshot,
   getLatestMarketData,
-  getLatestSignalAggregationSnapshot,
   type LatestMarketData,
+  listLatestSignalAggregationSnapshots,
 } from "@trading-analyst/db";
 import type { IndicatorSnapshot } from "@trading-analyst/shared-types";
 import { afterAll, describe, expect, it } from "vitest";
@@ -154,10 +154,10 @@ describeInfrastructure("worker market-data persistence", () => {
       "1H",
       databaseUrl,
     );
-    const persistedSignalSnapshot = await getLatestSignalAggregationSnapshot(
-      assetId,
-      "1H",
-      databaseUrl,
+    const persistedSignalSnapshots =
+      await listLatestSignalAggregationSnapshots(databaseUrl);
+    const persistedSignalSnapshot = persistedSignalSnapshots.find(
+      (snapshot) => snapshot.id === result.signalSnapshotId,
     );
 
     expect(persistedMarketData?.snapshot.id).toBe(marketSnapshotId);
@@ -168,6 +168,7 @@ describeInfrastructure("worker market-data persistence", () => {
     expect(persistedIndicator?.metadata).toMatchObject({
       uniqueSuffix,
     });
+    expect(persistedSignalSnapshot).toBeDefined();
     expect(persistedSignalSnapshot?.signalStrengthScore).toBeGreaterThan(0);
     expect(persistedSignalSnapshot?.asset.id).toBe(assetId);
     expect(persistedSignalSnapshot?.marketSnapshot.metadata).toMatchObject({

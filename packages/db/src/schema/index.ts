@@ -1,5 +1,6 @@
 import type {
   IndicatorSnapshot,
+  LatestAssetAnalysis,
   MarketCandle,
   MarketSnapshot,
   OhlcvCandle,
@@ -125,7 +126,65 @@ export const signalAggregationLatestSnapshots = pgTable(
   },
 );
 
+export const assetAnalysisLatestSnapshots = pgTable(
+  "asset_analysis_latest_snapshots",
+  {
+    id: text("id").primaryKey(),
+    assetId: text("asset_id").notNull(),
+    timeframe: text("timeframe").notNull(),
+    generatedAt: timestamp("generated_at", {
+      withTimezone: true,
+    }).notNull(),
+    asset: jsonb("asset").$type<LatestAssetAnalysis["asset"]>().notNull(),
+    marketSnapshot: jsonb("market_snapshot")
+      .$type<LatestAssetAnalysis["marketSnapshot"]>()
+      .notNull(),
+    indicatorSnapshot: jsonb("indicator_snapshot")
+      .$type<LatestAssetAnalysis["indicatorSnapshot"]>()
+      .notNull(),
+    position: jsonb("position").$type<LatestAssetAnalysis["position"]>(),
+    state: text("state").notNull(),
+    suggestion: text("suggestion").notNull(),
+    summary: text("summary").notNull(),
+    decisionCard: jsonb("decision_card")
+      .$type<LatestAssetAnalysis["decisionCard"]>()
+      .notNull(),
+    regime: text("regime").notNull(),
+    bias: text("bias").notNull(),
+    signalStrengthScore: integer("signal_strength_score").notNull(),
+    aiConfidence: integer("ai_confidence").notNull(),
+    originalAiConfidence: integer("original_ai_confidence"),
+    concerns: jsonb("concerns")
+      .$type<LatestAssetAnalysis["concerns"]>()
+      .notNull(),
+    suggestedPositionSize: text("suggested_position_size").notNull(),
+    timeframeRelevance: text("timeframe_relevance").notNull(),
+    riskFlags: jsonb("risk_flags")
+      .$type<LatestAssetAnalysis["riskFlags"]>()
+      .notNull(),
+    keyLevels: jsonb("key_levels")
+      .$type<LatestAssetAnalysis["keyLevels"]>()
+      .notNull(),
+    modelUsed: text("model_used").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    snapshotHash: text("snapshot_hash").notNull(),
+    aiLatencyMs: integer("ai_latency_ms").notNull(),
+    costEstimateUsd: text("cost_estimate_usd").notNull(),
+    triggeredBy: text("triggered_by").notNull(),
+    notes: text("notes"),
+    metadata: jsonb("metadata")
+      .$type<LatestAssetAnalysis["metadata"]>()
+      .notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+  },
+);
+
 export const schema = {
+  assetAnalysisLatestSnapshots,
   indicatorLatestSnapshots,
   marketLatestSnapshots,
   signalAggregationLatestSnapshots,

@@ -1,4 +1,7 @@
-import type { LatestMarketData } from "@trading-analyst/db";
+import type {
+  LatestAssetAnalysis,
+  LatestMarketData,
+} from "@trading-analyst/db";
 import type {
   IndicatorSnapshot,
   SignalAggregationSnapshot,
@@ -26,6 +29,10 @@ type Dependencies = {
     assetId: string,
     timeframe: SupportedTimeframe,
   ) => Promise<SignalAggregationSnapshot | null>;
+  getLatestAssetAnalysis: (
+    assetId: string,
+    timeframe: SupportedTimeframe,
+  ) => Promise<LatestAssetAnalysis | null>;
 };
 
 export async function registerMarketDataRoutes(
@@ -115,6 +122,35 @@ export async function registerMarketDataRoutes(
 
     return {
       snapshot: signalSnapshot,
+    };
+  });
+
+  app.get("/asset-analyses/latest", async (request, reply) => {
+    const queryResult = latestMarketDataQuerySchema.safeParse(request.query);
+
+    if (!queryResult.success) {
+      return reply.code(400).send({
+        error: "INVALID_QUERY",
+        issues: queryResult.error.issues,
+      });
+    }
+
+    const { assetId, timeframe } = queryResult.data;
+    const assetAnalysis = await dependencies.getLatestAssetAnalysis(
+      assetId,
+      timeframe,
+    );
+
+    if (!assetAnalysis) {
+      return reply.code(404).send({
+        error: "ASSET_ANALYSIS_NOT_FOUND",
+        assetId,
+        timeframe,
+      });
+    }
+
+    return {
+      snapshot: assetAnalysis,
     };
   });
 }

@@ -40,6 +40,7 @@
     "apps/worker": {
       "name": "@trading-analyst/worker",
       "dependencies": {
+        "@trading-analyst/ai-analysis": "workspace:*",
         "@trading-analyst/db": "workspace:*",
         "@trading-analyst/indicators": "workspace:*",
         "@trading-analyst/market-data": "workspace:*",
@@ -49,6 +50,12 @@
         "dotenv": "^17.3.1",
         "ioredis": "^5.10.1",
         "zod": "^4.3.6",
+      },
+    },
+    "packages/ai-analysis": {
+      "name": "@trading-analyst/ai-analysis",
+      "dependencies": {
+        "@trading-analyst/shared-types": "workspace:*",
       },
     },
     "packages/db": {
@@ -306,6 +313,8 @@
     "@standard-schema/spec": ["@standard-schema/spec@1.1.0", "", {}, "sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w=="],
 
     "@swc/helpers": ["@swc/helpers@0.5.15", "", { "dependencies": { "tslib": "^2.8.0" } }, "sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g=="],
+
+    "@trading-analyst/ai-analysis": ["@trading-analyst/ai-analysis@workspace:packages/ai-analysis"],
 
     "@trading-analyst/api": ["@trading-analyst/api@workspace:apps/api"],
 

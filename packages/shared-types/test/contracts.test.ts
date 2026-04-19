@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  aiAnalysisEngineOutputSchema,
   alertSchema,
   apiAuthContextSchema,
   assetAnalysisSchema,
@@ -9,6 +10,7 @@ import {
   decisionCardSchema,
   executionRecordSchema,
   indicatorSnapshotSchema,
+  latestAssetAnalysisSchema,
   marketCandleSeriesSchema,
   marketSnapshotSchema,
   positionSchema,
@@ -593,5 +595,145 @@ describe("shared contracts", () => {
 
     expect(snapshot.signalStrengthScore).toBe(78);
     expect(snapshot.labels[0]?.key).toBe("trend_alignment");
+  });
+
+  it("parses a strict AI analysis engine output", () => {
+    const result = aiAnalysisEngineOutputSchema.parse({
+      state: "ACTIONABLE",
+      suggestion: "ENTRY_ON_CONFIRMATION",
+      summary: "Trend and momentum align, but confirmation is still required.",
+      keyReasons: [
+        "EMA stack remains bullish.",
+        "RSI confirms upside momentum without clear exhaustion.",
+      ],
+      concerns: ["Resistance remains close overhead."],
+      actionPlan: [
+        "Wait for a decisive close above the nearest resistance.",
+        "Keep risk small until the breakout confirms.",
+      ],
+      executionMethod: "Enter only after a confirmed breakout candle close.",
+      invalidation: "Stand aside if price loses the nearest support zone.",
+      riskLevel: "medium",
+      suggestedPositionSize: "conservative",
+      aiConfidence: 78,
+    });
+
+    expect(result.state).toBe("ACTIONABLE");
+    expect(result.aiConfidence).toBe(78);
+  });
+
+  it("parses a persisted latest asset analysis snapshot", () => {
+    const analysis = latestAssetAnalysisSchema.parse({
+      id: "analysis:latest:crypto:global:BTC-USD:1H",
+      asset: {
+        id: "crypto:global:BTC-USD",
+        symbol: "BTC",
+        displaySymbol: "BTC/USD",
+        name: "Bitcoin",
+        assetClass: "crypto",
+        market: "global",
+        exchange: "global",
+        instrumentType: "spot",
+        baseCurrency: "BTC",
+        quoteCurrency: "USD",
+        providerSymbol: "BTC/USD",
+        isActive: true,
+        metadata: {},
+      },
+      marketSnapshot: {
+        id: "market-btc-1h",
+        assetId: "crypto:global:BTC-USD",
+        provider: "twelve-data",
+        timeframe: "1H",
+        capturedAt: timestamp,
+        lastPrice: 84250.5,
+        candle: {
+          open: 84180.7,
+          high: 84420.2,
+          low: 84090.4,
+          close: 84250.5,
+          volume: 1310.4,
+        },
+        marketSession: "continuous",
+        eventFlags: [],
+        metadata: {},
+      },
+      indicatorSnapshot: {
+        id: "indicator-btc-1h",
+        assetId: "crypto:global:BTC-USD",
+        timeframe: "1H",
+        calculatedAt: timestamp,
+        movingAverages: {
+          ema20: 84210.2,
+          ema50: 83820.4,
+          ema200: 80155.7,
+        },
+        oscillators: {
+          rsi14: 62.4,
+        },
+        volatility: {
+          atr14: 1210.5,
+          atrPercent: 1.44,
+          baseline: 1.2,
+          regime: "expanded",
+        },
+        volume: {
+          current: 1310.4,
+          average20: 1180.2,
+          relativeVolume: 1.11,
+          trend: "up",
+        },
+        levels: {
+          support: [83200, 82450],
+          resistance: [84880, 85520],
+        },
+        structure: "uptrend",
+        metadata: {},
+      },
+      state: "ACTIONABLE",
+      suggestion: "ENTRY_ON_CONFIRMATION",
+      summary: "Trend is constructive, but confirmation is still required.",
+      decisionCard: {
+        summary: "Trend is constructive, but confirmation is still required.",
+        keyReasons: [
+          "EMA stack remains bullish.",
+          "RSI confirms healthy momentum.",
+        ],
+        actionPlan: [
+          "Wait for the breakout to confirm above resistance.",
+          "Risk small until follow-through appears.",
+        ],
+        executionMethod: "Enter after confirmation above resistance.",
+        invalidation: "Stand aside if price loses support.",
+        riskLevel: "medium",
+      },
+      regime: "trend",
+      bias: "bullish",
+      signalStrengthScore: 82,
+      aiConfidence: 78,
+      concerns: ["Resistance remains nearby."],
+      suggestedPositionSize: "conservative",
+      timeframeRelevance:
+        "Fast confirmation layer for crypto watchlist monitoring.",
+      riskFlags: ["Resistance remains close overhead."],
+      keyLevels: {
+        nearestSupport: 83200,
+        nearestResistance: 84880,
+        invalidation: 82594.75,
+      },
+      modelUsed: "gpt-4o-mini",
+      promptVersion: "ai-analysis:v1",
+      snapshotHash: "signal-hash-btc-1h",
+      aiLatencyMs: 840,
+      costEstimateUsd: 0.000042,
+      generatedAt: timestamp,
+      triggeredBy: "manual_recalculation",
+      metadata: {
+        signalAggregationSnapshotId: "signal-btc-1h",
+      },
+    });
+
+    expect(analysis.id).toBe("analysis:latest:crypto:global:BTC-USD:1H");
+    expect(analysis.modelUsed).toBe("gpt-4o-mini");
   });
 });

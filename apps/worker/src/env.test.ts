@@ -54,6 +54,26 @@ describe("worker environment", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts optional OpenAI settings for Sprint 6 analysis", () => {
+    const result = workerEnvSchema.safeParse({
+      NODE_ENV: "development",
+      DATABASE_URL: validTestUrl("database"),
+      REDIS_URL: validTestUrl("redis"),
+      OPENAI_API_KEY: "openai-demo-key",
+      MAX_DAILY_AI_COST_USD: "2.5",
+      WORKER_CONCURRENCY: 1,
+    });
+
+    expect(result.success).toBe(true);
+
+    if (!result.success) {
+      return;
+    }
+
+    expect(result.data.OPENAI_API_KEY).toBe("openai-demo-key");
+    expect(result.data.MAX_DAILY_AI_COST_USD).toBe(2.5);
+  });
+
   it("loads infrastructure URLs from the workspace root when missing", () => {
     const appDir = createWorkerAppDir(
       `DATABASE_URL=${validTestUrl("database")}\nREDIS_URL=${validTestUrl("redis")}\n`,
@@ -74,6 +94,7 @@ describe("worker environment", () => {
         NODE_ENV: "development",
         DATABASE_URL: validTestUrl("database"),
         REDIS_URL: validTestUrl("redis"),
+        MAX_DAILY_AI_COST_USD: 2,
         WORKER_CONCURRENCY: 1,
       });
     } finally {

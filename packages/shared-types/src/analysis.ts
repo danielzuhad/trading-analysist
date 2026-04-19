@@ -19,8 +19,10 @@ import {
   analysisTriggerSchema,
   assetStateSchema,
   marketRegimeSchema,
+  riskLevelSchema,
   suggestedPositionSizeSchema,
 } from "./primitives.js";
+import { signalKeyLevelsSchema } from "./signal.js";
 
 export const keyLevelSchema = z.object({
   entry: nonNegativeNumberSchema.optional(),
@@ -61,6 +63,52 @@ export const assetAnalysisSchema = z.object({
   metadata: metadataSchema,
 });
 
+export const aiAnalysisEngineOutputSchema = z.object({
+  state: assetStateSchema,
+  suggestion: analysisSuggestionSchema,
+  summary: nonEmptyStringSchema,
+  keyReasons: z.array(nonEmptyStringSchema).min(1),
+  concerns: stringListSchema,
+  actionPlan: z.array(nonEmptyStringSchema).min(1),
+  executionMethod: nonEmptyStringSchema,
+  invalidation: nonEmptyStringSchema,
+  riskLevel: riskLevelSchema,
+  suggestedPositionSize: suggestedPositionSizeSchema,
+  aiConfidence: percentageScoreSchema,
+  notes: nonEmptyStringSchema.optional(),
+});
+
+export const latestAssetAnalysisSchema = z.object({
+  id: idSchema,
+  asset: assetSchema,
+  marketSnapshot: marketSnapshotSchema,
+  indicatorSnapshot: indicatorSnapshotSchema,
+  position: positionSchema.optional(),
+  state: assetStateSchema,
+  suggestion: analysisSuggestionSchema,
+  summary: nonEmptyStringSchema,
+  decisionCard: decisionCardSchema,
+  regime: marketRegimeSchema,
+  bias: analysisBiasSchema,
+  signalStrengthScore: percentageScoreSchema,
+  aiConfidence: percentageScoreSchema,
+  originalAiConfidence: percentageScoreSchema.optional(),
+  concerns: stringListSchema,
+  suggestedPositionSize: suggestedPositionSizeSchema,
+  timeframeRelevance: nonEmptyStringSchema,
+  riskFlags: stringListSchema,
+  keyLevels: signalKeyLevelsSchema,
+  modelUsed: nonEmptyStringSchema,
+  promptVersion: nonEmptyStringSchema,
+  snapshotHash: nonEmptyStringSchema,
+  aiLatencyMs: z.number().int().min(0),
+  costEstimateUsd: nonNegativeNumberSchema,
+  generatedAt: isoDatetimeSchema,
+  triggeredBy: analysisTriggerSchema,
+  notes: nonEmptyStringSchema.optional(),
+  metadata: metadataSchema,
+});
+
 export const assetStateTransitionSchema = z.object({
   id: idSchema,
   userId: idSchema,
@@ -76,5 +124,9 @@ export const assetStateTransitionSchema = z.object({
 });
 
 export type KeyLevel = z.infer<typeof keyLevelSchema>;
+export type AiAnalysisEngineOutput = z.infer<
+  typeof aiAnalysisEngineOutputSchema
+>;
 export type AssetAnalysis = z.infer<typeof assetAnalysisSchema>;
 export type AssetStateTransition = z.infer<typeof assetStateTransitionSchema>;
+export type LatestAssetAnalysis = z.infer<typeof latestAssetAnalysisSchema>;

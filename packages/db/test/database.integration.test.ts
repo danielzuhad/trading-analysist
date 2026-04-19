@@ -2,11 +2,14 @@ import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   closeDatabase,
+  getDailyAiCostTotalUsd,
+  getLatestAssetAnalysis,
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
   pingDatabase,
   runRawQuery,
+  saveLatestAssetAnalysis,
   saveLatestIndicatorSnapshot,
   saveLatestMarketData,
   saveLatestSignalAggregationSnapshot,
@@ -34,10 +37,11 @@ describeInfrastructure("database integration", () => {
       `
         select table_name
         from information_schema.tables
-        where table_schema = 'public' and table_name in ($1, $2, $3, $4)
+        where table_schema = 'public' and table_name in ($1, $2, $3, $4, $5)
         order by table_name
       `,
       [
+        "asset_analysis_latest_snapshots",
         "indicator_latest_snapshots",
         "market_latest_snapshots",
         "signal_aggregation_latest_snapshots",
@@ -47,6 +51,7 @@ describeInfrastructure("database integration", () => {
     );
 
     expect(result.rows).toEqual([
+      { table_name: "asset_analysis_latest_snapshots" },
       { table_name: "indicator_latest_snapshots" },
       { table_name: "market_latest_snapshots" },
       { table_name: "service_heartbeats" },
@@ -303,5 +308,137 @@ describeInfrastructure("database integration", () => {
     expect(result?.id).toBe(signalId);
     expect(result?.signalStrengthScore).toBe(82);
     expect(result?.bias).toBe("bullish");
+  });
+
+  it("upserts, reads, and totals latest AI analysis snapshots", async () => {
+    const assetId = `crypto:test:${randomUUID()}`;
+    const analysisId = `analysis:latest:${assetId}:1H`;
+
+    await saveLatestAssetAnalysis(
+      {
+        id: analysisId,
+        asset: {
+          id: assetId,
+          symbol: "BTC",
+          displaySymbol: "BTC/USD",
+          name: "Bitcoin",
+          assetClass: "crypto",
+          market: "global",
+          exchange: "global",
+          instrumentType: "spot",
+          baseCurrency: "BTC",
+          quoteCurrency: "USD",
+          providerSymbol: "BTC/USD",
+          isActive: true,
+          metadata: {},
+        },
+        marketSnapshot: {
+          id: `market:twelve-data:${assetId}:1H`,
+          assetId,
+          provider: "twelve-data",
+          timeframe: "1H",
+          capturedAt: "2026-04-19T08:00:00.000Z",
+          lastPrice: 84250.5,
+          candle: {
+            open: 84180.7,
+            high: 84420.2,
+            low: 84090.4,
+            close: 84250.5,
+            volume: 1310.4,
+          },
+          marketSession: "continuous",
+          eventFlags: [],
+          metadata: {},
+        },
+        indicatorSnapshot: {
+          id: `indicator:${assetId}:1H`,
+          assetId,
+          timeframe: "1H",
+          calculatedAt: "2026-04-19T08:00:00.000Z",
+          movingAverages: {
+            ema20: 84210.2,
+            ema50: 83820.4,
+            ema200: 80155.7,
+          },
+          oscillators: {
+            rsi14: 62.4,
+          },
+          volatility: {
+            atr14: 1210.5,
+            atrPercent: 1.44,
+            baseline: 1.2,
+            regime: "expanded",
+          },
+          volume: {
+            current: 1310.4,
+            average20: 1180.2,
+            relativeVolume: 1.11,
+            trend: "up",
+          },
+          levels: {
+            support: [83200, 82450],
+            resistance: [84880, 85520],
+          },
+          structure: "uptrend",
+          metadata: {},
+        },
+        state: "ACTIONABLE",
+        suggestion: "ENTRY_ON_CONFIRMATION",
+        summary:
+          "Trend remains constructive, but confirmation is still required.",
+        decisionCard: {
+          summary:
+            "Trend remains constructive, but confirmation is still required.",
+          keyReasons: [
+            "EMA alignment remains bullish.",
+            "RSI confirms upside momentum without obvious exhaustion.",
+          ],
+          actionPlan: [
+            "Wait for a decisive close above nearby resistance.",
+            "Keep size conservative until follow-through appears.",
+          ],
+          executionMethod:
+            "Enter after breakout confirmation above resistance.",
+          invalidation: "Stand aside if price loses the nearest support.",
+          riskLevel: "medium",
+        },
+        regime: "trend",
+        bias: "bullish",
+        signalStrengthScore: 82,
+        aiConfidence: 78,
+        concerns: ["Resistance remains close overhead."],
+        suggestedPositionSize: "conservative",
+        timeframeRelevance:
+          "Fast confirmation layer for crypto watchlist monitoring.",
+        riskFlags: ["Resistance remains close overhead."],
+        keyLevels: {
+          nearestSupport: 83200,
+          nearestResistance: 84880,
+          invalidation: 82594.75,
+        },
+        modelUsed: "gpt-4o-mini",
+        promptVersion: "ai-analysis:v1",
+        snapshotHash: "signal-hash-btc-1h",
+        aiLatencyMs: 915,
+        costEstimateUsd: 0.0003,
+        generatedAt: "2026-04-19T08:05:00.000Z",
+        triggeredBy: "manual_recalculation",
+        metadata: {
+          signalAggregationSnapshotId: `signal:${assetId}:1H:2026-04-19T08:00:00.000Z`,
+        },
+      },
+      databaseUrl,
+    );
+
+    const result = await getLatestAssetAnalysis(assetId, "1H", databaseUrl);
+    const costTotal = await getDailyAiCostTotalUsd(
+      new Date("2026-04-19T10:00:00.000Z"),
+      databaseUrl,
+    );
+
+    expect(result).not.toBeNull();
+    expect(result?.id).toBe(analysisId);
+    expect(result?.summary).toContain("Trend remains constructive");
+    expect(costTotal).toBeGreaterThan(0);
   });
 });
