@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { buildInfrastructureStatus, type ReadyzPayload } from "./status";
+import {
+  buildInfrastructureStatus,
+  fetchInfrastructureStatus,
+  type ReadyzPayload,
+} from "./status";
 
 describe("web infrastructure status", () => {
   it("surfaces a missing API base URL clearly", () => {
@@ -45,6 +49,58 @@ describe("web infrastructure status", () => {
       message:
         "The API is running, but one or more infrastructure dependencies are degraded.",
       status: "degraded",
+    });
+  });
+
+  it("loads live readiness data through fetch", async () => {
+    const payload: ReadyzPayload = {
+      checks: {
+        database: {
+          ok: true,
+          target: "127.0.0.1:5432",
+        },
+        redis: {
+          ok: true,
+          target: "127.0.0.1:6379",
+        },
+      },
+      issues: [],
+      service: "api",
+      status: "ready",
+      timestamp: "2026-04-19T08:48:23.811Z",
+    };
+    const fetchMock = vi.fn(async () => ({
+      json: async () => payload,
+    }));
+
+    await expect(
+      fetchInfrastructureStatus("http://localhost:3001", fetchMock),
+    ).resolves.toMatchObject({
+      checks: payload.checks,
+      issues: [],
+      message: "API, PostgreSQL, and Redis are reachable.",
+      status: "ready",
+    });
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:3001/readyz", {
+      cache: "no-store",
+    });
+  });
+
+  it("surfaces browser fetch failures clearly", async () => {
+    const fetchMock = vi.fn(async () => {
+      throw new Error("Failed to fetch");
+    });
+
+    await expect(
+      fetchInfrastructureStatus("http://localhost:3001", fetchMock),
+    ).resolves.toMatchObject({
+      checks: null,
+      issues: [
+        "The web app could not reach the API readiness endpoint.",
+        "Make sure the API is running on the configured host and port.",
+      ],
+      message: "API readiness request failed: Failed to fetch",
+      status: "api-unreachable",
     });
   });
 });

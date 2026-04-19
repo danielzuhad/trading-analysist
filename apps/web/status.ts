@@ -23,6 +23,11 @@ export type InfrastructureStatus = {
   status: "api-unconfigured" | "api-unreachable" | "degraded" | "ready";
 };
 
+type FetchLike = (
+  input: string | URL | Request,
+  init?: RequestInit,
+) => Promise<Pick<Response, "json">>;
+
 export function buildInfrastructureStatus(
   apiBaseUrl: string | undefined,
   readyz: ReadyzPayload | null,
@@ -71,15 +76,16 @@ export function buildInfrastructureStatus(
   };
 }
 
-export async function loadInfrastructureStatus(
+export async function fetchInfrastructureStatus(
   apiBaseUrl: string | undefined,
+  fetchImpl: FetchLike = fetch,
 ): Promise<InfrastructureStatus> {
   if (!apiBaseUrl) {
     return buildInfrastructureStatus(undefined, null);
   }
 
   try {
-    const response = await fetch(`${apiBaseUrl}/readyz`, {
+    const response = await fetchImpl(`${apiBaseUrl}/readyz`, {
       cache: "no-store",
     });
     const payload = (await response.json()) as ReadyzPayload;

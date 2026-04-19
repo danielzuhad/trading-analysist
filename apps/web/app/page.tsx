@@ -1,5 +1,5 @@
 import { loadWebEnv } from "../env";
-import { loadInfrastructureStatus } from "../status";
+import { InfrastructureStatusCard } from "./infrastructure-status-card";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +15,8 @@ const stack = [
   "Deterministic signal aggregation",
 ];
 
-export default async function HomePage() {
+export default function HomePage() {
   const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
-  const infrastructureStatus = await loadInfrastructureStatus(apiBaseUrl);
 
   return (
     <main className="shell">
@@ -73,33 +72,7 @@ export default async function HomePage() {
           </p>
         </article>
 
-        <article className="card">
-          <h2>Infrastructure Status</h2>
-          <p>Status: {infrastructureStatus.status}</p>
-          <p>{infrastructureStatus.message}</p>
-          {infrastructureStatus.checks ? (
-            <>
-              <p>
-                PostgreSQL:{" "}
-                {infrastructureStatus.checks.database.ok
-                  ? `reachable${infrastructureStatus.checks.database.target ? ` at ${infrastructureStatus.checks.database.target}` : ""}`
-                  : infrastructureStatus.checks.database.message}
-              </p>
-              <p>
-                Redis:{" "}
-                {infrastructureStatus.checks.redis.ok
-                  ? `reachable${infrastructureStatus.checks.redis.target ? ` at ${infrastructureStatus.checks.redis.target}` : ""}`
-                  : infrastructureStatus.checks.redis.message}
-              </p>
-              {infrastructureStatus.checks.redis.hint ? (
-                <p>Worker note: {infrastructureStatus.checks.redis.hint}</p>
-              ) : null}
-            </>
-          ) : null}
-          {infrastructureStatus.issues.map((issue) => (
-            <p key={issue}>{issue}</p>
-          ))}
-        </article>
+        <InfrastructureStatusCard apiBaseUrl={apiBaseUrl} />
       </section>
     </main>
   );

@@ -52,6 +52,21 @@ describe("api health routes", () => {
     });
   });
 
+  it("adds CORS headers for browser-based readiness checks", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/readyz",
+      headers: {
+        origin: "http://localhost:3000",
+      },
+    });
+
+    expect(response.headers["access-control-allow-origin"]).toBe(
+      "http://localhost:3000",
+    );
+    expect(response.headers.vary).toBe("Origin");
+  });
+
   it("returns detailed readiness issues when Redis is unavailable", async () => {
     vi.mocked(pingDatabase).mockResolvedValueOnce(undefined);
     pingRedisMock.mockRejectedValueOnce(
