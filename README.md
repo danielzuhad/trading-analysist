@@ -76,12 +76,13 @@ Run them with PostgreSQL and Redis up plus `RUN_INFRA_TESTS=true`.
 For the current MVP, monitored timeframes are `1H` and `4H` only. Timeframes `5m`, `15m`, and `1D` are post-MVP.
 `packages/indicators` now contains the reusable Sprint 4 indicator-engine calculations.
 `packages/signal-aggregation` now assembles the typed snapshot and deterministic `signal_strength_score` that will feed the future AI analysis layer.
-The worker now calculates latest signal aggregation snapshots in-memory alongside persisted market-data and indicator snapshots.
+The worker now persists latest signal aggregation snapshots alongside persisted market-data and indicator snapshots.
 `packages/market-data` is the Sprint 3 source of truth for normalized market-data ingestion.
 
 Current read endpoints:
 - `GET /market-snapshots/latest?assetId=...&timeframe=...`
 - `GET /indicator-snapshots/latest?assetId=...&timeframe=...`
+- `GET /signal-snapshots/latest?assetId=...&timeframe=...`
 - `GET /readyz` returns PostgreSQL and Redis readiness with developer-facing issue messages
 
 **Market data provider: Twelve Data.**

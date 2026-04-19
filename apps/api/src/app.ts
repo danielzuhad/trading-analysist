@@ -2,6 +2,7 @@ import {
   closeDatabase,
   getLatestIndicatorSnapshot,
   getLatestMarketData,
+  getLatestSignalAggregationSnapshot,
   pingDatabase,
 } from "@trading-analyst/db";
 import Fastify from "fastify";
@@ -30,6 +31,8 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
       getLatestIndicatorSnapshot(assetId, timeframe, env.DATABASE_URL),
     getLatestMarketData: (assetId, timeframe) =>
       getLatestMarketData(assetId, timeframe, env.DATABASE_URL),
+    getLatestSignalAggregationSnapshot: (assetId, timeframe) =>
+      getLatestSignalAggregationSnapshot(assetId, timeframe, env.DATABASE_URL),
   });
 
   app.addHook("onClose", async () => {

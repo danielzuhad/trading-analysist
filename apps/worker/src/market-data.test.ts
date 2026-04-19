@@ -151,6 +151,9 @@ describe("market-data ingestion prep", () => {
       async () => indicatorSnapshotFixture,
     );
     const persistLatestMarketData = vi.fn(async () => marketDataFixture);
+    const persistLatestSignalAggregationSnapshot = vi.fn(
+      async () => signalAggregationSnapshotFixture,
+    );
     const asset = defaultCryptoWatchlistAssets[0];
 
     if (!asset) {
@@ -168,6 +171,7 @@ describe("market-data ingestion prep", () => {
       },
       persistLatestIndicatorSnapshot,
       persistLatestMarketData,
+      persistLatestSignalAggregationSnapshot,
       timeframe: "1H",
     });
 
@@ -187,6 +191,10 @@ describe("market-data ingestion prep", () => {
     });
     expect(persistLatestIndicatorSnapshot).toHaveBeenCalledWith(
       indicatorSnapshotFixture,
+      "postgresql://db.invalid/trading_analyst",
+    );
+    expect(persistLatestSignalAggregationSnapshot).toHaveBeenCalledWith(
+      signalAggregationSnapshotFixture,
       "postgresql://db.invalid/trading_analyst",
     );
     expect(result.marketData.snapshot.assetId).toBe("crypto:global:BTC-USD");
@@ -228,6 +236,9 @@ describe("market-data ingestion prep", () => {
       async () => indicatorSnapshotFixture,
     );
     const persistLatestMarketData = vi.fn(async () => marketDataFixture);
+    const persistLatestSignalAggregationSnapshot = vi.fn(
+      async () => signalAggregationSnapshotFixture,
+    );
     const log = vi.fn();
 
     const result = await processMarketSnapshotJob({
@@ -246,6 +257,7 @@ describe("market-data ingestion prep", () => {
       },
       persistLatestIndicatorSnapshot,
       persistLatestMarketData,
+      persistLatestSignalAggregationSnapshot,
       requestedAt: "2026-04-04T04:00:00.000Z",
       timeframe: "1H",
     });

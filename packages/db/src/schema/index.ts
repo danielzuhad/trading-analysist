@@ -3,8 +3,16 @@ import type {
   MarketCandle,
   MarketSnapshot,
   OhlcvCandle,
+  SignalAggregationSnapshot,
 } from "@trading-analyst/shared-types";
-import { jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const serviceHeartbeats = pgTable("service_heartbeats", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -74,8 +82,52 @@ export const indicatorLatestSnapshots = pgTable("indicator_latest_snapshots", {
     .defaultNow(),
 });
 
+export const signalAggregationLatestSnapshots = pgTable(
+  "signal_aggregation_latest_snapshots",
+  {
+    id: text("id").primaryKey(),
+    assetId: text("asset_id").notNull(),
+    timeframe: text("timeframe").notNull(),
+    generatedAt: timestamp("generated_at", {
+      withTimezone: true,
+    }).notNull(),
+    asset: jsonb("asset").$type<SignalAggregationSnapshot["asset"]>().notNull(),
+    marketSnapshot: jsonb("market_snapshot")
+      .$type<SignalAggregationSnapshot["marketSnapshot"]>()
+      .notNull(),
+    indicatorSnapshot: jsonb("indicator_snapshot")
+      .$type<SignalAggregationSnapshot["indicatorSnapshot"]>()
+      .notNull(),
+    position: jsonb("position").$type<SignalAggregationSnapshot["position"]>(),
+    signalStrengthScore: integer("signal_strength_score").notNull(),
+    bias: text("bias").notNull(),
+    regime: text("regime").notNull(),
+    timeframeRelevance: text("timeframe_relevance").notNull(),
+    riskFlags: jsonb("risk_flags")
+      .$type<SignalAggregationSnapshot["riskFlags"]>()
+      .notNull(),
+    keyLevels: jsonb("key_levels")
+      .$type<SignalAggregationSnapshot["keyLevels"]>()
+      .notNull(),
+    labels: jsonb("labels")
+      .$type<SignalAggregationSnapshot["labels"]>()
+      .notNull(),
+    summary: text("summary").notNull(),
+    snapshotHash: text("snapshot_hash").notNull(),
+    metadata: jsonb("metadata")
+      .$type<SignalAggregationSnapshot["metadata"]>()
+      .notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+  },
+);
+
 export const schema = {
   indicatorLatestSnapshots,
   marketLatestSnapshots,
+  signalAggregationLatestSnapshots,
   serviceHeartbeats,
 };

@@ -3,6 +3,7 @@ import {
   closeDatabase,
   getLatestIndicatorSnapshot,
   getLatestMarketData,
+  getLatestSignalAggregationSnapshot,
   type LatestMarketData,
 } from "@trading-analyst/db";
 import type { IndicatorSnapshot } from "@trading-analyst/shared-types";
@@ -32,7 +33,7 @@ describeInfrastructure("worker market-data persistence", () => {
     }
   });
 
-  it("persists both latest market data and latest indicator snapshots", async () => {
+  it("persists market, indicator, and signal aggregation snapshots", async () => {
     const assetId = "crypto:global:BTC-USD";
     const databaseUrl = requireDatabaseUrl();
     const uniqueSuffix = randomUUID();
@@ -153,6 +154,11 @@ describeInfrastructure("worker market-data persistence", () => {
       "1H",
       databaseUrl,
     );
+    const persistedSignalSnapshot = await getLatestSignalAggregationSnapshot(
+      assetId,
+      "1H",
+      databaseUrl,
+    );
 
     expect(persistedMarketData?.snapshot.id).toBe(marketSnapshotId);
     expect(persistedMarketData?.snapshot.metadata).toMatchObject({
@@ -160,6 +166,11 @@ describeInfrastructure("worker market-data persistence", () => {
     });
     expect(persistedIndicator?.id).toBe(indicatorSnapshotId);
     expect(persistedIndicator?.metadata).toMatchObject({
+      uniqueSuffix,
+    });
+    expect(persistedSignalSnapshot?.signalStrengthScore).toBeGreaterThan(0);
+    expect(persistedSignalSnapshot?.asset.id).toBe(assetId);
+    expect(persistedSignalSnapshot?.marketSnapshot.metadata).toMatchObject({
       uniqueSuffix,
     });
   });

@@ -26,9 +26,9 @@ export default async function HomePage() {
         <h1>Crypto Analyst Foundation</h1>
         <p className="lede">
           The repo currently covers the foundation, shared contracts, crypto
-          market-data baseline, persisted indicator snapshots, and deterministic
-          signal aggregation. AI analysis, alerting, positions, and chat-layer
-          delivery still come in later sprints.
+          market-data baseline, persisted indicator snapshots, and persisted
+          deterministic signal aggregation. AI analysis, alerting, positions,
+          and chat-layer delivery still come in later sprints.
         </p>
       </section>
 
@@ -63,6 +63,12 @@ export default async function HomePage() {
             Indicator snapshot:{" "}
             {apiBaseUrl
               ? `${apiBaseUrl}/indicator-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=1H`
+              : "Requires API base URL"}
+          </p>
+          <p>
+            Signal snapshot:{" "}
+            {apiBaseUrl
+              ? `${apiBaseUrl}/signal-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=1H`
               : "Requires API base URL"}
           </p>
         </article>

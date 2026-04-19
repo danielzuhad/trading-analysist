@@ -2,6 +2,7 @@ import {
   type LatestMarketData,
   saveLatestIndicatorSnapshot,
   saveLatestMarketData,
+  saveLatestSignalAggregationSnapshot,
 } from "@trading-analyst/db";
 import { buildIndicatorSnapshot } from "@trading-analyst/indicators";
 import {
@@ -87,6 +88,10 @@ type IngestLatestMarketDataOptions = {
     data: LatestMarketData,
     connectionString?: string,
   ) => Promise<LatestMarketData>;
+  persistLatestSignalAggregationSnapshot?: (
+    snapshot: SignalAggregationSnapshot,
+    connectionString?: string,
+  ) => Promise<SignalAggregationSnapshot>;
   timeframe: SupportedTimeframe;
 };
 
@@ -110,6 +115,10 @@ type ProcessMarketSnapshotJobOptions = {
     data: LatestMarketData,
     connectionString?: string,
   ) => Promise<LatestMarketData>;
+  persistLatestSignalAggregationSnapshot?: (
+    snapshot: SignalAggregationSnapshot,
+    connectionString?: string,
+  ) => Promise<SignalAggregationSnapshot>;
   requestedAt: string;
   timeframe: SupportedTimeframe;
 };
@@ -163,6 +172,7 @@ export async function ingestLatestMarketData({
   fetchService = createMarketFetchService(apiKey),
   persistLatestIndicatorSnapshot = saveLatestIndicatorSnapshot,
   persistLatestMarketData = saveLatestMarketData,
+  persistLatestSignalAggregationSnapshot = saveLatestSignalAggregationSnapshot,
   timeframe,
 }: IngestLatestMarketDataOptions) {
   const marketData = await fetchService.fetchMarketData({
@@ -178,6 +188,10 @@ export async function ingestLatestMarketData({
     indicatorSnapshot,
     marketData,
   });
+  await persistLatestSignalAggregationSnapshot(
+    signalAggregationSnapshot,
+    connectionString,
+  );
 
   return {
     indicatorSnapshot,
@@ -196,6 +210,7 @@ export async function processMarketSnapshotJob({
   logger = console,
   persistLatestIndicatorSnapshot,
   persistLatestMarketData,
+  persistLatestSignalAggregationSnapshot,
   requestedAt,
   timeframe,
 }: ProcessMarketSnapshotJobOptions): Promise<MarketSnapshotJobResult> {
@@ -242,6 +257,9 @@ export async function processMarketSnapshotJob({
         ? { persistLatestIndicatorSnapshot }
         : {}),
       ...(persistLatestMarketData ? { persistLatestMarketData } : {}),
+      ...(persistLatestSignalAggregationSnapshot
+        ? { persistLatestSignalAggregationSnapshot }
+        : {}),
     });
 
   logger.log(

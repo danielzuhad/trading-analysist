@@ -1,0 +1,21 @@
+CREATE TABLE "signal_aggregation_latest_snapshots" (
+	"id" text PRIMARY KEY NOT NULL,
+	"asset_id" text NOT NULL,
+	"timeframe" text NOT NULL,
+	"generated_at" timestamp with time zone NOT NULL,
+	"asset" jsonb NOT NULL,
+	"market_snapshot" jsonb NOT NULL,
+	"indicator_snapshot" jsonb NOT NULL,
+	"position" jsonb,
+	"signal_strength_score" integer NOT NULL,
+	"bias" text NOT NULL,
+	"regime" text NOT NULL,
+	"timeframe_relevance" text NOT NULL,
+	"risk_flags" jsonb NOT NULL,
+	"key_levels" jsonb NOT NULL,
+	"labels" jsonb NOT NULL,
+	"summary" text NOT NULL,
+	"snapshot_hash" text NOT NULL,
+	"metadata" jsonb NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);

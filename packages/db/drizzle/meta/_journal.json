@@ -22,6 +22,13 @@
       "when": 1775276711933,
       "tag": "0002_pretty_oracle",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1776590000000,
+      "tag": "0003_brisk_signal",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import type { LatestMarketData } from "@trading-analyst/db";
 import type {
   IndicatorSnapshot,
+  SignalAggregationSnapshot,
   SupportedTimeframe,
 } from "@trading-analyst/shared-types";
 import { supportedTimeframeSchema } from "@trading-analyst/shared-types";
@@ -21,6 +22,10 @@ type Dependencies = {
     assetId: string,
     timeframe: SupportedTimeframe,
   ) => Promise<IndicatorSnapshot | null>;
+  getLatestSignalAggregationSnapshot: (
+    assetId: string,
+    timeframe: SupportedTimeframe,
+  ) => Promise<SignalAggregationSnapshot | null>;
 };
 
 export async function registerMarketDataRoutes(
@@ -83,6 +88,33 @@ export async function registerMarketDataRoutes(
 
     return {
       snapshot: indicatorSnapshot,
+    };
+  });
+
+  app.get("/signal-snapshots/latest", async (request, reply) => {
+    const queryResult = latestMarketDataQuerySchema.safeParse(request.query);
+
+    if (!queryResult.success) {
+      return reply.code(400).send({
+        error: "INVALID_QUERY",
+        issues: queryResult.error.issues,
+      });
+    }
+
+    const { assetId, timeframe } = queryResult.data;
+    const signalSnapshot =
+      await dependencies.getLatestSignalAggregationSnapshot(assetId, timeframe);
+
+    if (!signalSnapshot) {
+      return reply.code(404).send({
+        error: "SIGNAL_SNAPSHOT_NOT_FOUND",
+        assetId,
+        timeframe,
+      });
+    }
+
+    return {
+      snapshot: signalSnapshot,
     };
   });
 }
