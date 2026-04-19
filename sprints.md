@@ -4,14 +4,18 @@
 
 Development must follow the sprint order unless the user explicitly reprioritizes.
 
-Current alignment target for this repository:
+Current implementation checkpoint for this repository:
 
-- keep the codebase honest through **Sprint 3**
-- do not start Sprint 4+ implementation on top of mismatched Sprint 1-3 foundations
+- [x] Sprints 1-6 are implemented in the codebase
+- [ ] Sprint 7 is the next active target
 
 ## Phase 1 — Crypto MVP
 
-### Sprint 1 — Foundation Setup
+### [x] Sprint 1 — Foundation Setup
+
+**Status**
+
+Completed in codebase. Monorepo foundation, app bootstrap, Docker local infra, and repo validation commands are in place.
 
 **Goal**
 
@@ -36,7 +40,11 @@ Set up the monorepo and local development baseline.
 - PostgreSQL and Redis are connected
 - lint, typecheck, test, and build commands exist
 
-### Sprint 2 — Domain Models and Core Contracts
+### [x] Sprint 2 — Domain Models and Core Contracts
+
+**Status**
+
+Completed in codebase. Shared contracts, state vocabulary, validation schemas, and AI audit fields are defined.
 
 **Goal**
 
@@ -72,7 +80,11 @@ Define the shared domain contracts before deeper implementation starts.
 - state model and suggestion vocabulary are defined
 - analysis contracts are audit-ready before the AI engine is built
 
-### Sprint 3 — Market Data Ingestion
+### [x] Sprint 3 — Market Data Ingestion
+
+**Status**
+
+Completed in codebase. Twelve Data crypto ingestion, normalization, persistence, and latest market snapshot read path are implemented.
 
 **Goal**
 
@@ -103,11 +115,15 @@ Fetch crypto market data and normalize it into one internal schema.
 - env and runtime wiring for Twelve Data
 - provider selection aligned with the crypto-first MVP
 
-## Phase 1 — Next Sprints After Alignment
+## Phase 1 — Current Progress and Next Steps
 
-These sprints are the next steps after Sprint 1-3 are aligned.
+These sprints reflect what is already implemented and what comes next.
 
-### Sprint 4 — Indicator Engine
+### [x] Sprint 4 — Indicator Engine
+
+**Status**
+
+Completed in codebase. Indicator calculation, persistence, and API read access are implemented.
 
 **Goal**
 
@@ -123,7 +139,11 @@ Compute deterministic technical signals.
 - volatility regime
 - structure labels
 
-### Sprint 5 — Signal Aggregation and Context Assembly
+### [x] Sprint 5 — Signal Aggregation and Context Assembly
+
+**Status**
+
+Completed in codebase. Structured signal snapshots, deterministic scoring, persistence, and latest snapshot API read path are implemented.
 
 **Goal**
 
@@ -133,7 +153,11 @@ Assemble one structured snapshot per asset.
 
 This layer labels signals and assembles context. It does not decide state or suggestion.
 
-### Sprint 6 — AI Analysis Engine
+### [x] Sprint 6 — AI Analysis Engine
+
+**Status**
+
+Completed in codebase. AI analysis package, OpenAI adapter, confidence clamp, daily cost cap, latest analysis persistence, worker helper, and `GET /asset-analyses/latest` are implemented.
 
 **Goal**
 
@@ -148,31 +172,51 @@ Let AI perform the actual analysis from the assembled snapshot.
 - every call stores `model_used`, `prompt_version`, `snapshot_hash`, `ai_latency_ms`, and `cost_estimate_usd`
 - daily cap via `MAX_DAILY_AI_COST_USD`, default `2.00`
 
-### Sprint 7 — Worker Pipeline and Full Loop Validation
+### [ ] Sprint 7 — Worker Pipeline and Full Loop Validation
+
+**Status**
+
+Next target. The full scheduled loop `fetch -> indicators -> snapshot -> AI -> persistence` is not wired end-to-end yet.
 
 **Goal**
 
 Wire fetch -> indicators -> snapshot -> AI -> persistence into a scheduled worker flow and validate usefulness before UI expansion.
 
-### Sprint 8 — Web Dashboard Basic
+### [ ] Sprint 8 — Web Dashboard Basic
+
+**Status**
+
+Not started for MVP deliverables yet. Web bootstrap exists, but watchlist and asset-analysis dashboard views are not finished.
 
 **Goal**
 
 Expose watchlist and asset analysis in the dashboard.
 
-### Sprint 9 — Alert Engine
+### [ ] Sprint 9 — Alert Engine
+
+**Status**
+
+Not started yet.
 
 **Goal**
 
 Generate meaningful, deduplicated alerts on real state changes.
 
-### Sprint 10 — Positions Module
+### [ ] Sprint 10 — Positions Module
+
+**Status**
+
+Not started yet.
 
 **Goal**
 
 Support manual position recording and position-aware analysis.
 
-### Sprint 11 — Chat Layer via WhatsApp API
+### [ ] Sprint 11 — Chat Layer via WhatsApp API
+
+**Status**
+
+Not started yet.
 
 **Goal**
 
