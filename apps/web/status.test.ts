@@ -43,7 +43,7 @@ describe("web infrastructure status", () => {
           maxDailyAiCostUsd: 2,
         },
         providers: {
-          cryptopanic: {
+          bybit: {
             detail: "Provider timeout",
             status: "down",
           },

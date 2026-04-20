@@ -28,7 +28,8 @@ Phase 1 bersifat crypto-first.
 Lingkup MVP saat ini:
 
 - fokus pada aset crypto likuid seperti BTC, ETH, dan SOL
-- analisis berjalan pada timeframe `1H` dan `4H`
+- MVP ini private/internal dulu
+- analisis operasional berjalan pada timeframe `4H`
 - sistem menghasilkan ranking watchlist, decision card aset, alert bermakna, dan dukungan posisi manual
 - hasil analisis tersedia lewat dashboard web dan WhatsApp API chat layer
 
@@ -45,7 +46,7 @@ Di luar MVP:
 Alur bisnis produk ini secara garis besar adalah:
 
 1. Sistem memantau aset pada watchlist pengguna.
-2. Data harga, konteks pasar, sentimen, derivatif, dan berita dikumpulkan untuk aset yang relevan.
+2. Data harga, konteks pasar, sentimen, dan derivatif dikumpulkan untuk aset yang relevan.
 3. Mesin indikator menghitung sinyal teknikal deterministik.
 4. Signal aggregation layer menyusun snapshot terstruktur dan menghitung `signal_strength_score`.
 5. AI analysis engine membaca snapshot tersebut dan menghasilkan analisis penuh, termasuk state, alasan utama, concern, rencana aksi, dan invalidation.
@@ -57,7 +58,7 @@ Alur bisnis produk ini secara garis besar adalah:
 Arsitektur produk ini dibagi ke beberapa lapisan utama:
 
 - Data ingestion layer
-Mengumpulkan data market, market context, derivatives context, dan news dari provider yang sudah disetujui untuk MVP.
+Mengumpulkan data market, market context, derivatives context, dan sentiment dari provider yang sudah disetujui untuk MVP.
 
 - Indicator engine
 Mengubah data mentah menjadi sinyal teknikal yang konsisten dan bisa dihitung ulang secara deterministik.

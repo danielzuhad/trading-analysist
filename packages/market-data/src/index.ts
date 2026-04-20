@@ -1,4 +1,4 @@
-export * from "./adapters/twelve-data.js";
+export * from "./adapters/coingecko.js";
 export * from "./context.js";
 export * from "./errors.js";
 export * from "./service.js";

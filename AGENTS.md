@@ -29,10 +29,8 @@ Phase 1 implementation should follow these decisions unless the user explicitly 
 - PostgreSQL as the main database
 - Redis for queues and short-lived coordination
 - Docker Compose for local PostgreSQL and Redis
-- Twelve Data as the primary market data provider for the crypto MVP
-- CoinGecko for market context (BTC dominance, total market cap trend) — free tier
+- CoinGecko as the primary crypto market data and market-context provider for the MVP
 - alternative.me Fear & Greed Index for market sentiment — free, no key required
-- CryptoPanic for crypto news and sentiment per asset — free tier
 - Bybit public REST API for crypto derivatives (funding rate, open interest) — free, no key required, accessible from Indonesia
 - Coinglass is not used for MVP; Bybit public API provides the same derivatives data with better reliability and no rate limit concerns
 - OpenAI as the primary AI analysis provider — provider-agnostic adapter required
@@ -85,7 +83,7 @@ Every analysis record must store `model_used` and `prompt_version` so cost and q
 The AI analysis engine is the core intelligence layer, not a summarization add-on.
 
 The pipeline is:
-1. market data + context + derivatives + news fetched
+1. market data + context + derivatives + sentiment fetched
 2. indicator engine computes technical signals
 3. signal aggregation layer assembles a fully structured typed snapshot
 4. AI receives the snapshot and performs full analysis
@@ -97,15 +95,22 @@ The signal aggregation layer (previously called rules engine) does **not** decid
 
 Binance public API endpoints are not accessible from Indonesian IP addresses.
 Do not use Binance as a data source in any environment.
-Twelve Data is the primary and only OHLCV source for crypto in Phase 1.
+CoinGecko is the primary OHLCV source for the crypto MVP in Phase 1.
 
 ### MVP Asset Scope
 
-The MVP focuses on **crypto assets first** (BTC, ETH, SOL, and similar).
+The MVP is **private/internal first** and focuses on **crypto assets first**.
+
+Initial validation scope:
+
+- BTC
+- ETH
+- SOL
+- `4H` only for scheduled operational analysis
 
 US stock support (NVDA, TSLA, AAPL, AMZN, META) and IDX stock support (BBCA, BBRI, and similar)
-will be added as separate adapter extensions post-MVP using the same Twelve Data account.
-IDX stocks will require a separate provider (Sectors.app) due to Twelve Data's limited IDX coverage.
+will be added as separate adapter extensions post-MVP after the crypto pipeline is validated.
+IDX stocks will require a separate provider such as Sectors.app.
 
 Do not implement stock adapters until crypto ingestion, signal aggregation, and the AI analysis
 pipeline are validated end-to-end.

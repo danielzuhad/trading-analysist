@@ -24,18 +24,16 @@ Trading still happens in external apps. This product owns analysis, ranking, ale
 
 ### MVP scope
 
-Phase 1 MVP is **crypto-first**.
+Phase 1 MVP is **crypto-first** and **private/internal first**.
 
 Supported assets for validation:
 
 - BTC
 - ETH
 - SOL
-- similar high-liquidity crypto assets added deliberately
 
 Timeframe scope for MVP:
 
-- `1H`
 - `4H`
 
 Phase 1 MVP includes:
@@ -63,9 +61,9 @@ Phase 1 MVP does **not** include:
 
 After the crypto MVP is validated end-to-end:
 
-- US stocks can be added via Twelve Data
+- US stocks can be added via a later market-data adapter
 - IDX stocks can be added via a separate provider such as Sectors.app
-- additional timeframes such as `5M`, `15M`, and `1D` can be introduced where justified
+- additional timeframes such as `1H`, `5M`, `15M`, and `1D` can be introduced where justified
 
 ## 3. System Principles
 
@@ -75,7 +73,7 @@ The AI analysis engine is the core intelligence layer.
 
 The pipeline is:
 
-1. fetch market data, market context, derivatives context, and news
+1. fetch market data, market context, derivatives context, and sentiment
 2. compute technical indicators
 3. assemble a typed structured snapshot
 4. calculate deterministic signal strength
@@ -136,11 +134,9 @@ The data layer is SQL-first:
 
 These are the source-of-truth provider decisions for the crypto MVP:
 
-- Crypto OHLCV and current price: **Twelve Data**
-- Market context: **CoinGecko**
+- Crypto OHLCV, current price, and market context: **CoinGecko**
 - Fear & Greed sentiment: **alternative.me**
 - Crypto derivatives context: **Bybit public REST API**
-- Crypto news and sentiment: **CryptoPanic**
 - AI analysis: **OpenAI** through a provider-agnostic adapter
 
 ### Hard rule: Binance is not used
@@ -201,7 +197,6 @@ The crypto MVP uses a two-path monitoring model.
 ### Deep analysis
 
 - every `4H` for all watched assets
-- every `1H` only for assets already in `PREPARE` or `ACTIONABLE`
 
 ### Lightweight threshold checks
 
@@ -238,6 +233,7 @@ apps/
   worker/
 
 packages/
+  ai-analysis/
   db/
   indicators/
   market-data/
@@ -247,7 +243,6 @@ packages/
 
 Planned additions later:
 
-- `packages/ai-analysis`
 - `packages/alert-engine`
 - `apps/chat-layer`
 
@@ -257,7 +252,7 @@ Before Sprint 4 work starts, the repository should already be honest about these
 
 - Sprint 1 foundation is running on Bun, Turborepo, Next.js, Fastify, BullMQ, Drizzle, PostgreSQL, and Redis
 - Sprint 2 shared contracts reflect the AI-analysis audit fields and state model
-- Sprint 3 market-data code fetches crypto data from Twelve Data, not Binance
+- Sprint 3 market-data code fetches crypto data from CoinGecko, not Binance
 - env examples and docs mention the required provider configuration
 - no document implies that stocks are in current MVP scope
 - no document implies that Telegram is the current MVP chat channel
@@ -277,8 +272,9 @@ The MVP is complete when:
 
 Post-MVP work can extend the system with:
 
-- US stocks via Twelve Data
+- US stocks via a dedicated adapter selected later
 - IDX stocks via Sectors.app
+- `1H` and other additional timeframes if justified
 - broader context and risk layers
 - approval workflows
 - browser-based action automation

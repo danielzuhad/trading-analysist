@@ -10,7 +10,10 @@ const stack = [
   "BullMQ worker",
   "Drizzle + PostgreSQL",
   "Redis for queues and coordination",
-  "Crypto market-data baseline via Twelve Data",
+  "Private/internal crypto MVP",
+  "BTC/ETH/SOL on 4H operational loop",
+  "CoinGecko market data + context",
+  "Bybit + Fear & Greed context",
   "Deterministic indicator engine",
   "Deterministic signal aggregation",
   "AI analysis with confidence clamp and cost cap",
@@ -24,10 +27,10 @@ export default function HomePage() {
     <main className="shell">
       <section className="hero">
         <p className="eyebrow">Sprint 7 Validation</p>
-        <h1>Crypto Analyst Loop</h1>
+        <h1>4H Crypto Analyst Loop</h1>
         <p className="lede">
-          The repo now centers on the full crypto analysis loop: market data,
-          indicators, signal snapshots, AI analysis, and provider-health
+          The repo now centers on an internal BTC/ETH/SOL loop: CoinGecko market
+          data, indicators, signal snapshots, AI analysis, and provider-health
           visibility. Alerting, positions, and chat-layer delivery still remain
           later sprint work.
         </p>
@@ -57,19 +60,19 @@ export default function HomePage() {
           <p>
             Market snapshot:{" "}
             {apiBaseUrl
-              ? `${apiBaseUrl}/market-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=1H`
+              ? `${apiBaseUrl}/market-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=4H`
               : "Requires API base URL"}
           </p>
           <p>
             Indicator snapshot:{" "}
             {apiBaseUrl
-              ? `${apiBaseUrl}/indicator-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=1H`
+              ? `${apiBaseUrl}/indicator-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=4H`
               : "Requires API base URL"}
           </p>
           <p>
             Signal snapshot:{" "}
             {apiBaseUrl
-              ? `${apiBaseUrl}/signal-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=1H`
+              ? `${apiBaseUrl}/signal-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=4H`
               : "Requires API base URL"}
           </p>
           <p>

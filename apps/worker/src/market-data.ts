@@ -6,8 +6,8 @@ import {
 } from "@trading-analyst/db";
 import { buildIndicatorSnapshot } from "@trading-analyst/indicators";
 import {
+  CoinGeckoMarketDataAdapter,
   MarketFetchService,
-  TwelveDataMarketDataAdapter,
 } from "@trading-analyst/market-data";
 import type {
   Asset,
@@ -33,7 +33,9 @@ export const defaultCryptoWatchlistAssets: Asset[] = [
     quoteCurrency: "USD",
     providerSymbol: "BTC/USD",
     isActive: true,
-    metadata: {},
+    metadata: {
+      coingeckoCoinId: "bitcoin",
+    },
   },
   {
     id: "crypto:global:ETH-USD",
@@ -48,7 +50,9 @@ export const defaultCryptoWatchlistAssets: Asset[] = [
     quoteCurrency: "USD",
     providerSymbol: "ETH/USD",
     isActive: true,
-    metadata: {},
+    metadata: {
+      coingeckoCoinId: "ethereum",
+    },
   },
   {
     id: "crypto:global:SOL-USD",
@@ -63,7 +67,9 @@ export const defaultCryptoWatchlistAssets: Asset[] = [
     quoteCurrency: "USD",
     providerSymbol: "SOL/USD",
     isActive: true,
-    metadata: {},
+    metadata: {
+      coingeckoCoinId: "solana",
+    },
   },
 ];
 
@@ -145,7 +151,7 @@ export type MarketSnapshotJobResult =
 
 export function createMarketFetchService(apiKey: string) {
   return new MarketFetchService({
-    adapters: [new TwelveDataMarketDataAdapter({ apiKey })],
+    adapters: [new CoinGeckoMarketDataAdapter({ apiKey })],
   });
 }
 
@@ -232,7 +238,7 @@ export async function processMarketSnapshotJob({
 
   if (!apiKey) {
     logger.warn(
-      `[worker] skipped market snapshot job for ${asset.displaySymbol} because TWELVE_DATA_API_KEY is not configured`,
+      `[worker] skipped market snapshot job for ${asset.displaySymbol} because COINGECKO_API_KEY is not configured`,
     );
 
     return {

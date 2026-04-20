@@ -10,7 +10,7 @@ describe("service heartbeat parsing", () => {
         payload: {
           detail: "Provider timeout",
         },
-        serviceName: "provider:cryptopanic",
+        serviceName: "provider:coingecko",
         status: "down",
       }),
     ).toEqual({
@@ -18,7 +18,7 @@ describe("service heartbeat parsing", () => {
       payload: {
         detail: "Provider timeout",
       },
-      serviceName: "provider:cryptopanic",
+      serviceName: "provider:coingecko",
       status: "down",
     });
   });

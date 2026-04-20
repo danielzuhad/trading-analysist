@@ -15,7 +15,6 @@ export const marketContextProviderValues = [
   "fear-and-greed",
   "bybit",
   "coingecko",
-  "cryptopanic",
 ] as const;
 export const marketContextProviderSchema = z.enum(marketContextProviderValues);
 export type MarketContextProvider = z.infer<typeof marketContextProviderSchema>;

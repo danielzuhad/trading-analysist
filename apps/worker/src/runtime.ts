@@ -52,15 +52,9 @@ async function defaultProcessor(
       ? { coingeckoApiKey: env.COINGECKO_API_KEY }
       : {}),
     connectionString: env.DATABASE_URL,
-    ...(env.CRYPTOPANIC_API_TOKEN
-      ? { cryptopanicApiToken: env.CRYPTOPANIC_API_TOKEN }
-      : {}),
     logger,
     maxDailyAiCostUsd: env.MAX_DAILY_AI_COST_USD,
     ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
-    ...(env.TWELVE_DATA_API_KEY
-      ? { marketFetchApiKey: env.TWELVE_DATA_API_KEY }
-      : {}),
     requestedAt: job.data.requestedAt,
     timeframe: job.data.timeframe,
   });

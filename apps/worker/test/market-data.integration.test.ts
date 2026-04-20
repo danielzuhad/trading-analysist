@@ -37,13 +37,13 @@ describeInfrastructure("worker market-data persistence", () => {
     const assetId = "crypto:global:BTC-USD";
     const databaseUrl = requireDatabaseUrl();
     const uniqueSuffix = randomUUID();
-    const marketSnapshotId = `market:twelve-data:${assetId}:1H`;
+    const marketSnapshotId = `market:coingecko:${assetId}:1H`;
     const indicatorSnapshotId = `indicator:${assetId}:1H`;
 
     const marketDataFixture: LatestMarketData = {
       series: {
         assetId,
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt: "2026-04-04T04:00:00.000Z",
         lastPrice: 84250.5,
@@ -66,7 +66,7 @@ describeInfrastructure("worker market-data persistence", () => {
       snapshot: {
         id: marketSnapshotId,
         assetId,
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt: "2026-04-04T04:00:00.000Z",
         lastPrice: 84250.5,

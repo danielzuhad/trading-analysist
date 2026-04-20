@@ -15,8 +15,8 @@ const marketContextFixture: MarketContextSnapshot = {
   assetId,
   timeframe: "4H",
   generatedAt: requestedAt,
-  isPartial: true,
-  missingProviders: ["cryptopanic"],
+  isPartial: false,
+  missingProviders: [],
   providers: [
     {
       provider: "fear-and-greed",
@@ -36,13 +36,6 @@ const marketContextFixture: MarketContextSnapshot = {
       checkedAt: requestedAt,
       metadata: {},
     },
-    {
-      provider: "cryptopanic",
-      status: "disabled",
-      checkedAt: requestedAt,
-      detail: "CRYPTOPANIC_API_TOKEN is not configured.",
-      metadata: {},
-    },
   ],
   btcDominancePercent: 52.3,
   totalMarketCapUsd: 2_600_000_000_000,
@@ -57,7 +50,7 @@ const marketContextFixture: MarketContextSnapshot = {
 const marketDataFixture: LatestMarketData = {
   series: {
     assetId,
-    provider: "twelve-data",
+    provider: "coingecko",
     timeframe: "4H",
     capturedAt: requestedAt,
     lastPrice: 84250.5,
@@ -76,9 +69,9 @@ const marketDataFixture: LatestMarketData = {
     metadata: {},
   },
   snapshot: {
-    id: `market:twelve-data:${assetId}:4H`,
+    id: `market:coingecko:${assetId}:4H`,
     assetId,
-    provider: "twelve-data",
+    provider: "coingecko",
     timeframe: "4H",
     capturedAt: requestedAt,
     lastPrice: 84250.5,
@@ -207,7 +200,7 @@ describe("worker analysis pipeline", () => {
         log: vi.fn(),
         warn: vi.fn(),
       },
-      marketFetchApiKey: "test-key",
+      coingeckoApiKey: "test-key",
       requestedAt,
       saveHeartbeat,
       timeframe: "4H",
@@ -215,16 +208,16 @@ describe("worker analysis pipeline", () => {
 
     expect(result).toMatchObject({
       assetId,
-      contextPartial: true,
+      contextPartial: false,
       marketStatus: "stored",
       status: "stored",
       timeframe: "4H",
     });
-    expect(saveHeartbeat).toHaveBeenCalledTimes(5);
+    expect(saveHeartbeat).toHaveBeenCalledTimes(4);
     expect(saveHeartbeat).toHaveBeenCalledWith(
       expect.objectContaining({
-        serviceName: "provider:cryptopanic",
-        status: "disabled",
+        serviceName: "provider:coingecko",
+        status: "active",
       }),
       undefined,
     );
@@ -250,7 +243,7 @@ describe("worker analysis pipeline", () => {
         log: vi.fn(),
         warn: vi.fn(),
       },
-      marketFetchApiKey: "test-key",
+      coingeckoApiKey: "test-key",
       requestedAt,
       timeframe: "4H",
     });

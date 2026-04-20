@@ -27,9 +27,9 @@ describe("latest signal aggregation snapshot serialization", () => {
         metadata: {},
       },
       marketSnapshot: {
-        id: "market:twelve-data:crypto:global:BTC-USD:1H",
+        id: "market:coingecko:crypto:global:BTC-USD:1H",
         assetId: "crypto:global:BTC-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt: generatedAt,
         lastPrice: 84610,

@@ -6,8 +6,8 @@ Development must follow the sprint order unless the user explicitly reprioritize
 
 Current implementation checkpoint for this repository:
 
-- [x] Sprints 1-6 are implemented in the codebase
-- [ ] Sprint 7 is the next active target
+- [x] Sprints 1-7 are implemented in the codebase
+- [ ] Sprint 8 is the next active target
 
 ## Phase 1 — Crypto MVP
 
@@ -84,7 +84,7 @@ Define the shared domain contracts before deeper implementation starts.
 
 **Status**
 
-Completed in codebase. Twelve Data crypto ingestion, normalization, persistence, and latest market snapshot read path are implemented.
+Completed in codebase. CoinGecko crypto ingestion, normalization, persistence, and latest market snapshot read path are implemented.
 
 **Goal**
 
@@ -93,15 +93,14 @@ Fetch crypto market data and normalize it into one internal schema.
 **MVP scope**
 
 - crypto only
-- `1H` and `4H` only
+- `4H` only
+- internal/private validation for BTC, ETH, and SOL first
 
 **Provider decisions**
 
-- crypto OHLCV and current price: Twelve Data
-- market context: CoinGecko
+- crypto OHLCV, current price, and market context: CoinGecko
 - sentiment: alternative.me Fear & Greed Index
 - derivatives: Bybit public REST API
-- crypto news: CryptoPanic
 
 **Hard rules**
 
@@ -112,7 +111,7 @@ Fetch crypto market data and normalize it into one internal schema.
 **Output**
 
 - normalized crypto candle series and latest market snapshot
-- env and runtime wiring for Twelve Data
+- env and runtime wiring for CoinGecko
 - provider selection aligned with the crypto-first MVP
 
 ## Phase 1 — Current Progress and Next Steps
@@ -172,11 +171,11 @@ Let AI perform the actual analysis from the assembled snapshot.
 - every call stores `model_used`, `prompt_version`, `snapshot_hash`, `ai_latency_ms`, and `cost_estimate_usd`
 - daily cap via `MAX_DAILY_AI_COST_USD`, default `2.00`
 
-### [ ] Sprint 7 — Worker Pipeline and Full Loop Validation
+### [x] Sprint 7 — Worker Pipeline and Full Loop Validation
 
 **Status**
 
-Next target. The full scheduled loop `fetch -> indicators -> snapshot -> AI -> persistence` is not wired end-to-end yet.
+Completed in codebase. The scheduled loop `fetch -> indicators -> snapshot -> AI -> persistence` is wired with context-provider status visibility and health/readiness reporting.
 
 **Goal**
 
@@ -236,9 +235,9 @@ The chat layer does not analyze markets. It only calls backend tools.
 
 These items are later and must not distort the crypto MVP baseline:
 
-- US stocks via Twelve Data
+- US stocks via a later adapter
 - IDX stocks via Sectors.app
-- additional timeframes beyond `1H` and `4H`
+- additional timeframes beyond `4H`, including `1H` if justified
 - broader context/risk layers
 - approval workflows
 - browser-based execution
@@ -251,5 +250,5 @@ Before any Sprint 4+ implementation is treated as valid, the repo should pass th
 - docs consistently say WhatsApp API chat layer
 - docs consistently say Binance is not used
 - shared contracts include AI audit fields
-- market-data runtime uses Twelve Data for crypto
+- market-data runtime uses CoinGecko for crypto
 - README and env examples match the actual setup

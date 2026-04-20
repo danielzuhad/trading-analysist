@@ -13,13 +13,13 @@ import { z } from "zod";
 
 const latestMarketDataQuerySchema = z.object({
   assetId: z.string().trim().min(1),
-  timeframe: supportedTimeframeSchema.default("1H"),
+  timeframe: supportedTimeframeSchema.default("4H"),
 });
 
 type Dependencies = {
   getLatestMarketData: (
     assetId: string,
-    timeframe: "1H" | "4H",
+    timeframe: SupportedTimeframe,
   ) => Promise<LatestMarketData | null>;
   getLatestIndicatorSnapshot: (
     assetId: string,

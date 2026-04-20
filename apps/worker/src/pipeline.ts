@@ -3,7 +3,6 @@ import { saveServiceHeartbeat } from "@trading-analyst/db";
 import {
   BybitContextProvider,
   CoinGeckoContextProvider,
-  CryptoPanicContextProvider,
   FearAndGreedContextProvider,
   MarketContextService,
 } from "@trading-analyst/market-data";
@@ -27,13 +26,11 @@ type RunAnalysisCycleOptions = {
   coingeckoApiKey?: string;
   connectionString?: string;
   contextService?: Pick<MarketContextService, "fetchContext">;
-  cryptopanicApiToken?: string;
   fetchService?: ReturnType<typeof createMarketFetchService>;
   generateAnalysisFromSignalSnapshotFn?: typeof generateAssetAnalysisFromSignalSnapshot;
   ingestLatestMarketDataFn?: typeof ingestLatestMarketData;
   logger?: Logger;
   maxDailyAiCostUsd?: number;
-  marketFetchApiKey?: string;
   openAiApiKey?: string;
   requestedAt: string;
   saveHeartbeat?: typeof saveServiceHeartbeat;
@@ -62,13 +59,11 @@ export async function runAnalysisCycle({
   coingeckoApiKey,
   connectionString,
   contextService,
-  cryptopanicApiToken,
   fetchService,
   generateAnalysisFromSignalSnapshotFn = generateAssetAnalysisFromSignalSnapshot,
   ingestLatestMarketDataFn = ingestLatestMarketData,
   logger = console,
   maxDailyAiCostUsd,
-  marketFetchApiKey,
   openAiApiKey,
   requestedAt,
   saveHeartbeat = saveServiceHeartbeat,
@@ -89,9 +84,9 @@ export async function runAnalysisCycle({
     };
   }
 
-  if (!marketFetchApiKey) {
+  if (!coingeckoApiKey) {
     logger.warn(
-      `[worker] skipped analysis cycle for ${asset.displaySymbol} because TWELVE_DATA_API_KEY is not configured`,
+      `[worker] skipped analysis cycle for ${asset.displaySymbol} because COINGECKO_API_KEY is not configured`,
     );
 
     return {
@@ -106,7 +101,6 @@ export async function runAnalysisCycle({
     contextService ??
     createMarketContextService({
       ...(coingeckoApiKey ? { coingeckoApiKey } : {}),
-      ...(cryptopanicApiToken ? { cryptopanicApiToken } : {}),
     });
   const marketContext = await marketContextService.fetchContext({
     asset,
@@ -121,7 +115,7 @@ export async function runAnalysisCycle({
   });
 
   const { signalAggregationSnapshot } = await ingestLatestMarketDataFn({
-    apiKey: marketFetchApiKey,
+    apiKey: coingeckoApiKey,
     asset,
     buildSignalAggregation: ({
       asset: currentAsset,
@@ -138,7 +132,7 @@ export async function runAnalysisCycle({
     ...(connectionString ? { connectionString } : {}),
     ...(fetchService
       ? { fetchService }
-      : { fetchService: createMarketFetchService(marketFetchApiKey) }),
+      : { fetchService: createMarketFetchService(coingeckoApiKey) }),
     timeframe,
   });
 
@@ -172,10 +166,8 @@ export async function runAnalysisCycle({
 
 function createMarketContextService({
   coingeckoApiKey,
-  cryptopanicApiToken,
 }: {
   coingeckoApiKey?: string;
-  cryptopanicApiToken?: string;
 }) {
   return new MarketContextService({
     providers: [
@@ -183,9 +175,6 @@ function createMarketContextService({
       new BybitContextProvider(),
       new CoinGeckoContextProvider({
         ...(coingeckoApiKey ? { apiKey: coingeckoApiKey } : {}),
-      }),
-      new CryptoPanicContextProvider({
-        ...(cryptopanicApiToken ? { apiToken: cryptopanicApiToken } : {}),
       }),
     ],
   });

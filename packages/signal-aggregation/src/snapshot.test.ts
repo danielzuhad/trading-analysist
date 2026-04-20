@@ -27,9 +27,9 @@ const asset = assetSchema.parse({
 });
 
 const marketSnapshot = marketSnapshotSchema.parse({
-  id: "market:twelve-data:crypto:global:BTC-USD:1H",
+  id: "market:coingecko:crypto:global:BTC-USD:1H",
   assetId: asset.id,
-  provider: "twelve-data",
+  provider: "coingecko",
   timeframe: "1H",
   capturedAt: "2026-04-10T12:00:00.000Z",
   lastPrice: 84610,

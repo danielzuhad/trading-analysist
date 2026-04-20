@@ -12,7 +12,7 @@ describe("latest market data serialization", () => {
     const source: LatestMarketData = {
       series: {
         assetId: "crypto:global:BTC-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt,
         lastPrice: 84250.5,
@@ -47,9 +47,9 @@ describe("latest market data serialization", () => {
         },
       },
       snapshot: {
-        id: "market:twelve-data:crypto:global:BTC-USD:1H",
+        id: "market:coingecko:crypto:global:BTC-USD:1H",
         assetId: "crypto:global:BTC-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt,
         lastPrice: 84250.5,
@@ -94,7 +94,7 @@ describe("latest market data serialization", () => {
     const source: LatestMarketData = {
       series: {
         assetId: "crypto:global:ETH-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "4H",
         capturedAt,
         lastPrice: 1834.2,
@@ -113,9 +113,9 @@ describe("latest market data serialization", () => {
         metadata: {},
       },
       snapshot: {
-        id: "market:twelve-data:crypto:global:ETH-USD:4H",
+        id: "market:coingecko:crypto:global:ETH-USD:4H",
         assetId: "crypto:global:ETH-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "4H",
         capturedAt,
         lastPrice: 1834.2,

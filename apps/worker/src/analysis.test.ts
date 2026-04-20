@@ -27,9 +27,9 @@ const signalSnapshotFixture: SignalAggregationSnapshot = {
     metadata: {},
   },
   marketSnapshot: {
-    id: "market:twelve-data:crypto:global:BTC-USD:1H",
+    id: "market:coingecko:crypto:global:BTC-USD:1H",
     assetId: "crypto:global:BTC-USD",
-    provider: "twelve-data",
+    provider: "coingecko",
     timeframe: "1H",
     capturedAt: "2026-04-19T08:00:00.000Z",
     lastPrice: 84250.5,
@@ -270,7 +270,7 @@ describe("worker AI analysis helper", () => {
           timeframe: "1H",
           generatedAt: "2026-04-19T08:00:00.000Z",
           isPartial: true,
-          missingProviders: ["cryptopanic"],
+          missingProviders: ["bybit"],
           providers: [
             {
               provider: "fear-and-greed",
@@ -279,7 +279,7 @@ describe("worker AI analysis helper", () => {
               metadata: {},
             },
             {
-              provider: "cryptopanic",
+              provider: "bybit",
               status: "down",
               checkedAt: "2026-04-19T08:00:00.000Z",
               detail: "Provider timeout",
@@ -307,7 +307,7 @@ describe("worker AI analysis helper", () => {
     expect(saveAnalysis.mock.calls[0]?.[0].metadata).toMatchObject({
       marketContext: {
         isPartial: true,
-        missingProviders: ["cryptopanic"],
+        missingProviders: ["bybit"],
       },
     });
   });

@@ -171,7 +171,7 @@ describe("shared contracts", () => {
   it("parses market and indicator snapshots", () => {
     const marketSeries = marketCandleSeriesSchema.parse({
       assetId: "crypto:global:SOL-USD",
-      provider: "twelve-data",
+      provider: "coingecko",
       timeframe: "1H",
       capturedAt: timestamp,
       lastPrice: 148.2,
@@ -207,7 +207,7 @@ describe("shared contracts", () => {
     const marketSnapshot = marketSnapshotSchema.parse({
       id: "market-sol-1h",
       assetId: "crypto:global:SOL-USD",
-      provider: "twelve-data",
+      provider: "coingecko",
       timeframe: "1H",
       capturedAt: timestamp,
       lastPrice: 148.2,
@@ -354,7 +354,7 @@ describe("shared contracts", () => {
       marketSnapshot: {
         id: "market-sol-1h",
         assetId: "crypto:global:SOL-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt: timestamp,
         lastPrice: 148.2,
@@ -517,7 +517,7 @@ describe("shared contracts", () => {
       marketSnapshot: {
         id: "market-sol-1h",
         assetId: "crypto:global:SOL-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt: timestamp,
         lastPrice: 148.2,
@@ -643,7 +643,7 @@ describe("shared contracts", () => {
       marketSnapshot: {
         id: "market-btc-1h",
         assetId: "crypto:global:BTC-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt: timestamp,
         lastPrice: 84250.5,

@@ -40,7 +40,7 @@ describe("latest indicator snapshot serialization", () => {
       },
       structure: "uptrend",
       metadata: {
-        sourceProvider: "twelve-data",
+        sourceProvider: "coingecko",
       },
     };
 

@@ -95,13 +95,13 @@ describeInfrastructure("database integration", () => {
 
   it("upserts and reads the latest market data snapshot", async () => {
     const assetId = `crypto:test:${randomUUID()}`;
-    const snapshotId = `market:twelve-data:${assetId}:1H`;
+    const snapshotId = `market:coingecko:${assetId}:1H`;
 
     await saveLatestMarketData(
       {
         series: {
           assetId,
-          provider: "twelve-data",
+          provider: "coingecko",
           timeframe: "1H",
           capturedAt: "2026-04-04T04:00:00.000Z",
           lastPrice: 84250.5,
@@ -122,7 +122,7 @@ describeInfrastructure("database integration", () => {
         snapshot: {
           id: snapshotId,
           assetId,
-          provider: "twelve-data",
+          provider: "coingecko",
           timeframe: "1H",
           capturedAt: "2026-04-04T04:00:00.000Z",
           lastPrice: 84250.5,
@@ -218,9 +218,9 @@ describeInfrastructure("database integration", () => {
           metadata: {},
         },
         marketSnapshot: {
-          id: `market:twelve-data:${assetId}:1H`,
+          id: `market:coingecko:${assetId}:1H`,
           assetId,
-          provider: "twelve-data",
+          provider: "coingecko",
           timeframe: "1H",
           capturedAt: "2026-04-04T04:00:00.000Z",
           lastPrice: 84250.5,
@@ -333,9 +333,9 @@ describeInfrastructure("database integration", () => {
           metadata: {},
         },
         marketSnapshot: {
-          id: `market:twelve-data:${assetId}:1H`,
+          id: `market:coingecko:${assetId}:1H`,
           assetId,
-          provider: "twelve-data",
+          provider: "coingecko",
           timeframe: "1H",
           capturedAt: "2026-04-19T08:00:00.000Z",
           lastPrice: 84250.5,

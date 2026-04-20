@@ -22,9 +22,9 @@ export function createSignalSnapshotFixture(): SignalAggregationSnapshot {
       metadata: {},
     },
     marketSnapshot: {
-      id: "market:twelve-data:crypto:global:BTC-USD:1H",
+      id: "market:coingecko:crypto:global:BTC-USD:1H",
       assetId: "crypto:global:BTC-USD",
-      provider: "twelve-data",
+      provider: "coingecko",
       timeframe: "1H",
       capturedAt: "2026-04-19T08:00:00.000Z",
       lastPrice: 84250.5,

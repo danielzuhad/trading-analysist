@@ -1,6 +1,6 @@
 import type { Asset } from "@trading-analyst/shared-types";
 import { describe, expect, it } from "vitest";
-import { TwelveDataMarketDataAdapter } from "../src/adapters/twelve-data.js";
+import { CoinGeckoMarketDataAdapter } from "../src/adapters/coingecko.js";
 import {
   MarketDataConfigurationError,
   MarketDataValidationError,
@@ -16,21 +16,22 @@ const cryptoAsset: Asset = {
   instrumentType: "spot",
   isActive: true,
   market: "global",
-  metadata: {},
+  metadata: {
+    coingeckoCoinId: "solana",
+  },
   name: "Solana",
   providerSymbol: "SOL/USD",
   quoteCurrency: "USD",
   symbol: "SOL",
 };
 
-const cryptoAssetWithoutProviderSymbol: Asset = {
+const cryptoAssetWithoutCoinId: Asset = {
   ...cryptoAsset,
-  id: "crypto:global:BTC-USD",
   baseCurrency: "BTC",
-  displaySymbol: "BTC/USD",
+  id: "crypto:global:BTC-USD",
+  metadata: {},
   name: "Bitcoin",
-  providerSymbol: undefined,
-  quoteCurrency: "USD",
+  providerSymbol: "BTC/USD",
   symbol: "BTC",
 };
 
@@ -49,50 +50,30 @@ const stockAsset: Asset = {
 };
 
 describe("MarketFetchService", () => {
-  it("normalizes Twelve Data crypto candles into a snapshot and candle series", async () => {
+  it("normalizes CoinGecko hourly crypto candles into a snapshot and candle series", async () => {
     const service = new MarketFetchService({
       adapters: [
-        new TwelveDataMarketDataAdapter({
-          apiKey: "test-key",
+        new CoinGeckoMarketDataAdapter({
           fetchFn: async (input) => {
             const url = new URL(String(input));
 
-            if (url.pathname === "/time_series") {
-              return jsonResponse({
-                meta: {
-                  currency: "USD",
-                  exchange: "CRYPTO",
-                  exchange_timezone: "UTC",
-                  interval: "1h",
-                  symbol: "SOL/USD",
-                },
-                values: [
-                  {
-                    close: "146.40",
-                    datetime: "2026-03-31 08:00:00",
-                    high: "146.70",
-                    low: "144.10",
-                    open: "144.80",
-                    volume: "1523400",
-                  },
-                  {
-                    close: "148.20",
-                    datetime: "2026-03-31 09:00:00",
-                    high: "149.10",
-                    low: "145.90",
-                    open: "146.40",
-                    volume: "1823400",
-                  },
-                ],
-              });
+            if (url.pathname === "/api/v3/coins/solana/ohlc") {
+              return jsonResponse([
+                [1712023200000, 144.8, 146.7, 144.1, 146.4],
+                [1712026800000, 146.4, 149.1, 145.9, 148.2],
+              ]);
             }
 
-            if (url.pathname === "/quote") {
+            if (url.pathname === "/api/v3/coins/solana/market_chart") {
               return jsonResponse({
-                close: "148.20",
-                datetime: "2026-03-31 09:15:00",
-                is_market_open: "true",
-                percent_change: "2.10",
+                prices: [
+                  [1712023200000, 146.4],
+                  [1712026800000, 148.2],
+                ],
+                total_volumes: [
+                  [1712023200000, 1523400],
+                  [1712026800000, 1823400],
+                ],
               });
             }
 
@@ -108,63 +89,47 @@ describe("MarketFetchService", () => {
       timeframe: "1H",
     });
 
-    expect(result.series.provider).toBe("twelve-data");
+    expect(result.series.provider).toBe("coingecko");
     expect(result.series.candles).toHaveLength(2);
     expect(result.snapshot.candle.close).toBe(148.2);
     expect(result.snapshot.marketSession).toBe("continuous");
-    expect(result.snapshot.metadata.isStale).toBeTypeOf("boolean");
+    expect(result.snapshot.metadata).toMatchObject({
+      coinId: "solana",
+      hasApiKey: false,
+      sourceTimeframe: "1H",
+    });
   });
 
-  it("falls back to a base and quote pair when the asset has no provider symbol", async () => {
-    const requestedSymbols: string[] = [];
+  it("aggregates hourly CoinGecko candles into complete 4H candles", async () => {
     const service = new MarketFetchService({
       adapters: [
-        new TwelveDataMarketDataAdapter({
-          apiKey: "test-key",
+        new CoinGeckoMarketDataAdapter({
           fetchFn: async (input) => {
             const url = new URL(String(input));
-            const symbol = url.searchParams.get("symbol");
 
-            if (symbol) {
-              requestedSymbols.push(symbol);
+            if (url.pathname === "/api/v3/coins/bitcoin/ohlc") {
+              return jsonResponse([
+                [1712019600000, 84010, 84200, 83920, 84100],
+                [1712023200000, 84100, 84340, 84020, 84250],
+                [1712026800000, 84250, 84510, 84180, 84400],
+                [1712030400000, 84400, 84880, 84310, 84610],
+              ]);
             }
 
-            if (url.pathname === "/time_series") {
+            if (url.pathname === "/api/v3/coins/bitcoin/market_chart") {
               return jsonResponse({
-                meta: {
-                  currency: "USD",
-                  exchange: "CRYPTO",
-                  exchange_timezone: "UTC",
-                  interval: "4h",
-                  symbol,
-                },
-                values: [
-                  {
-                    close: "84250",
-                    datetime: "2026-03-31 08:00:00",
-                    high: "84520",
-                    low: "83810",
-                    open: "84010",
-                    volume: "2450",
-                  },
-                  {
-                    close: "84610",
-                    datetime: "2026-03-31 12:00:00",
-                    high: "84880",
-                    low: "84100",
-                    open: "84250",
-                    volume: "2680",
-                  },
+                prices: [
+                  [1712019600000, 84100],
+                  [1712023200000, 84250],
+                  [1712026800000, 84400],
+                  [1712030400000, 84610],
                 ],
-              });
-            }
-
-            if (url.pathname === "/quote") {
-              return jsonResponse({
-                close: "84610",
-                datetime: "2026-03-31 12:15:00",
-                is_market_open: "true",
-                percent_change: "0.91",
+                total_volumes: [
+                  [1712019600000, 2400],
+                  [1712023200000, 2450],
+                  [1712026800000, 2500],
+                  [1712030400000, 2680],
+                ],
               });
             }
 
@@ -175,31 +140,25 @@ describe("MarketFetchService", () => {
     });
 
     const result = await service.fetchMarketData({
-      asset: cryptoAssetWithoutProviderSymbol,
+      asset: cryptoAssetWithoutCoinId,
       timeframe: "4H",
     });
 
-    expect(requestedSymbols).toEqual(["BTC/USD", "BTC/USD"]);
-    expect(result.series.provider).toBe("twelve-data");
-    expect(result.series.quoteCurrency).toBe("USD");
-  });
-
-  it("throws a configuration error when Twelve Data is used without an API key", async () => {
-    const service = new MarketFetchService({
-      adapters: [new TwelveDataMarketDataAdapter()],
+    expect(result.series.provider).toBe("coingecko");
+    expect(result.series.candles).toHaveLength(1);
+    expect(result.series.candles[0]).toMatchObject({
+      close: 84610,
+      high: 84880,
+      low: 83920,
+      open: 84010,
+      volume: 10030,
     });
-
-    await expect(
-      service.fetchMarketData({
-        asset: cryptoAsset,
-        timeframe: "1H",
-      }),
-    ).rejects.toBeInstanceOf(MarketDataConfigurationError);
+    expect(result.series.metadata.coinId).toBe("bitcoin");
   });
 
-  it("rejects stock assets while the repo is aligned to the crypto MVP", async () => {
+  it("rejects stock assets when no stock provider is configured for the MVP", async () => {
     const service = new MarketFetchService({
-      adapters: [new TwelveDataMarketDataAdapter({ apiKey: "test-key" })],
+      adapters: [new CoinGeckoMarketDataAdapter()],
     });
 
     await expect(
@@ -210,29 +169,34 @@ describe("MarketFetchService", () => {
     ).rejects.toBeInstanceOf(MarketDataConfigurationError);
   });
 
-  it("rejects empty provider candle payloads", async () => {
+  it("rejects incomplete 4H aggregation when CoinGecko only returns partial hourly history", async () => {
     const service = new MarketFetchService({
       adapters: [
-        new TwelveDataMarketDataAdapter({
-          apiKey: "test-key",
+        new CoinGeckoMarketDataAdapter({
           fetchFn: async (input) => {
             const url = new URL(String(input));
 
-            if (url.pathname === "/time_series") {
+            if (url.pathname === "/api/v3/coins/solana/ohlc") {
+              return jsonResponse([
+                [1712023200000, 144.8, 146.7, 144.1, 146.4],
+                [1712026800000, 146.4, 149.1, 145.9, 148.2],
+              ]);
+            }
+
+            if (url.pathname === "/api/v3/coins/solana/market_chart") {
               return jsonResponse({
-                meta: {
-                  exchange_timezone: "UTC",
-                  interval: "1h",
-                  symbol: "SOL/USD",
-                },
-                values: [],
+                prices: [
+                  [1712023200000, 146.4],
+                  [1712026800000, 148.2],
+                ],
+                total_volumes: [
+                  [1712023200000, 1523400],
+                  [1712026800000, 1823400],
+                ],
               });
             }
 
-            return jsonResponse({
-              close: "148.20",
-              is_market_open: true,
-            });
+            return jsonResponse({}, { status: 404 });
           },
         }),
       ],
@@ -241,7 +205,7 @@ describe("MarketFetchService", () => {
     await expect(
       service.fetchMarketData({
         asset: cryptoAsset,
-        timeframe: "1H",
+        timeframe: "4H",
       }),
     ).rejects.toBeInstanceOf(MarketDataValidationError);
   });

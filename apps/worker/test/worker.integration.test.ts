@@ -36,14 +36,12 @@ describeInfrastructure("worker bootstrap", () => {
 
     runtime = await startWorkerRuntime({
       env: {
-        COINGECKO_API_KEY: undefined,
-        CRYPTOPANIC_API_TOKEN: undefined,
+        COINGECKO_API_KEY: "test-key",
         DATABASE_URL: "https://database.invalid",
         MAX_DAILY_AI_COST_USD: 2,
         NODE_ENV: "test",
         OPENAI_API_KEY: undefined,
         REDIS_URL: requireRedisUrl(),
-        TWELVE_DATA_API_KEY: "test-key",
         WORKER_CONCURRENCY: 1,
         WORKER_ENABLE_SCHEDULER: false,
         WORKER_SCHEDULED_ASSETS:

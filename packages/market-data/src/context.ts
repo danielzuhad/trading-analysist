@@ -44,13 +44,6 @@ type CoinGeckoContextProviderOptions = {
   requestTimeoutMs?: number;
 };
 
-type CryptoPanicContextProviderOptions = {
-  apiToken?: string;
-  baseUrl?: string;
-  fetchFn?: FetchLike;
-  requestTimeoutMs?: number;
-};
-
 type FearAndGreedContextProviderOptions = {
   baseUrl?: string;
   fetchFn?: FetchLike;
@@ -69,7 +62,7 @@ type MarketContextServiceOptions = {
 
 const defaultBybitBaseUrl = "https://api.bybit.com";
 const defaultCoinGeckoBaseUrl = "https://api.coingecko.com/api/v3";
-const defaultCryptoPanicBaseUrl = "https://cryptopanic.com/api/v1";
+const defaultCoinGeckoProBaseUrl = "https://pro-api.coingecko.com/api/v3";
 const defaultFearAndGreedBaseUrl = "https://api.alternative.me";
 
 const numberishSchema = z
@@ -136,22 +129,6 @@ const bybitOpenInterestSchema = z.object({
       }),
     ),
   }),
-});
-
-const cryptoPanicSchema = z.object({
-  results: z.array(
-    z.object({
-      published_at: z.string().optional(),
-      title: z.string(),
-      votes: z
-        .object({
-          negative: numberishSchema.optional(),
-          positive: numberishSchema.optional(),
-        })
-        .partial()
-        .optional(),
-    }),
-  ),
 });
 
 export class MarketContextService {
@@ -252,7 +229,7 @@ export class CoinGeckoContextProvider implements MarketContextProviderAdapter {
 
   constructor(options: CoinGeckoContextProviderOptions = {}) {
     this.apiKey = options.apiKey;
-    this.baseUrl = options.baseUrl ?? defaultCoinGeckoBaseUrl;
+    this.baseUrl = options.baseUrl ?? resolveCoinGeckoBaseUrl(options.apiKey);
     this.fetchFn = options.fetchFn;
     this.requestTimeoutMs = options.requestTimeoutMs;
   }
@@ -260,7 +237,7 @@ export class CoinGeckoContextProvider implements MarketContextProviderAdapter {
   async fetchContext(
     _request: MarketContextRequest,
   ): Promise<MarketContextProviderResult> {
-    const url = new URL("/global", ensureTrailingSlash(this.baseUrl));
+    const url = buildUrl(this.baseUrl, "/global", {});
     const payload = coinGeckoGlobalSchema.parse(
       await fetchJson(url, this.buildRequestOptions()),
     );
@@ -463,90 +440,15 @@ export class BybitContextProvider implements MarketContextProviderAdapter {
   }
 }
 
-export class CryptoPanicContextProvider
-  implements MarketContextProviderAdapter
-{
-  readonly provider = "cryptopanic" as const;
-
-  private readonly apiToken: string | undefined;
-  private readonly baseUrl: string;
-  private readonly fetchFn: FetchLike | undefined;
-  private readonly requestTimeoutMs: number | undefined;
-
-  constructor(options: CryptoPanicContextProviderOptions = {}) {
-    this.apiToken = options.apiToken;
-    this.baseUrl = options.baseUrl ?? defaultCryptoPanicBaseUrl;
-    this.fetchFn = options.fetchFn;
-    this.requestTimeoutMs = options.requestTimeoutMs;
-  }
-
-  async fetchContext(
-    request: MarketContextRequest,
-  ): Promise<MarketContextProviderResult> {
-    if (!this.apiToken) {
-      return {
-        status: {
-          provider: this.provider,
-          status: "disabled",
-          detail: "CRYPTOPANIC_API_TOKEN is not configured.",
-          metadata: {},
-        },
-      };
-    }
-
-    const url = buildUrl(this.baseUrl, "/posts/", {
-      auth_token: this.apiToken,
-      currencies: request.asset.baseCurrency ?? request.asset.symbol,
-      kind: "news",
-      public: "true",
-    });
-    const payload = cryptoPanicSchema.parse(
-      await fetchJson(url, this.buildRequestOptions()),
-    );
-    const headlines = payload.results.slice(0, 3).map((entry) => entry.title);
-    const voteScore = payload.results.reduce((total, entry) => {
-      const positive = entry.votes?.positive ?? 0;
-      const negative = entry.votes?.negative ?? 0;
-
-      return total + positive - negative;
-    }, 0);
-
-    return {
-      patch: {
-        news: {
-          headlineCount: payload.results.length,
-          topHeadlines: headlines,
-          sentiment:
-            voteScore > 0 ? "bullish" : voteScore < 0 ? "bearish" : "mixed",
-        },
-      },
-      status: {
-        provider: this.provider,
-        status: "active",
-        metadata: {
-          currency: request.asset.baseCurrency ?? request.asset.symbol,
-        },
-      },
-    };
-  }
-
-  private buildRequestOptions() {
-    return {
-      ...(this.fetchFn ? { fetchFn: this.fetchFn } : {}),
-      provider: this.provider,
-      ...(this.requestTimeoutMs !== undefined
-        ? { timeoutMs: this.requestTimeoutMs }
-        : {}),
-    };
-  }
-}
-
 function buildUrl(
   baseUrl: string,
   pathname: string,
   query: Record<string, string>,
 ) {
-  const url = new URL(pathname, ensureTrailingSlash(baseUrl));
+  const normalizedPath = pathname.startsWith("/")
+    ? pathname.slice(1)
+    : pathname;
+  const url = new URL(normalizedPath, ensureTrailingSlash(baseUrl));
 
   for (const [key, value] of Object.entries(query)) {
     url.searchParams.set(key, value);
@@ -557,6 +459,10 @@ function buildUrl(
 
 function ensureTrailingSlash(value: string) {
   return value.endsWith("/") ? value : `${value}/`;
+}
+
+function resolveCoinGeckoBaseUrl(apiKey: string | undefined) {
+  return apiKey ? defaultCoinGeckoProBaseUrl : defaultCoinGeckoBaseUrl;
 }
 
 function calculateChangePercent(current: number, previous: number) {

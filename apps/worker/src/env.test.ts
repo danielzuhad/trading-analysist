@@ -42,12 +42,12 @@ describe("worker environment", () => {
     expect(result.success).toBe(true);
   });
 
-  it("accepts an optional Twelve Data API key", () => {
+  it("accepts an optional CoinGecko API key", () => {
     const result = workerEnvSchema.safeParse({
       NODE_ENV: "development",
       DATABASE_URL: validTestUrl("database"),
       REDIS_URL: validTestUrl("redis"),
-      TWELVE_DATA_API_KEY: "demo-key",
+      COINGECKO_API_KEY: "demo-key",
       WORKER_CONCURRENCY: 1,
     });
 
@@ -80,7 +80,6 @@ describe("worker environment", () => {
       DATABASE_URL: validTestUrl("database"),
       REDIS_URL: validTestUrl("redis"),
       COINGECKO_API_KEY: "cg-demo-key",
-      CRYPTOPANIC_API_TOKEN: "panic-demo-token",
       WORKER_CONCURRENCY: 1,
       WORKER_ENABLE_SCHEDULER: "false",
       WORKER_SCHEDULED_ASSETS: "crypto:global:BTC-USD,crypto:global:ETH-USD",
@@ -94,7 +93,6 @@ describe("worker environment", () => {
     }
 
     expect(result.data.COINGECKO_API_KEY).toBe("cg-demo-key");
-    expect(result.data.CRYPTOPANIC_API_TOKEN).toBe("panic-demo-token");
     expect(result.data.WORKER_ENABLE_SCHEDULER).toBe(false);
   });
 

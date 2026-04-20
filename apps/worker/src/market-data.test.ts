@@ -9,7 +9,7 @@ import {
 const marketDataFixture = {
   series: {
     assetId: "crypto:global:BTC-USD",
-    provider: "twelve-data",
+    provider: "coingecko",
     timeframe: "1H" as const,
     capturedAt: "2026-04-04T04:00:00.000Z",
     lastPrice: 84250.5,
@@ -28,9 +28,9 @@ const marketDataFixture = {
     metadata: {},
   },
   snapshot: {
-    id: "market:twelve-data:crypto:global:BTC-USD:1H",
+    id: "market:coingecko:crypto:global:BTC-USD:1H",
     assetId: "crypto:global:BTC-USD",
-    provider: "twelve-data",
+    provider: "coingecko",
     timeframe: "1H" as const,
     capturedAt: "2026-04-04T04:00:00.000Z",
     lastPrice: 84250.5,
@@ -266,7 +266,7 @@ describe("market-data ingestion prep", () => {
       assetId: "crypto:global:BTC-USD",
       indicatorSnapshotId: "indicator:crypto:global:BTC-USD:1H",
       requestedAt: "2026-04-04T04:00:00.000Z",
-      snapshotId: "market:twelve-data:crypto:global:BTC-USD:1H",
+      snapshotId: "market:coingecko:crypto:global:BTC-USD:1H",
       signalBias: "bullish",
       signalSnapshotId:
         "signal:crypto:global:BTC-USD:1H:2026-04-04T04:00:00.000Z",

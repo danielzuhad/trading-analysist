@@ -97,7 +97,7 @@ describe("api health routes", () => {
           detail: "Provider timeout",
           latencyMs: 950,
         },
-        serviceName: "provider:cryptopanic",
+        serviceName: "provider:bybit",
         status: "down",
       },
       {
@@ -141,7 +141,7 @@ describe("api health routes", () => {
           maxDailyAiCostUsd: 2,
         },
         providers: {
-          cryptopanic: {
+          bybit: {
             detail: "Provider timeout",
             latencyMs: 950,
             status: "down",
@@ -158,7 +158,7 @@ describe("api health routes", () => {
     vi.mocked(getLatestMarketData).mockResolvedValueOnce({
       series: {
         assetId: "crypto:global:BTC-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt: "2026-04-04T04:00:00.000Z",
         lastPrice: 84250.5,
@@ -177,9 +177,9 @@ describe("api health routes", () => {
         metadata: {},
       },
       snapshot: {
-        id: "market:twelve-data:crypto:global:BTC-USD:1H",
+        id: "market:coingecko:crypto:global:BTC-USD:1H",
         assetId: "crypto:global:BTC-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt: "2026-04-04T04:00:00.000Z",
         lastPrice: 84250.5,
@@ -205,7 +205,7 @@ describe("api health routes", () => {
     expect(response.json()).toMatchObject({
       snapshot: {
         assetId: "crypto:global:BTC-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
       },
     });
@@ -295,9 +295,9 @@ describe("api health routes", () => {
         metadata: {},
       },
       marketSnapshot: {
-        id: "market:twelve-data:crypto:global:BTC-USD:1H",
+        id: "market:coingecko:crypto:global:BTC-USD:1H",
         assetId: "crypto:global:BTC-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt: "2026-04-04T04:00:00.000Z",
         lastPrice: 84250.5,
@@ -409,9 +409,9 @@ describe("api health routes", () => {
         metadata: {},
       },
       marketSnapshot: {
-        id: "market:twelve-data:crypto:global:BTC-USD:1H",
+        id: "market:coingecko:crypto:global:BTC-USD:1H",
         assetId: "crypto:global:BTC-USD",
-        provider: "twelve-data",
+        provider: "coingecko",
         timeframe: "1H",
         capturedAt: "2026-04-19T08:00:00.000Z",
         lastPrice: 84250.5,

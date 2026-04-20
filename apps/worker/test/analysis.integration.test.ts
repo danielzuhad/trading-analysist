@@ -53,9 +53,9 @@ describeInfrastructure("worker AI analysis persistence", () => {
           metadata: {},
         },
         marketSnapshot: {
-          id: `market:twelve-data:${assetId}:1H`,
+          id: `market:coingecko:${assetId}:1H`,
           assetId,
-          provider: "twelve-data",
+          provider: "coingecko",
           timeframe: "1H",
           capturedAt: "2026-04-19T08:00:00.000Z",
           lastPrice: 84250.5,

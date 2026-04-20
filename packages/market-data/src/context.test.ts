@@ -2,7 +2,7 @@ import type { Asset } from "@trading-analyst/shared-types";
 import { describe, expect, it } from "vitest";
 import {
   BybitContextProvider,
-  CryptoPanicContextProvider,
+  CoinGeckoContextProvider,
   FearAndGreedContextProvider,
   MarketContextService,
 } from "./context.js";
@@ -24,7 +24,7 @@ const cryptoAsset: Asset = {
 };
 
 describe("market context services", () => {
-  it("marks context as partial when one provider is disabled", async () => {
+  it("marks context as partial when one provider is down", async () => {
     const service = new MarketContextService({
       providers: [
         {
@@ -44,12 +44,12 @@ describe("market context services", () => {
           }),
         },
         {
-          provider: "cryptopanic",
+          provider: "bybit",
           fetchContext: async () => ({
             status: {
-              provider: "cryptopanic",
-              status: "disabled",
-              detail: "Token missing",
+              provider: "bybit",
+              status: "down",
+              detail: "Provider timeout",
               metadata: {},
             },
           }),
@@ -64,7 +64,7 @@ describe("market context services", () => {
     });
 
     expect(context.isPartial).toBe(true);
-    expect(context.missingProviders).toEqual(["cryptopanic"]);
+    expect(context.missingProviders).toEqual(["bybit"]);
     expect(context.sentiment?.value).toBe(32);
   });
 
@@ -147,19 +147,41 @@ describe("market context services", () => {
     });
   });
 
-  it("disables cryptopanic when no token is configured", async () => {
-    const provider = new CryptoPanicContextProvider();
+  it("parses CoinGecko global context from the api/v3 path", async () => {
+    const provider = new CoinGeckoContextProvider({
+      fetchFn: async (input) => {
+        const url = new URL(String(input));
+
+        expect(url.pathname).toBe("/api/v3/global");
+
+        return jsonResponse({
+          data: {
+            market_cap_change_percentage_24h_usd: 1.42,
+            market_cap_percentage: {
+              btc: 58.1,
+            },
+            total_market_cap: {
+              usd: 2_480_000_000_000,
+            },
+            total_volume: {
+              usd: 98_000_000_000,
+            },
+          },
+        });
+      },
+    });
 
     const result = await provider.fetchContext({
       asset: cryptoAsset,
       timeframe: "4H",
     });
 
-    expect(result).toMatchObject({
-      status: {
-        provider: "cryptopanic",
-        status: "disabled",
-      },
+    expect(result.status.status).toBe("active");
+    expect(result.patch).toMatchObject({
+      btcDominancePercent: 58.1,
+      totalMarketCapUsd: 2_480_000_000_000,
+      totalMarketCapChange24hPercent: 1.42,
+      totalVolume24hUsd: 98_000_000_000,
     });
   });
 });

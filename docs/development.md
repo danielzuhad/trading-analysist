@@ -39,13 +39,11 @@ infrastructure/
 1. Copy `.env.development.example` menjadi `.env.development`.
 2. Isi PostgreSQL credentials dan connection URLs di `.env.development`.
 3. Jalankan PostgreSQL dan Redis untuk local development.
-4. Isi `TWELVE_DATA_API_KEY` untuk mengaktifkan market-data ingestion path saat ini.
+4. Isi `COINGECKO_API_KEY` untuk mengaktifkan market-data ingestion path saat ini.
 5. Isi `OPENAI_API_KEY` jika ingin menjalankan AI analysis path secara live.
-6. Isi `CRYPTOPANIC_API_TOKEN` jika ingin news context dari CryptoPanic aktif.
-7. Isi `COINGECKO_API_KEY` hanya jika ingin memakai plan CoinGecko ber-key; public path tetap bisa jalan tanpa key.
-8. Gunakan Bun `1.3.11` atau lebih baru.
-9. Jalankan `bun install`.
-10. Jalankan monorepo dengan `bun run dev`.
+6. Gunakan Bun `1.3.11` atau lebih baru.
+7. Jalankan `bun install`.
+8. Jalankan monorepo dengan `bun run dev`.
 
 Untuk menjalankan local infrastructure:
 
@@ -78,7 +76,7 @@ Untuk local development, nilai berikut harus didefinisikan di `.env.development`
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
 - `REDIS_URL`
-- `TWELVE_DATA_API_KEY`
+- `COINGECKO_API_KEY`
 - `WORKER_ENABLE_SCHEDULER`
 - `WORKER_SCHEDULED_ASSETS`
 - `WORKER_SCHEDULED_TIMEFRAMES`
@@ -87,10 +85,7 @@ Nilai berikut dibutuhkan saat AI analysis live ingin dijalankan:
 
 - `OPENAI_API_KEY`
 
-Nilai berikut opsional untuk context providers:
-
-- `COINGECKO_API_KEY`
-- `CRYPTOPANIC_API_TOKEN`
+Context providers gratis yang dipakai saat ini tidak membutuhkan env tambahan selain `COINGECKO_API_KEY` untuk CoinGecko.
 
 Tooling database seperti `bun run db:migrate` membaca env dari workspace root dengan urutan `.env`, `.env.development` atau `.env.production`, lalu `.env.local`.
 
@@ -114,15 +109,13 @@ Endpoint read yang tersedia saat ini:
 
 Current external-provider implementation status through Sprint 7:
 
-- Twelve Data: implemented untuk crypto OHLCV dan latest-price ingestion
+- CoinGecko: implemented untuk crypto OHLCV, latest-price ingestion, dan macro market context
 - alternative.me Fear & Greed: wired untuk market sentiment context
 - Bybit: wired untuk funding rate dan open interest context
-- CoinGecko: wired untuk macro crypto market context
-- CryptoPanic: wired as optional news context when `CRYPTOPANIC_API_TOKEN` is configured
 - OpenAI: wired untuk AI analysis engine melalui provider adapter dan `OPENAI_API_KEY`
 - WhatsApp API chat layer: target delivery channel, belum implemented di codebase saat ini
 
-Twelve Data tetap menjadi provider utama untuk crypto MVP.
+MVP saat ini diasumsikan private/internal dulu, dengan scope operasional `4H` untuk BTC, ETH, dan SOL.
 
 Binance tidak dipakai di repository ini.
 

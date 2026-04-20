@@ -19,7 +19,7 @@ type MarketFetchServiceOptions = {
 };
 
 const defaultProviderByAssetClass: DefaultProviderByAssetClass = {
-  crypto: "twelve-data",
+  crypto: "coingecko",
 };
 
 export class MarketFetchService {
