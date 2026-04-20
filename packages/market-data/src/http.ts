@@ -9,6 +9,7 @@ export type FetchLike = typeof fetch;
 
 type FetchJsonOptions = {
   fetchFn?: FetchLike;
+  headers?: Record<string, string>;
   provider: string;
   timeoutMs?: number;
 };
@@ -26,6 +27,7 @@ export async function fetchJson(
 
   try {
     const response = await fetchFn(url, {
+      ...(options.headers ? { headers: options.headers } : {}),
       signal: controller.signal,
     });
     const body = await response.text();

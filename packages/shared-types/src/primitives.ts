@@ -214,3 +214,16 @@ export type ExecutionSource = z.infer<typeof executionSourceSchema>;
 export const serviceStatusValues = ["ok", "ready", "degraded"] as const;
 export const serviceStatusSchema = z.enum(serviceStatusValues);
 export type ServiceStatus = z.infer<typeof serviceStatusSchema>;
+
+export const providerOperationalStatusValues = [
+  "active",
+  "degraded",
+  "down",
+  "disabled",
+] as const;
+export const providerOperationalStatusSchema = z.enum(
+  providerOperationalStatusValues,
+);
+export type ProviderOperationalStatus = z.infer<
+  typeof providerOperationalStatusSchema
+>;

@@ -14,6 +14,7 @@ describe("web infrastructure status", () => {
         "Set NEXT_PUBLIC_API_BASE_URL to enable live infrastructure checks.",
       ],
       message: "API base URL is not configured.",
+      operational: null,
       status: "api-unconfigured",
     });
   });
@@ -36,6 +37,18 @@ describe("web infrastructure status", () => {
       issues: [
         "Redis is not reachable at 127.0.0.1:6379. The worker will keep logging connection errors until Redis is available.",
       ],
+      operational: {
+        ai: {
+          currentState: "ok",
+          maxDailyAiCostUsd: 2,
+        },
+        providers: {
+          cryptopanic: {
+            detail: "Provider timeout",
+            status: "down",
+          },
+        },
+      },
       service: "api",
       status: "degraded",
       timestamp: "2026-04-04T10:00:00.000Z",
@@ -48,6 +61,7 @@ describe("web infrastructure status", () => {
       issues: payload.issues,
       message:
         "The API is running, but one or more infrastructure dependencies are degraded.",
+      operational: payload.operational,
       status: "degraded",
     });
   });
@@ -65,6 +79,17 @@ describe("web infrastructure status", () => {
         },
       },
       issues: [],
+      operational: {
+        ai: {
+          currentState: "ok",
+          maxDailyAiCostUsd: 2,
+        },
+        providers: {
+          bybit: {
+            status: "active",
+          },
+        },
+      },
       service: "api",
       status: "ready",
       timestamp: "2026-04-19T08:48:23.811Z",
@@ -79,6 +104,7 @@ describe("web infrastructure status", () => {
       checks: payload.checks,
       issues: [],
       message: "API, PostgreSQL, and Redis are reachable.",
+      operational: payload.operational,
       status: "ready",
     });
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:3001/readyz", {
@@ -100,6 +126,7 @@ describe("web infrastructure status", () => {
         "Make sure the API is running on the configured host and port.",
       ],
       message: "API readiness request failed: Failed to fetch",
+      operational: null,
       status: "api-unreachable",
     });
   });

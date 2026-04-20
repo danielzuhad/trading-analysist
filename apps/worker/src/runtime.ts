@@ -1,7 +1,7 @@
 import { type Job, Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { loadWorkerEnv, type WorkerEnv } from "./env.js";
-import { processMarketSnapshotJob } from "./market-data.js";
+import { runAnalysisCycle } from "./pipeline.js";
 import {
   analysisQueueName,
   type MarketSnapshotJobData,
@@ -22,6 +22,7 @@ type CreateWorkerRuntimeOptions = {
 };
 
 type StartWorkerRuntimeOptions = CreateWorkerRuntimeOptions & {
+  enableScheduler?: boolean;
   enqueueBootstrapJob?: boolean;
 };
 
@@ -45,20 +46,42 @@ async function defaultProcessor(
     return;
   }
 
-  const result = await processMarketSnapshotJob({
+  const result = await runAnalysisCycle({
     assetId: job.data.assetId,
+    ...(env.COINGECKO_API_KEY
+      ? { coingeckoApiKey: env.COINGECKO_API_KEY }
+      : {}),
     connectionString: env.DATABASE_URL,
+    ...(env.CRYPTOPANIC_API_TOKEN
+      ? { cryptopanicApiToken: env.CRYPTOPANIC_API_TOKEN }
+      : {}),
     logger,
+    maxDailyAiCostUsd: env.MAX_DAILY_AI_COST_USD,
+    ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
+    ...(env.TWELVE_DATA_API_KEY
+      ? { marketFetchApiKey: env.TWELVE_DATA_API_KEY }
+      : {}),
     requestedAt: job.data.requestedAt,
     timeframe: job.data.timeframe,
-    ...(env.TWELVE_DATA_API_KEY ? { apiKey: env.TWELVE_DATA_API_KEY } : {}),
   });
 
   if (result.status === "skipped") {
     logger.warn(
-      `[worker] market snapshot job skipped for ${result.assetId}: ${result.reason}`,
+      `[worker] analysis cycle skipped for ${result.assetId}: ${result.reason}`,
     );
+    return;
   }
+
+  if (result.analysis.status === "skipped") {
+    logger.warn(
+      `[worker] analysis cycle stored market data for ${result.assetId} ${result.timeframe}, but AI analysis was skipped: ${result.analysis.reason}`,
+    );
+    return;
+  }
+
+  logger.log(
+    `[worker] completed full analysis cycle for ${result.assetId} ${result.timeframe} with context ${result.contextPartial ? "partial" : "complete"} and AI state ${result.analysis.state}`,
+  );
 }
 
 export function createWorkerRuntime({
@@ -127,19 +150,99 @@ export async function startWorkerRuntime(
   const logger = options.logger ?? console;
   const shouldEnqueueBootstrapJob =
     options.enqueueBootstrapJob ?? runtime.env.NODE_ENV !== "production";
+  const shouldEnableScheduler =
+    options.enableScheduler ??
+    (runtime.env.NODE_ENV !== "test" && runtime.env.WORKER_ENABLE_SCHEDULER);
+  const scheduledAssets = parseCsvList(runtime.env.WORKER_SCHEDULED_ASSETS);
+  const scheduledTimeframes = parseTimeframes(
+    runtime.env.WORKER_SCHEDULED_TIMEFRAMES,
+  );
+  const schedulerHandles: NodeJS.Timeout[] = [];
 
   logger.log(
     `[worker] online with queue "${runtime.queueName}" and concurrency ${runtime.env.WORKER_CONCURRENCY}`,
   );
 
   if (shouldEnqueueBootstrapJob) {
-    await runtime.analysisQueue.add(marketSnapshotJobName, {
-      assetId: "crypto:global:BTC-USD",
-      requestedAt: new Date().toISOString(),
-      timeframe: "1H",
+    await enqueueAnalysisJobs({
+      assetIds: scheduledAssets,
+      queue: runtime.analysisQueue,
+      timeframes: scheduledTimeframes,
       trigger: "bootstrap",
     });
   }
 
+  if (shouldEnableScheduler) {
+    for (const timeframe of scheduledTimeframes) {
+      const intervalMs =
+        timeframe === "1H" ? 60 * 60 * 1000 : 4 * 60 * 60 * 1000;
+      const handle = setInterval(() => {
+        void enqueueAnalysisJobs({
+          assetIds: scheduledAssets,
+          queue: runtime.analysisQueue,
+          timeframes: [timeframe],
+          trigger: "scheduled",
+        });
+      }, intervalMs);
+
+      schedulerHandles.push(handle);
+      logger.log(
+        `[worker] scheduled ${scheduledAssets.length} asset(s) on ${timeframe} every ${intervalMs / 60_000} minute(s)`,
+      );
+    }
+  }
+
+  const originalShutdown = runtime.shutdown;
+  runtime.shutdown = async () => {
+    for (const handle of schedulerHandles) {
+      clearInterval(handle);
+    }
+
+    await originalShutdown();
+  };
+
   return runtime;
+}
+
+async function enqueueAnalysisJobs({
+  assetIds,
+  queue,
+  timeframes,
+  trigger,
+}: {
+  assetIds: string[];
+  queue: Queue<MarketSnapshotJobData>;
+  timeframes: MarketSnapshotJobData["timeframe"][];
+  trigger: MarketSnapshotJobData["trigger"];
+}) {
+  const requestedAt = new Date().toISOString();
+
+  await Promise.all(
+    assetIds.flatMap((assetId) =>
+      timeframes.map((timeframe) =>
+        queue.add(marketSnapshotJobName, {
+          assetId,
+          requestedAt,
+          timeframe,
+          trigger,
+        }),
+      ),
+    ),
+  );
+}
+
+function parseCsvList(value: string) {
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function parseTimeframes(
+  value: string,
+): Array<MarketSnapshotJobData["timeframe"]> {
+  return parseCsvList(value).filter(
+    (entry): entry is MarketSnapshotJobData["timeframe"] =>
+      entry === "1H" || entry === "4H",
+  );
 }

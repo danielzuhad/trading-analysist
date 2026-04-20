@@ -9,9 +9,31 @@ export type ReadinessCheck = {
   target?: string;
 };
 
+export type OperationalProviderStatus = {
+  checkedAt?: string;
+  detail?: string;
+  latencyMs?: number;
+  status: "active" | "degraded" | "down" | "disabled";
+};
+
+export type AiOperationalStatus = {
+  checkedAt?: string;
+  currentState: "cap-reached" | "disabled" | "ok" | "unknown";
+  detail?: string;
+  maxDailyAiCostUsd?: number;
+};
+
 type Dependencies = {
   env: ApiEnv;
   checkDatabase: () => Promise<void>;
+  listOperationalHeartbeats: () => Promise<
+    Array<{
+      checkedAt: string;
+      payload: Record<string, unknown> | null;
+      serviceName: string;
+      status: string;
+    }>
+  >;
   redis: Redis;
 };
 
@@ -78,10 +100,15 @@ export async function registerHealthRoutes(
   dependencies: Dependencies,
 ) {
   app.get("/health", async () => {
+    const operational = await buildOperationalStatus(
+      dependencies.listOperationalHeartbeats,
+    );
+
     return {
       service: "api",
       status: "ok",
       environment: dependencies.env.NODE_ENV,
+      operational,
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
     };
@@ -145,13 +172,146 @@ export async function registerHealthRoutes(
     const issues = [checks.database, checks.redis].flatMap((check) =>
       check.ok || !check.message ? [] : [check.message],
     );
+    const operational = await buildOperationalStatus(
+      dependencies.listOperationalHeartbeats,
+    );
 
     return reply.code(ready ? 200 : 503).send({
       service: "api",
       status: ready ? "ready" : "degraded",
       checks,
       issues,
+      operational,
       timestamp: new Date().toISOString(),
     });
   });
+}
+
+async function buildOperationalStatus(
+  listOperationalHeartbeats: Dependencies["listOperationalHeartbeats"],
+) {
+  let heartbeats: Awaited<
+    ReturnType<Dependencies["listOperationalHeartbeats"]>
+  >;
+
+  try {
+    heartbeats = await listOperationalHeartbeats();
+  } catch {
+    return {
+      ai: { currentState: "unknown" as const },
+      providers: {},
+    };
+  }
+
+  const providers = Object.fromEntries(
+    heartbeats
+      .filter((heartbeat) => heartbeat.serviceName.startsWith("provider:"))
+      .map((heartbeat) => [
+        heartbeat.serviceName.replace("provider:", ""),
+        mapProviderHeartbeat(heartbeat),
+      ]),
+  ) as Record<string, OperationalProviderStatus>;
+  const aiHeartbeat = heartbeats.find(
+    (heartbeat) => heartbeat.serviceName === "ai:daily-cost-cap",
+  );
+
+  return {
+    ai: aiHeartbeat ? mapAiHeartbeat(aiHeartbeat) : { currentState: "unknown" },
+    providers,
+  };
+}
+
+function mapAiHeartbeat(heartbeat: {
+  checkedAt: string;
+  payload: Record<string, unknown> | null;
+  status: string;
+}): AiOperationalStatus {
+  if (heartbeat.status === "degraded") {
+    const maxDailyAiCostUsd = readNumberField(
+      heartbeat.payload,
+      "maxDailyAiCostUsd",
+    );
+
+    return {
+      checkedAt: heartbeat.checkedAt,
+      currentState: "cap-reached",
+      detail: "Daily AI cost cap is currently blocking non-critical analyses.",
+      ...(maxDailyAiCostUsd !== undefined ? { maxDailyAiCostUsd } : {}),
+    };
+  }
+
+  if (heartbeat.status === "disabled") {
+    const maxDailyAiCostUsd = readNumberField(
+      heartbeat.payload,
+      "maxDailyAiCostUsd",
+    );
+
+    return {
+      checkedAt: heartbeat.checkedAt,
+      currentState: "disabled",
+      detail:
+        "AI analysis is disabled because OPENAI_API_KEY is not configured.",
+      ...(maxDailyAiCostUsd !== undefined ? { maxDailyAiCostUsd } : {}),
+    };
+  }
+
+  const maxDailyAiCostUsd = readNumberField(
+    heartbeat.payload,
+    "maxDailyAiCostUsd",
+  );
+
+  return {
+    checkedAt: heartbeat.checkedAt,
+    currentState: "ok",
+    ...(maxDailyAiCostUsd !== undefined ? { maxDailyAiCostUsd } : {}),
+  };
+}
+
+function mapProviderHeartbeat(heartbeat: {
+  checkedAt: string;
+  payload: Record<string, unknown> | null;
+  status: string;
+}): OperationalProviderStatus {
+  const detail = readStringField(heartbeat.payload, "detail");
+  const latencyMs = readNumberField(heartbeat.payload, "latencyMs");
+
+  return {
+    checkedAt: heartbeat.checkedAt,
+    status: normalizeProviderStatus(heartbeat.status),
+    ...(detail ? { detail } : {}),
+    ...(latencyMs !== undefined ? { latencyMs } : {}),
+  };
+}
+
+function normalizeProviderStatus(
+  value: string,
+): OperationalProviderStatus["status"] {
+  if (
+    value === "active" ||
+    value === "degraded" ||
+    value === "down" ||
+    value === "disabled"
+  ) {
+    return value;
+  }
+
+  return "degraded";
+}
+
+function readNumberField(
+  payload: Record<string, unknown> | null,
+  field: string,
+) {
+  const value = payload?.[field];
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function readStringField(
+  payload: Record<string, unknown> | null,
+  field: string,
+) {
+  const value = payload?.[field];
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }

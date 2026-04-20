@@ -12,6 +12,7 @@ Repository ini saat ini mencakup:
 - Sprint 4 indicator calculation, persistence, and read APIs
 - Sprint 5 signal aggregation snapshot assembly and deterministic scoring
 - Sprint 6 AI analysis engine, persistence, and read API
+- Sprint 7 worker full-loop wiring, scheduled seed assets, and context-provider status visibility
 
 ## Workspace Layout
 
@@ -40,9 +41,11 @@ infrastructure/
 3. Jalankan PostgreSQL dan Redis untuk local development.
 4. Isi `TWELVE_DATA_API_KEY` untuk mengaktifkan market-data ingestion path saat ini.
 5. Isi `OPENAI_API_KEY` jika ingin menjalankan AI analysis path secara live.
-6. Gunakan Bun `1.3.11` atau lebih baru.
-7. Jalankan `bun install`.
-8. Jalankan monorepo dengan `bun run dev`.
+6. Isi `CRYPTOPANIC_API_TOKEN` jika ingin news context dari CryptoPanic aktif.
+7. Isi `COINGECKO_API_KEY` hanya jika ingin memakai plan CoinGecko ber-key; public path tetap bisa jalan tanpa key.
+8. Gunakan Bun `1.3.11` atau lebih baru.
+9. Jalankan `bun install`.
+10. Jalankan monorepo dengan `bun run dev`.
 
 Untuk menjalankan local infrastructure:
 
@@ -76,10 +79,18 @@ Untuk local development, nilai berikut harus didefinisikan di `.env.development`
 - `DATABASE_URL`
 - `REDIS_URL`
 - `TWELVE_DATA_API_KEY`
+- `WORKER_ENABLE_SCHEDULER`
+- `WORKER_SCHEDULED_ASSETS`
+- `WORKER_SCHEDULED_TIMEFRAMES`
 
 Nilai berikut dibutuhkan saat AI analysis live ingin dijalankan:
 
 - `OPENAI_API_KEY`
+
+Nilai berikut opsional untuk context providers:
+
+- `COINGECKO_API_KEY`
+- `CRYPTOPANIC_API_TOKEN`
 
 Tooling database seperti `bun run db:migrate` membaca env dari workspace root dengan urutan `.env`, `.env.development` atau `.env.production`, lalu `.env.local`.
 
@@ -97,18 +108,25 @@ Endpoint read yang tersedia saat ini:
 - `GET /asset-analyses/latest?assetId=...&timeframe=...`
 - `GET /readyz`
 
+`GET /health` dan `GET /readyz` juga membawa status operasional untuk context providers dan AI daily cost cap.
+
 ## Provider Notes
 
-Current external-provider implementation status through Sprint 6:
+Current external-provider implementation status through Sprint 7:
 
 - Twelve Data: implemented untuk crypto OHLCV dan latest-price ingestion
-- CoinGecko, alternative.me, Bybit, dan CryptoPanic: approved untuk MVP, belum wired di codebase saat ini
+- alternative.me Fear & Greed: wired untuk market sentiment context
+- Bybit: wired untuk funding rate dan open interest context
+- CoinGecko: wired untuk macro crypto market context
+- CryptoPanic: wired as optional news context when `CRYPTOPANIC_API_TOKEN` is configured
 - OpenAI: wired untuk AI analysis engine melalui provider adapter dan `OPENAI_API_KEY`
 - WhatsApp API chat layer: target delivery channel, belum implemented di codebase saat ini
 
 Twelve Data tetap menjadi provider utama untuk crypto MVP.
 
 Binance tidak dipakai di repository ini.
+
+Kalau satu context provider gagal, worker tetap lanjut dengan `partial context`. Status provider tersebut terlihat di API health/readiness dan web status card.
 
 ## Hooks and Tooling
 

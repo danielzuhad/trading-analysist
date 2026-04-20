@@ -8,6 +8,7 @@ import {
   percentageScoreSchema,
   stringListSchema,
 } from "./common.js";
+import { marketContextSnapshotSchema } from "./context.js";
 import { indicatorSnapshotSchema } from "./indicator.js";
 import { marketSnapshotSchema } from "./market.js";
 import { positionSchema } from "./position.js";
@@ -32,6 +33,7 @@ export const signalAggregationSnapshotSchema = z.object({
   asset: assetSchema,
   marketSnapshot: marketSnapshotSchema,
   indicatorSnapshot: indicatorSnapshotSchema,
+  marketContext: marketContextSnapshotSchema.optional(),
   position: positionSchema.optional(),
   generatedAt: isoDatetimeSchema,
   signalStrengthScore: percentageScoreSchema,

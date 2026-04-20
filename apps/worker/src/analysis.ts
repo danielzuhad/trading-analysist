@@ -14,6 +14,7 @@ import {
 import type {
   AnalysisTrigger,
   AssetState,
+  SignalAggregationSnapshot,
   SupportedTimeframe,
 } from "@trading-analyst/shared-types";
 
@@ -36,6 +37,13 @@ type GenerateLatestAssetAnalysisOptions = {
   saveAnalysis?: typeof saveLatestAssetAnalysis;
   timeframe: SupportedTimeframe;
   triggeredBy?: AnalysisTrigger;
+};
+
+type GenerateAssetAnalysisFromSignalSnapshotOptions = Omit<
+  GenerateLatestAssetAnalysisOptions,
+  "assetId" | "getLatestSignalSnapshot"
+> & {
+  signalSnapshot: SignalAggregationSnapshot;
 };
 
 export type GenerateLatestAssetAnalysisResult =
@@ -165,4 +173,109 @@ export async function generateLatestAssetAnalysis({
     status: "stored",
     timeframe,
   };
+}
+
+export async function generateAssetAnalysisFromSignalSnapshot({
+  connectionString,
+  currentDailyCostUsd,
+  day = new Date(),
+  getCurrentDailyAiCostUsd = getDailyAiCostTotalUsd,
+  getLatestAnalysis = getLatestAssetAnalysis,
+  logger = console,
+  maxDailyAiCostUsd,
+  model = defaultAiAnalysisModel,
+  openAiApiKey,
+  promptVersion = defaultAiAnalysisPromptVersion,
+  provider,
+  saveAnalysis = saveLatestAssetAnalysis,
+  signalSnapshot,
+  triggeredBy = "manual_recalculation",
+}: GenerateAssetAnalysisFromSignalSnapshotOptions): Promise<GenerateLatestAssetAnalysisResult> {
+  const timeframe = toSupportedTimeframe(
+    signalSnapshot.marketSnapshot.timeframe,
+  );
+
+  if (!provider && !openAiApiKey) {
+    logger.warn(
+      `[worker] skipped AI analysis for ${signalSnapshot.asset.id} ${signalSnapshot.marketSnapshot.timeframe} because OPENAI_API_KEY is not configured`,
+    );
+
+    return {
+      assetId: signalSnapshot.asset.id,
+      reason: "missing_openai_api_key",
+      status: "skipped",
+      timeframe,
+    };
+  }
+
+  const previousAnalysis = await getLatestAnalysis(
+    signalSnapshot.asset.id,
+    timeframe,
+    connectionString,
+  );
+  let providerToUse = provider;
+
+  if (!providerToUse) {
+    if (!openAiApiKey) {
+      throw new Error(
+        "OPENAI_API_KEY is required when no AI provider is supplied.",
+      );
+    }
+
+    providerToUse = createOpenAiAnalysisProvider({ apiKey: openAiApiKey });
+  }
+
+  const dailyCostTotal =
+    currentDailyCostUsd ??
+    (await getCurrentDailyAiCostUsd(day, connectionString));
+  const result = await analyzeSignalSnapshot({
+    currentDailyCostUsd: dailyCostTotal,
+    ...(maxDailyAiCostUsd !== undefined
+      ? { maxDailyCostUsd: maxDailyAiCostUsd }
+      : {}),
+    model,
+    ...(previousAnalysis?.state
+      ? { previousState: previousAnalysis.state }
+      : {}),
+    promptVersion,
+    provider: providerToUse,
+    signalSnapshot,
+    triggeredBy,
+  });
+
+  if (result.status === "skipped") {
+    logger.warn(
+      `[worker] skipped AI analysis for ${signalSnapshot.asset.id} ${signalSnapshot.marketSnapshot.timeframe} because the daily AI cost cap has been reached`,
+    );
+
+    return {
+      assetId: signalSnapshot.asset.id,
+      reason: "daily_cost_cap_reached",
+      status: "skipped",
+      timeframe,
+    };
+  }
+
+  await saveAnalysis(result.analysis, connectionString);
+  logger.log(
+    `[worker] stored AI analysis ${result.analysis.id} for ${signalSnapshot.asset.id} ${signalSnapshot.marketSnapshot.timeframe} in state ${result.analysis.state}`,
+  );
+
+  return {
+    analysisId: result.analysis.id,
+    assetId: signalSnapshot.asset.id,
+    state: result.analysis.state,
+    status: "stored",
+    timeframe,
+  };
+}
+
+function toSupportedTimeframe(
+  timeframe: SignalAggregationSnapshot["marketSnapshot"]["timeframe"],
+): SupportedTimeframe {
+  if (timeframe === "1H" || timeframe === "4H") {
+    return timeframe;
+  }
+
+  throw new Error(`Unsupported analysis timeframe: ${timeframe}`);
 }

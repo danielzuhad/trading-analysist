@@ -13,6 +13,8 @@ const stack = [
   "Crypto market-data baseline via Twelve Data",
   "Deterministic indicator engine",
   "Deterministic signal aggregation",
+  "AI analysis with confidence clamp and cost cap",
+  "Context-provider status transparency",
 ];
 
 export default function HomePage() {
@@ -21,13 +23,13 @@ export default function HomePage() {
   return (
     <main className="shell">
       <section className="hero">
-        <p className="eyebrow">Sprint 1-5 Foundation</p>
-        <h1>Crypto Analyst Foundation</h1>
+        <p className="eyebrow">Sprint 7 Validation</p>
+        <h1>Crypto Analyst Loop</h1>
         <p className="lede">
-          The repo currently covers the foundation, shared contracts, crypto
-          market-data baseline, persisted indicator snapshots, and persisted
-          deterministic signal aggregation. AI analysis, alerting, positions,
-          and chat-layer delivery still come in later sprints.
+          The repo now centers on the full crypto analysis loop: market data,
+          indicators, signal snapshots, AI analysis, and provider-health
+          visibility. Alerting, positions, and chat-layer delivery still remain
+          later sprint work.
         </p>
       </section>
 
@@ -68,6 +70,12 @@ export default function HomePage() {
             Signal snapshot:{" "}
             {apiBaseUrl
               ? `${apiBaseUrl}/signal-snapshots/latest?assetId=crypto:global:BTC-USD&timeframe=1H`
+              : "Requires API base URL"}
+          </p>
+          <p>
+            Asset analysis:{" "}
+            {apiBaseUrl
+              ? `${apiBaseUrl}/asset-analyses/latest?assetId=crypto:global:BTC-USD&timeframe=4H`
               : "Requires API base URL"}
           </p>
         </article>

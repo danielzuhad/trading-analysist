@@ -3,6 +3,7 @@ import {
   type AnalysisBias,
   type Asset,
   type IndicatorSnapshot,
+  type MarketContextSnapshot,
   type MarketRegime,
   type MarketSnapshot,
   type Position,
@@ -16,6 +17,7 @@ export type BuildSignalAggregationSnapshotOptions = {
   asset: Asset;
   generatedAt?: string;
   indicatorSnapshot: IndicatorSnapshot;
+  marketContext?: MarketContextSnapshot;
   marketSnapshot: MarketSnapshot;
   position?: Position;
 };
@@ -39,6 +41,7 @@ export function buildSignalAggregationSnapshot({
   asset,
   generatedAt = new Date().toISOString(),
   indicatorSnapshot,
+  marketContext,
   marketSnapshot,
   position,
 }: BuildSignalAggregationSnapshotOptions): SignalAggregationSnapshot {
@@ -73,6 +76,7 @@ export function buildSignalAggregationSnapshot({
     asset,
     marketSnapshot,
     indicatorSnapshot,
+    ...(marketContext ? { marketContext } : {}),
     ...(position ? { position } : {}),
     generatedAt,
     signalStrengthScore,

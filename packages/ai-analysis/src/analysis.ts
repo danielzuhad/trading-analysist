@@ -364,6 +364,11 @@ export function buildLatestAssetAnalysis({
     metadata: {
       aiAnalysisVersion: promptVersion,
       signalAggregationSnapshotId: signalSnapshot.id,
+      ...(signalSnapshot.marketContext
+        ? {
+            marketContext: signalSnapshot.marketContext,
+          }
+        : {}),
       ...(confidence.wasClamped
         ? {
             aiConfidenceClampRange: {

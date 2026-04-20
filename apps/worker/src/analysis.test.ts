@@ -4,7 +4,10 @@ import type {
   SignalAggregationSnapshot,
 } from "@trading-analyst/shared-types";
 import { describe, expect, it, vi } from "vitest";
-import { generateLatestAssetAnalysis } from "./analysis.js";
+import {
+  generateAssetAnalysisFromSignalSnapshot,
+  generateLatestAssetAnalysis,
+} from "./analysis.js";
 
 const signalSnapshotFixture: SignalAggregationSnapshot = {
   id: "signal:crypto:global:BTC-USD:1H:2026-04-19T08:00:00.000Z",
@@ -225,5 +228,87 @@ describe("worker AI analysis helper", () => {
       timeframe: "1H",
     });
     expect(provider).not.toHaveBeenCalled();
+  });
+
+  it("stores analysis directly from an in-memory signal snapshot", async () => {
+    const saveAnalysis = vi.fn(
+      async (analysis: LatestAssetAnalysis) => analysis,
+    );
+    const providerResult = {
+      aiLatencyMs: 120,
+      modelUsed: "gpt-4o-mini",
+      output: {
+        state: "WATCH",
+        suggestion: "WATCH",
+        summary: "Context is mixed but still constructive enough to monitor.",
+        keyReasons: ["Macro context is incomplete but not outright bearish."],
+        concerns: ["News provider is unavailable."],
+        actionPlan: ["Keep watching the higher-timeframe structure."],
+        executionMethod: "No entry yet.",
+        invalidation: "Stand aside if support fails.",
+        riskLevel: "medium",
+        suggestedPositionSize: "none",
+        aiConfidence: 80,
+      },
+      usage: {
+        cachedInputTokens: 0,
+        inputTokens: 100,
+        outputTokens: 50,
+      },
+    } satisfies AiAnalysisProviderResult;
+
+    const result = await generateAssetAnalysisFromSignalSnapshot({
+      getCurrentDailyAiCostUsd: vi.fn(async () => 0),
+      getLatestAnalysis: vi.fn(async () => null),
+      provider: vi.fn(async () => providerResult),
+      saveAnalysis,
+      signalSnapshot: {
+        ...signalSnapshotFixture,
+        marketContext: {
+          id: "context:crypto:global:BTC-USD:1H:2026-04-19T08:00:00.000Z",
+          assetId: "crypto:global:BTC-USD",
+          timeframe: "1H",
+          generatedAt: "2026-04-19T08:00:00.000Z",
+          isPartial: true,
+          missingProviders: ["cryptopanic"],
+          providers: [
+            {
+              provider: "fear-and-greed",
+              status: "active",
+              checkedAt: "2026-04-19T08:00:00.000Z",
+              metadata: {},
+            },
+            {
+              provider: "cryptopanic",
+              status: "down",
+              checkedAt: "2026-04-19T08:00:00.000Z",
+              detail: "Provider timeout",
+              metadata: {},
+            },
+          ],
+          sentiment: {
+            classification: "Fear",
+            value: 32,
+          },
+          metadata: {},
+        },
+      },
+      timeframe: "1H",
+    });
+
+    expect(result).toEqual({
+      analysisId: "analysis:latest:crypto:global:BTC-USD:1H",
+      assetId: "crypto:global:BTC-USD",
+      state: "WATCH",
+      status: "stored",
+      timeframe: "1H",
+    });
+    expect(saveAnalysis).toHaveBeenCalledOnce();
+    expect(saveAnalysis.mock.calls[0]?.[0].metadata).toMatchObject({
+      marketContext: {
+        isPartial: true,
+        missingProviders: ["cryptopanic"],
+      },
+    });
   });
 });

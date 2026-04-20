@@ -74,6 +74,30 @@ describe("worker environment", () => {
     expect(result.data.MAX_DAILY_AI_COST_USD).toBe(2.5);
   });
 
+  it("accepts optional context-provider and scheduler settings", () => {
+    const result = workerEnvSchema.safeParse({
+      NODE_ENV: "development",
+      DATABASE_URL: validTestUrl("database"),
+      REDIS_URL: validTestUrl("redis"),
+      COINGECKO_API_KEY: "cg-demo-key",
+      CRYPTOPANIC_API_TOKEN: "panic-demo-token",
+      WORKER_CONCURRENCY: 1,
+      WORKER_ENABLE_SCHEDULER: "false",
+      WORKER_SCHEDULED_ASSETS: "crypto:global:BTC-USD,crypto:global:ETH-USD",
+      WORKER_SCHEDULED_TIMEFRAMES: "4H,1H",
+    });
+
+    expect(result.success).toBe(true);
+
+    if (!result.success) {
+      return;
+    }
+
+    expect(result.data.COINGECKO_API_KEY).toBe("cg-demo-key");
+    expect(result.data.CRYPTOPANIC_API_TOKEN).toBe("panic-demo-token");
+    expect(result.data.WORKER_ENABLE_SCHEDULER).toBe(false);
+  });
+
   it("loads infrastructure URLs from the workspace root when missing", () => {
     const appDir = createWorkerAppDir(
       `DATABASE_URL=${validTestUrl("database")}\nREDIS_URL=${validTestUrl("redis")}\n`,
@@ -96,6 +120,10 @@ describe("worker environment", () => {
         REDIS_URL: validTestUrl("redis"),
         MAX_DAILY_AI_COST_USD: 2,
         WORKER_CONCURRENCY: 1,
+        WORKER_ENABLE_SCHEDULER: true,
+        WORKER_SCHEDULED_ASSETS:
+          "crypto:global:BTC-USD,crypto:global:ETH-USD,crypto:global:SOL-USD",
+        WORKER_SCHEDULED_TIMEFRAMES: "4H",
       });
     } finally {
       rmSync(path.resolve(appDir, "../.."), {

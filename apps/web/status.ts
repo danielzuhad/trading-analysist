@@ -5,12 +5,30 @@ export type ReadinessCheck = {
   target?: string;
 };
 
+export type ProviderOperationalStatus = {
+  checkedAt?: string;
+  detail?: string;
+  latencyMs?: number;
+  status: "active" | "degraded" | "down" | "disabled";
+};
+
+export type AiOperationalStatus = {
+  checkedAt?: string;
+  currentState: "cap-reached" | "disabled" | "ok" | "unknown";
+  detail?: string;
+  maxDailyAiCostUsd?: number;
+};
+
 export type ReadyzPayload = {
   checks: {
     database: ReadinessCheck;
     redis: ReadinessCheck;
   };
   issues: string[];
+  operational?: {
+    ai: AiOperationalStatus;
+    providers: Record<string, ProviderOperationalStatus>;
+  };
   service: "api";
   status: "degraded" | "ready";
   timestamp: string;
@@ -20,6 +38,7 @@ export type InfrastructureStatus = {
   checks: ReadyzPayload["checks"] | null;
   issues: string[];
   message: string;
+  operational: ReadyzPayload["operational"] | null;
   status: "api-unconfigured" | "api-unreachable" | "degraded" | "ready";
 };
 
@@ -40,6 +59,7 @@ export function buildInfrastructureStatus(
         "Set NEXT_PUBLIC_API_BASE_URL to enable live infrastructure checks.",
       ],
       message: "API base URL is not configured.",
+      operational: null,
       status: "api-unconfigured",
     };
   }
@@ -52,6 +72,7 @@ export function buildInfrastructureStatus(
         "Make sure the API is running on the configured host and port.",
       ],
       message: `API readiness request failed: ${errorMessage}`,
+      operational: null,
       status: "api-unreachable",
     };
   }
@@ -61,6 +82,7 @@ export function buildInfrastructureStatus(
       checks: null,
       issues: ["The API readiness response was empty."],
       message: "API readiness information is unavailable.",
+      operational: null,
       status: "api-unreachable",
     };
   }
@@ -72,6 +94,7 @@ export function buildInfrastructureStatus(
       readyz.status === "ready"
         ? "API, PostgreSQL, and Redis are reachable."
         : "The API is running, but one or more infrastructure dependencies are degraded.",
+    operational: readyz.operational ?? null,
     status: readyz.status,
   };
 }

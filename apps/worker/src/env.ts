@@ -4,6 +4,22 @@ import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { z } from "zod";
 
+const booleanishSchema = z.preprocess((value) => {
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === "true") {
+      return true;
+    }
+
+    if (normalized === "false") {
+      return false;
+    }
+  }
+
+  return value;
+}, z.boolean());
+
 export const workerEnvSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
@@ -12,8 +28,18 @@ export const workerEnvSchema = z.object({
   REDIS_URL: z.string().url(),
   TWELVE_DATA_API_KEY: z.string().trim().min(1).optional(),
   OPENAI_API_KEY: z.string().trim().min(1).optional(),
+  CRYPTOPANIC_API_TOKEN: z.string().trim().min(1).optional(),
+  COINGECKO_API_KEY: z.string().trim().min(1).optional(),
   MAX_DAILY_AI_COST_USD: z.coerce.number().finite().min(0).default(2),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(1),
+  WORKER_ENABLE_SCHEDULER: booleanishSchema.default(true),
+  WORKER_SCHEDULED_ASSETS: z
+    .string()
+    .trim()
+    .default(
+      "crypto:global:BTC-USD,crypto:global:ETH-USD,crypto:global:SOL-USD",
+    ),
+  WORKER_SCHEDULED_TIMEFRAMES: z.string().trim().default("4H"),
 });
 
 export type WorkerEnv = z.infer<typeof workerEnvSchema>;

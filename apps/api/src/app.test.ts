@@ -3,6 +3,7 @@ import {
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
+  listServiceHeartbeats,
   pingDatabase,
 } from "@trading-analyst/db";
 import { afterAll, describe, expect, it, vi } from "vitest";
@@ -14,6 +15,7 @@ vi.mock("@trading-analyst/db", () => ({
   getLatestIndicatorSnapshot: vi.fn(async () => null),
   getLatestMarketData: vi.fn(async () => null),
   getLatestSignalAggregationSnapshot: vi.fn(async () => null),
+  listServiceHeartbeats: vi.fn(async () => []),
   pingDatabase: vi.fn(async () => undefined),
 }));
 
@@ -41,6 +43,17 @@ const app = await buildApp({
 
 describe("api health routes", () => {
   it("returns a basic health payload", async () => {
+    vi.mocked(listServiceHeartbeats).mockResolvedValueOnce([
+      {
+        checkedAt: "2026-04-20T08:00:00.000Z",
+        payload: {
+          maxDailyAiCostUsd: 2,
+        },
+        serviceName: "ai:daily-cost-cap",
+        status: "ok",
+      },
+    ]);
+
     const response = await app.inject({
       method: "GET",
       url: "/health",
@@ -51,6 +64,12 @@ describe("api health routes", () => {
       service: "api",
       status: "ok",
       environment: "test",
+      operational: {
+        ai: {
+          currentState: "ok",
+          maxDailyAiCostUsd: 2,
+        },
+      },
     });
   });
 
@@ -71,6 +90,25 @@ describe("api health routes", () => {
 
   it("returns detailed readiness issues when Redis is unavailable", async () => {
     vi.mocked(pingDatabase).mockResolvedValueOnce(undefined);
+    vi.mocked(listServiceHeartbeats).mockResolvedValueOnce([
+      {
+        checkedAt: "2026-04-20T08:00:00.000Z",
+        payload: {
+          detail: "Provider timeout",
+          latencyMs: 950,
+        },
+        serviceName: "provider:cryptopanic",
+        status: "down",
+      },
+      {
+        checkedAt: "2026-04-20T08:00:00.000Z",
+        payload: {
+          maxDailyAiCostUsd: 2,
+        },
+        serviceName: "ai:daily-cost-cap",
+        status: "degraded",
+      },
+    ]);
     pingRedisMock.mockRejectedValueOnce(
       Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:6379"), {
         code: "ECONNREFUSED",
@@ -95,6 +133,19 @@ describe("api health routes", () => {
           hint: "Start Redis or Docker Compose, then retry the worker and API.",
           ok: false,
           target: "127.0.0.1:6379",
+        },
+      },
+      operational: {
+        ai: {
+          currentState: "cap-reached",
+          maxDailyAiCostUsd: 2,
+        },
+        providers: {
+          cryptopanic: {
+            detail: "Provider timeout",
+            latencyMs: 950,
+            status: "down",
+          },
         },
       },
     });

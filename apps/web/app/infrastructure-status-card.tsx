@@ -72,6 +72,64 @@ export function InfrastructureStatusCard({
       {infrastructureStatus.issues.map((issue) => (
         <p key={issue}>{issue}</p>
       ))}
+      {infrastructureStatus.operational ? (
+        <>
+          <p>
+            AI budget:{" "}
+            <span
+              className={`status-badge status-badge--${mapAiStateToTone(
+                infrastructureStatus.operational.ai.currentState,
+              )}`}
+            >
+              {infrastructureStatus.operational.ai.currentState}
+            </span>
+          </p>
+          {Object.entries(infrastructureStatus.operational.providers).length >
+          0 ? (
+            <div className="status-provider-list">
+              {Object.entries(infrastructureStatus.operational.providers).map(
+                ([provider, status]) => (
+                  <p key={provider}>
+                    {provider}:{" "}
+                    <span
+                      className={`status-badge status-badge--${mapProviderStatusToTone(
+                        status.status,
+                      )}`}
+                    >
+                      {status.status}
+                    </span>
+                    {status.detail ? ` (${status.detail})` : ""}
+                  </p>
+                ),
+              )}
+            </div>
+          ) : null}
+        </>
+      ) : null}
     </article>
   );
+}
+
+function mapAiStateToTone(
+  state: "cap-reached" | "disabled" | "ok" | "unknown",
+) {
+  if (state === "ok") {
+    return "active";
+  }
+
+  if (state === "disabled") {
+    return "disabled";
+  }
+
+  if (state === "unknown") {
+    return "degraded";
+  }
+
+  return "down";
+}
+
+function mapProviderStatusToTone(
+  status: "active" | "degraded" | "down" | "disabled",
+) {
+  return status;
 }

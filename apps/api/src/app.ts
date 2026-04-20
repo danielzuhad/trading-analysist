@@ -4,6 +4,7 @@ import {
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
+  listServiceHeartbeats,
   pingDatabase,
 } from "@trading-analyst/db";
 import Fastify from "fastify";
@@ -27,6 +28,7 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
   await registerHealthRoutes(app, {
     env,
     checkDatabase: () => pingDatabase(env.DATABASE_URL),
+    listOperationalHeartbeats: () => listServiceHeartbeats(env.DATABASE_URL),
     redis,
   });
   await registerMarketDataRoutes(app, {
