@@ -12,6 +12,7 @@ import {
   analysisSuggestionSchema,
   assetStateSchema,
   notificationChannelSchema,
+  supportedTimeframeSchema,
 } from "./primitives.js";
 
 export const alertSchema = z.object({
@@ -22,6 +23,8 @@ export const alertSchema = z.object({
   positionId: idSchema.optional(),
   analysisId: idSchema.optional(),
   transitionId: idSchema.optional(),
+  timeframe: supportedTimeframeSchema,
+  dedupeKey: nonEmptyStringSchema,
   kind: alertKindSchema,
   severity: alertSeveritySchema,
   status: alertStatusSchema,
@@ -29,6 +32,7 @@ export const alertSchema = z.object({
   title: nonEmptyStringSchema,
   message: nonEmptyStringSchema,
   summary: nonEmptyStringSchema,
+  previousState: assetStateSchema.optional(),
   currentState: assetStateSchema,
   suggestion: analysisSuggestionSchema.optional(),
   createdAt: isoDatetimeSchema,

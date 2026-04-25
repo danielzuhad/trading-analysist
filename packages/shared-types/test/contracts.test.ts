@@ -480,6 +480,9 @@ describe("shared contracts", () => {
       positionId: analysis.position?.id,
       analysisId: analysis.id,
       transitionId: transition.id,
+      timeframe: "1H",
+      dedupeKey:
+        "crypto:global:SOL-USD:1H:ACTIONABLE->IN_POSITION:snapshot-sol-1h-hash",
       kind: "position",
       severity: "warning",
       status: "delivered",
@@ -488,6 +491,7 @@ describe("shared contracts", () => {
       message:
         "Momentum is intact, but resistance overhead justifies tighter risk.",
       summary: analysis.decisionCard.summary,
+      previousState: transition.fromState,
       currentState: analysis.state,
       suggestion: analysis.suggestion,
       createdAt: timestamp,

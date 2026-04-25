@@ -1,4 +1,5 @@
 import type {
+  Alert,
   IndicatorSnapshot,
   LatestAssetAnalysis,
   MarketCandle,
@@ -7,11 +8,14 @@ import type {
   SignalAggregationSnapshot,
 } from "@trading-analyst/shared-types";
 import {
+  boolean,
+  index,
   integer,
   jsonb,
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -183,7 +187,61 @@ export const assetAnalysisLatestSnapshots = pgTable(
   },
 );
 
+export const alerts = pgTable(
+  "alerts",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    assetId: text("asset_id").notNull(),
+    watchlistId: text("watchlist_id"),
+    positionId: text("position_id"),
+    analysisId: text("analysis_id"),
+    transitionId: text("transition_id"),
+    timeframe: text("timeframe").notNull(),
+    dedupeKey: text("dedupe_key").notNull(),
+    kind: text("kind").notNull(),
+    severity: text("severity").notNull(),
+    status: text("status").notNull(),
+    channels: jsonb("channels").$type<Alert["channels"]>().notNull(),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    summary: text("summary").notNull(),
+    previousState: text("previous_state"),
+    currentState: text("current_state").notNull(),
+    suggestion: text("suggestion"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+    }).notNull(),
+    deliveredAt: timestamp("delivered_at", {
+      withTimezone: true,
+    }),
+    acknowledgedAt: timestamp("acknowledged_at", {
+      withTimezone: true,
+    }),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+    }),
+    isStale: boolean("is_stale").notNull().default(false),
+    metadata: jsonb("metadata").$type<Alert["metadata"]>().notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("alerts_dedupe_key_unique").on(table.dedupeKey),
+    index("alerts_asset_timeframe_created_at_idx").on(
+      table.assetId,
+      table.timeframe,
+      table.createdAt,
+    ),
+    index("alerts_status_created_at_idx").on(table.status, table.createdAt),
+  ],
+);
+
 export const schema = {
+  alerts,
   assetAnalysisLatestSnapshots,
   indicatorLatestSnapshots,
   marketLatestSnapshots,

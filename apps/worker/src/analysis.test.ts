@@ -1,5 +1,6 @@
 import type { AiAnalysisProviderResult } from "@trading-analyst/ai-analysis";
 import type {
+  Alert,
   LatestAssetAnalysis,
   SignalAggregationSnapshot,
 } from "@trading-analyst/shared-types";
@@ -311,4 +312,103 @@ describe("worker AI analysis helper", () => {
       },
     });
   });
+
+  it("generates an alert when the latest analysis changes state", async () => {
+    const saveAnalysis = vi.fn(
+      async (analysis: LatestAssetAnalysis) => analysis,
+    );
+    const saveGeneratedAlert = vi.fn(async (alert: Alert) => ({
+      alert,
+      status: "created" as const,
+    }));
+    const providerResult = {
+      aiLatencyMs: 840,
+      modelUsed: "gpt-4o-mini",
+      output: {
+        state: "ACTIONABLE",
+        suggestion: "ENTRY_ON_CONFIRMATION",
+        summary:
+          "Trend remains constructive, but confirmation is still required.",
+        keyReasons: ["EMA alignment remains bullish."],
+        concerns: ["Resistance remains close overhead."],
+        actionPlan: ["Wait for a decisive close above nearby resistance."],
+        executionMethod: "Enter after breakout confirmation above resistance.",
+        invalidation: "Stand aside if price loses the nearest support.",
+        riskLevel: "medium",
+        suggestedPositionSize: "conservative",
+        aiConfidence: 78,
+      },
+      usage: {
+        cachedInputTokens: 0,
+        inputTokens: 1000,
+        outputTokens: 250,
+      },
+    } satisfies AiAnalysisProviderResult;
+
+    const result = await generateAssetAnalysisFromSignalSnapshot({
+      getCurrentDailyAiCostUsd: vi.fn(async () => 0),
+      getLatestAnalysis: vi.fn(async () => createAnalysisFixture("WATCH")),
+      provider: vi.fn(async () => providerResult),
+      saveAnalysis,
+      saveGeneratedAlert,
+      signalSnapshot: signalSnapshotFixture,
+      timeframe: "1H",
+    });
+
+    expect(result).toEqual({
+      analysisId: "analysis:latest:crypto:global:BTC-USD:1H",
+      assetId: "crypto:global:BTC-USD",
+      state: "ACTIONABLE",
+      status: "stored",
+      timeframe: "1H",
+    });
+    expect(saveGeneratedAlert).toHaveBeenCalledOnce();
+    expect(saveGeneratedAlert.mock.calls[0]?.[0]).toMatchObject({
+      assetId: "crypto:global:BTC-USD",
+      currentState: "ACTIONABLE",
+      previousState: "WATCH",
+      severity: "critical",
+      status: "suggested",
+      timeframe: "1H",
+    });
+  });
 });
+
+function createAnalysisFixture(state: LatestAssetAnalysis["state"]) {
+  return {
+    id: "analysis:latest:crypto:global:BTC-USD:1H",
+    asset: signalSnapshotFixture.asset,
+    marketSnapshot: signalSnapshotFixture.marketSnapshot,
+    indicatorSnapshot: signalSnapshotFixture.indicatorSnapshot,
+    state,
+    suggestion: state === "ACTIONABLE" ? "ENTRY_ON_CONFIRMATION" : "WATCH",
+    summary: "Waiting for stronger confirmation.",
+    decisionCard: {
+      summary: "Waiting for stronger confirmation.",
+      keyReasons: ["Signal quality is not yet decisive."],
+      actionPlan: ["Keep monitoring the setup."],
+      executionMethod: "No action yet.",
+      invalidation: "Stand aside if structure weakens further.",
+      riskLevel: "medium",
+    },
+    regime: signalSnapshotFixture.regime,
+    bias: signalSnapshotFixture.bias,
+    signalStrengthScore: signalSnapshotFixture.signalStrengthScore,
+    aiConfidence: 70,
+    concerns: ["Signal quality remains middling."],
+    suggestedPositionSize: "none",
+    timeframeRelevance: signalSnapshotFixture.timeframeRelevance,
+    riskFlags: signalSnapshotFixture.riskFlags,
+    keyLevels: signalSnapshotFixture.keyLevels,
+    modelUsed: "gpt-4o-mini",
+    promptVersion: "ai-analysis:v1",
+    snapshotHash: signalSnapshotFixture.snapshotHash,
+    aiLatencyMs: 500,
+    costEstimateUsd: 0.0001,
+    generatedAt: "2026-04-19T08:05:00.000Z",
+    triggeredBy: "manual_recalculation",
+    metadata: {
+      signalAggregationSnapshotId: signalSnapshotFixture.id,
+    },
+  } satisfies LatestAssetAnalysis;
+}

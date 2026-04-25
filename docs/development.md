@@ -14,6 +14,7 @@ Repository ini saat ini mencakup:
 - Sprint 6 AI analysis engine, persistence, and read API
 - Sprint 7 worker full-loop wiring, scheduled seed assets, and context-provider status visibility
 - Sprint 8 read-only dashboard overview, asset detail pages, and aggregate API endpoints
+- Sprint 9 alert engine, PostgreSQL alert persistence, worker state-transition alert generation, and alert read API
 
 ## Workspace Layout
 
@@ -25,6 +26,7 @@ apps/
 
 packages/
   ai-analysis/
+  alert-engine/
   db/
   indicators/
   market-data/
@@ -104,6 +106,7 @@ Endpoint read yang tersedia saat ini:
 - `GET /asset-analyses/latest?assetId=...&timeframe=...`
 - `GET /watchlist/overview?timeframe=...`
 - `GET /assets/:assetId/overview?timeframe=...`
+- `GET /alerts?assetId=...&timeframe=...&status=...&limit=...`
 - `GET /readyz`
 
 `GET /health` dan `GET /readyz` juga membawa status operasional untuk context providers dan AI daily cost cap.
@@ -117,6 +120,9 @@ Current external-provider implementation status through Sprint 7:
 - Bybit: wired untuk funding rate dan open interest context
 - OpenAI: wired untuk AI analysis engine melalui provider adapter dan `OPENAI_API_KEY`
 - WhatsApp API chat layer: target delivery channel, belum implemented di codebase saat ini
+
+Sprint 9 alert delivery saat ini hanya membuat alert channel `dashboard`.
+Outbound WhatsApp delivery tetap scope Sprint 11.
 
 MVP saat ini diasumsikan private/internal dulu, dengan scope operasional utama `4H` untuk BTC, ETH, dan SOL.
 

@@ -3,6 +3,7 @@ import {
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
+  listAlerts,
   listServiceHeartbeats,
   pingDatabase,
 } from "@trading-analyst/db";
@@ -15,6 +16,7 @@ vi.mock("@trading-analyst/db", () => ({
   getLatestIndicatorSnapshot: vi.fn(async () => null),
   getLatestMarketData: vi.fn(async () => null),
   getLatestSignalAggregationSnapshot: vi.fn(async () => null),
+  listAlerts: vi.fn(async () => []),
   listServiceHeartbeats: vi.fn(async () => []),
   pingDatabase: vi.fn(async () => undefined),
 }));
@@ -50,6 +52,8 @@ afterEach(() => {
   vi.mocked(getLatestMarketData).mockResolvedValue(null);
   vi.mocked(getLatestSignalAggregationSnapshot).mockReset();
   vi.mocked(getLatestSignalAggregationSnapshot).mockResolvedValue(null);
+  vi.mocked(listAlerts).mockReset();
+  vi.mocked(listAlerts).mockResolvedValue([]);
   vi.mocked(listServiceHeartbeats).mockReset();
   vi.mocked(listServiceHeartbeats).mockResolvedValue([]);
   vi.mocked(pingDatabase).mockReset();
@@ -718,6 +722,65 @@ describe("api health routes", () => {
         summary:
           "Trend remains constructive, but confirmation is still required.",
       },
+    });
+  });
+
+  it("returns filtered alerts", async () => {
+    vi.mocked(listAlerts).mockResolvedValueOnce([
+      {
+        id: "alert:crypto:global:BTC-USD:4H:WATCH->ACTIONABLE:signal-hash-btc-4h",
+        userId: "system:default",
+        assetId: "crypto:global:BTC-USD",
+        analysisId: "analysis:latest:crypto:global:BTC-USD:4H",
+        transitionId:
+          "transition:crypto:global:BTC-USD:4H:WATCH->ACTIONABLE:signal-hash-btc-4h",
+        timeframe: "4H",
+        dedupeKey:
+          "crypto:global:BTC-USD:4H:WATCH->ACTIONABLE:signal-hash-btc-4h",
+        kind: "market",
+        severity: "critical",
+        status: "suggested",
+        channels: ["dashboard"],
+        title: "BTC/USD actionable setup",
+        message:
+          "BTC/USD changed from WATCH to ACTIONABLE. Trend remains constructive.",
+        summary: "Trend remains constructive.",
+        previousState: "WATCH",
+        currentState: "ACTIONABLE",
+        suggestion: "ENTRY_ON_CONFIRMATION",
+        createdAt: "2026-04-21T08:05:00.000Z",
+        isStale: false,
+        metadata: {},
+      },
+    ]);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/alerts?assetId=crypto:global:BTC-USD&timeframe=4H&status=suggested&limit=10",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(listAlerts).toHaveBeenCalledWith(
+      {
+        assetId: "crypto:global:BTC-USD",
+        limit: 10,
+        status: "suggested",
+        timeframe: "4H",
+      },
+      "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+    );
+    expect(response.json()).toMatchObject({
+      alerts: [
+        {
+          assetId: "crypto:global:BTC-USD",
+          currentState: "ACTIONABLE",
+          previousState: "WATCH",
+          severity: "critical",
+          status: "suggested",
+          timeframe: "4H",
+        },
+      ],
+      count: 1,
     });
   });
 

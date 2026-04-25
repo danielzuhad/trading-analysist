@@ -5,15 +5,18 @@ import {
   defaultAiAnalysisModel,
   defaultAiAnalysisPromptVersion,
 } from "@trading-analyst/ai-analysis";
+import { generateStateTransitionAlert } from "@trading-analyst/alert-engine";
 import {
   getDailyAiCostTotalUsd,
   getLatestAssetAnalysis,
   getLatestSignalAggregationSnapshot,
+  saveAlert,
   saveLatestAssetAnalysis,
 } from "@trading-analyst/db";
 import type {
   AnalysisTrigger,
   AssetState,
+  LatestAssetAnalysis,
   SignalAggregationSnapshot,
   SupportedTimeframe,
 } from "@trading-analyst/shared-types";
@@ -28,12 +31,14 @@ type GenerateLatestAssetAnalysisOptions = {
   getCurrentDailyAiCostUsd?: typeof getDailyAiCostTotalUsd;
   getLatestAnalysis?: typeof getLatestAssetAnalysis;
   getLatestSignalSnapshot?: typeof getLatestSignalAggregationSnapshot;
+  generateAlert?: typeof generateStateTransitionAlert;
   logger?: Logger;
   maxDailyAiCostUsd?: number;
   model?: string;
   openAiApiKey?: string;
   promptVersion?: string;
   provider?: AiAnalysisProvider;
+  saveGeneratedAlert?: typeof saveAlert;
   saveAnalysis?: typeof saveLatestAssetAnalysis;
   timeframe: SupportedTimeframe;
   triggeredBy?: AnalysisTrigger;
@@ -72,12 +77,14 @@ export async function generateLatestAssetAnalysis({
   getCurrentDailyAiCostUsd = getDailyAiCostTotalUsd,
   getLatestAnalysis = getLatestAssetAnalysis,
   getLatestSignalSnapshot = getLatestSignalAggregationSnapshot,
+  generateAlert = generateStateTransitionAlert,
   logger = console,
   maxDailyAiCostUsd,
   model = defaultAiAnalysisModel,
   openAiApiKey,
   promptVersion = defaultAiAnalysisPromptVersion,
   provider,
+  saveGeneratedAlert = saveAlert,
   saveAnalysis = saveLatestAssetAnalysis,
   timeframe,
   triggeredBy = "manual_recalculation",
@@ -162,6 +169,14 @@ export async function generateLatestAssetAnalysis({
   }
 
   await saveAnalysis(result.analysis, connectionString);
+  await generateAndPersistAlert({
+    connectionString,
+    currentAnalysis: result.analysis,
+    generateAlert,
+    logger,
+    previousAnalysis,
+    saveGeneratedAlert,
+  });
   logger.log(
     `[worker] stored AI analysis ${result.analysis.id} for ${assetId} ${timeframe} in state ${result.analysis.state}`,
   );
@@ -181,12 +196,14 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   day = new Date(),
   getCurrentDailyAiCostUsd = getDailyAiCostTotalUsd,
   getLatestAnalysis = getLatestAssetAnalysis,
+  generateAlert = generateStateTransitionAlert,
   logger = console,
   maxDailyAiCostUsd,
   model = defaultAiAnalysisModel,
   openAiApiKey,
   promptVersion = defaultAiAnalysisPromptVersion,
   provider,
+  saveGeneratedAlert = saveAlert,
   saveAnalysis = saveLatestAssetAnalysis,
   signalSnapshot,
   triggeredBy = "manual_recalculation",
@@ -257,6 +274,14 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   }
 
   await saveAnalysis(result.analysis, connectionString);
+  await generateAndPersistAlert({
+    connectionString,
+    currentAnalysis: result.analysis,
+    generateAlert,
+    logger,
+    previousAnalysis,
+    saveGeneratedAlert,
+  });
   logger.log(
     `[worker] stored AI analysis ${result.analysis.id} for ${signalSnapshot.asset.id} ${signalSnapshot.marketSnapshot.timeframe} in state ${result.analysis.state}`,
   );
@@ -268,6 +293,43 @@ export async function generateAssetAnalysisFromSignalSnapshot({
     status: "stored",
     timeframe,
   };
+}
+
+async function generateAndPersistAlert({
+  connectionString,
+  currentAnalysis,
+  generateAlert,
+  logger,
+  previousAnalysis,
+  saveGeneratedAlert,
+}: {
+  connectionString: string | undefined;
+  currentAnalysis: LatestAssetAnalysis;
+  generateAlert: typeof generateStateTransitionAlert;
+  logger: Logger;
+  previousAnalysis: LatestAssetAnalysis | null;
+  saveGeneratedAlert: typeof saveAlert;
+}) {
+  const alertResult = generateAlert({
+    currentAnalysis,
+    previousAnalysis,
+  });
+
+  if (alertResult.status === "skipped") {
+    logger.log(
+      `[worker] skipped alert generation for ${currentAnalysis.asset.id} ${currentAnalysis.marketSnapshot.timeframe}: ${alertResult.reason}`,
+    );
+    return;
+  }
+
+  const saveResult = await saveGeneratedAlert(
+    alertResult.alert,
+    connectionString,
+  );
+
+  logger.log(
+    `[worker] ${saveResult.status === "created" ? "created" : "deduplicated"} alert ${alertResult.alert.id} for ${currentAnalysis.asset.id} ${currentAnalysis.marketSnapshot.timeframe}`,
+  );
 }
 
 function toSupportedTimeframe(

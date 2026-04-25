@@ -7,8 +7,10 @@ import {
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
+  listAlerts,
   pingDatabase,
   runRawQuery,
+  saveAlert,
   saveLatestAssetAnalysis,
   saveLatestIndicatorSnapshot,
   saveLatestMarketData,
@@ -37,10 +39,11 @@ describeInfrastructure("database integration", () => {
       `
         select table_name
         from information_schema.tables
-        where table_schema = 'public' and table_name in ($1, $2, $3, $4, $5)
+        where table_schema = 'public' and table_name in ($1, $2, $3, $4, $5, $6)
         order by table_name
       `,
       [
+        "alerts",
         "asset_analysis_latest_snapshots",
         "indicator_latest_snapshots",
         "market_latest_snapshots",
@@ -51,12 +54,58 @@ describeInfrastructure("database integration", () => {
     );
 
     expect(result.rows).toEqual([
+      { table_name: "alerts" },
       { table_name: "asset_analysis_latest_snapshots" },
       { table_name: "indicator_latest_snapshots" },
       { table_name: "market_latest_snapshots" },
       { table_name: "service_heartbeats" },
       { table_name: "signal_aggregation_latest_snapshots" },
     ]);
+  });
+
+  it("deduplicates and lists alert rows", async () => {
+    const unique = randomUUID();
+    const alert = {
+      id: `alert:${unique}`,
+      userId: "system:default",
+      assetId: "crypto:global:BTC-USD",
+      analysisId: "analysis:latest:crypto:global:BTC-USD:4H",
+      transitionId: `transition:${unique}`,
+      timeframe: "4H" as const,
+      dedupeKey: `crypto:global:BTC-USD:4H:WATCH->ACTIONABLE:${unique}`,
+      kind: "market" as const,
+      severity: "critical" as const,
+      status: "suggested" as const,
+      channels: ["dashboard" as const],
+      title: "BTC/USD actionable setup",
+      message:
+        "BTC/USD changed from WATCH to ACTIONABLE. Trend remains constructive.",
+      summary: "Trend remains constructive.",
+      previousState: "WATCH" as const,
+      currentState: "ACTIONABLE" as const,
+      suggestion: "ENTRY_ON_CONFIRMATION" as const,
+      createdAt: "2026-04-21T08:05:00.000Z",
+      isStale: false,
+      metadata: {},
+    };
+
+    await expect(saveAlert(alert, databaseUrl)).resolves.toMatchObject({
+      status: "created",
+    });
+    await expect(saveAlert(alert, databaseUrl)).resolves.toMatchObject({
+      status: "deduplicated",
+    });
+
+    const alerts = await listAlerts(
+      {
+        assetId: alert.assetId,
+        status: "suggested",
+        timeframe: "4H",
+      },
+      databaseUrl,
+    );
+
+    expect(alerts).toContainEqual(alert);
   });
 
   it("persists service heartbeat rows through the shared SQL helper", async () => {

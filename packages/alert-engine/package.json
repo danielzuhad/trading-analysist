@@ -1,0 +1,17 @@
+{
+  "name": "@trading-analyst/alert-engine",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir dist --target node",
+    "lint": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@trading-analyst/shared-types": "workspace:*"
+  }
+}

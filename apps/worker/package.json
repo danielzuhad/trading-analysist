@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@trading-analyst/ai-analysis": "workspace:*",
+    "@trading-analyst/alert-engine": "workspace:*",
     "@trading-analyst/db": "workspace:*",
     "@trading-analyst/indicators": "workspace:*",
     "@trading-analyst/market-data": "workspace:*",

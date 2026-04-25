@@ -6,8 +6,8 @@ Development must follow the sprint order unless the user explicitly reprioritize
 
 Current implementation checkpoint for this repository:
 
-- [x] Sprints 1-8 are implemented in the codebase
-- [ ] Sprint 9 is the next active target
+- [x] Sprints 1-9 are implemented in the codebase
+- [ ] Sprint 10 is the next active target
 
 ## Phase 1 — Crypto MVP
 
@@ -198,15 +198,23 @@ Expose watchlist and asset analysis in the dashboard.
 - `1H` and `4H` read-timeframe support in the dashboard
 - `4H` remains the scheduled operational baseline for the worker loop
 
-### [ ] Sprint 9 — Alert Engine
+### [x] Sprint 9 — Alert Engine
 
 **Status**
 
-Not started yet.
+Completed in codebase. Alert contracts, deterministic state-transition alert generation, alert persistence, worker integration, and `GET /alerts` read access are implemented.
 
 **Goal**
 
 Generate meaningful, deduplicated alerts on real state changes.
+
+**Current delivery**
+
+- `packages/alert-engine` generates alerts only when a previous analysis exists and the state changes
+- alert dedupe uses asset, timeframe, state transition, and snapshot hash
+- worker stores dashboard-channel alerts after successful AI analysis persistence
+- alert records are stored in PostgreSQL with indexed asset/timeframe/status read paths
+- `GET /alerts` supports optional `assetId`, `timeframe`, `status`, and `limit` filters
 
 ### [ ] Sprint 10 — Positions Module
 

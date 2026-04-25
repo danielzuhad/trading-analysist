@@ -4,6 +4,7 @@ import {
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
+  listAlerts,
   listServiceHeartbeats,
   pingDatabase,
 } from "@trading-analyst/db";
@@ -11,6 +12,7 @@ import Fastify from "fastify";
 import { Redis } from "ioredis";
 import { registerCors } from "./cors.js";
 import { type ApiEnv, loadApiEnv } from "./env.js";
+import { registerAlertRoutes } from "./routes/alerts.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerMarketDataRoutes } from "./routes/market-data.js";
@@ -51,6 +53,9 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
       getLatestMarketData(assetId, timeframe, env.DATABASE_URL),
     getLatestSignalAggregationSnapshot: (assetId, timeframe) =>
       getLatestSignalAggregationSnapshot(assetId, timeframe, env.DATABASE_URL),
+  });
+  await registerAlertRoutes(app, {
+    listAlerts: (filters) => listAlerts(filters, env.DATABASE_URL),
   });
 
   app.addHook("onClose", async () => {

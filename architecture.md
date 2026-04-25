@@ -240,6 +240,7 @@ apps/
 
 packages/
   ai-analysis/
+  alert-engine/
   db/
   indicators/
   market-data/
@@ -249,7 +250,6 @@ packages/
 
 Planned additions later:
 
-- `packages/alert-engine`
 - `apps/chat-layer`
 
 ## 9. Definition of a Correct Sprint 1-3 Baseline
