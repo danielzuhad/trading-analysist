@@ -11,6 +11,7 @@ import Fastify from "fastify";
 import { Redis } from "ioredis";
 import { registerCors } from "./cors.js";
 import { type ApiEnv, loadApiEnv } from "./env.js";
+import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerMarketDataRoutes } from "./routes/market-data.js";
 
@@ -32,6 +33,16 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
     redis,
   });
   await registerMarketDataRoutes(app, {
+    getLatestAssetAnalysis: (assetId, timeframe) =>
+      getLatestAssetAnalysis(assetId, timeframe, env.DATABASE_URL),
+    getLatestIndicatorSnapshot: (assetId, timeframe) =>
+      getLatestIndicatorSnapshot(assetId, timeframe, env.DATABASE_URL),
+    getLatestMarketData: (assetId, timeframe) =>
+      getLatestMarketData(assetId, timeframe, env.DATABASE_URL),
+    getLatestSignalAggregationSnapshot: (assetId, timeframe) =>
+      getLatestSignalAggregationSnapshot(assetId, timeframe, env.DATABASE_URL),
+  });
+  await registerDashboardRoutes(app, {
     getLatestAssetAnalysis: (assetId, timeframe) =>
       getLatestAssetAnalysis(assetId, timeframe, env.DATABASE_URL),
     getLatestIndicatorSnapshot: (assetId, timeframe) =>

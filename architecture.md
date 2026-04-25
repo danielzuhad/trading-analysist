@@ -34,7 +34,8 @@ Supported assets for validation:
 
 Timeframe scope for MVP:
 
-- `4H`
+- `4H` as the scheduled operational baseline
+- `1H` and `4H` for dashboard and API read views
 
 Phase 1 MVP includes:
 
@@ -197,6 +198,11 @@ The crypto MVP uses a two-path monitoring model.
 ### Deep analysis
 
 - every `4H` for all watched assets
+
+### Read-timeframe support
+
+- dashboard and API read views support `1H` and `4H`
+- `1H` is currently a read path only, not the scheduled operational baseline
 
 ### Lightweight threshold checks
 

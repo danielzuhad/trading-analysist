@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Trading Analyst",
-  description: "Sprint 1 foundation for the trading analyst platform.",
+  description: "Crypto watchlist dashboard with 1H and 4H read views.",
 };
 
 export default function RootLayout({

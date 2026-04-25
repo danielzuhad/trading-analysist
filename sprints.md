@@ -6,8 +6,8 @@ Development must follow the sprint order unless the user explicitly reprioritize
 
 Current implementation checkpoint for this repository:
 
-- [x] Sprints 1-7 are implemented in the codebase
-- [ ] Sprint 8 is the next active target
+- [x] Sprints 1-8 are implemented in the codebase
+- [ ] Sprint 9 is the next active target
 
 ## Phase 1 — Crypto MVP
 
@@ -181,15 +181,22 @@ Completed in codebase. The scheduled loop `fetch -> indicators -> snapshot -> AI
 
 Wire fetch -> indicators -> snapshot -> AI -> persistence into a scheduled worker flow and validate usefulness before UI expansion.
 
-### [ ] Sprint 8 — Web Dashboard Basic
+### [x] Sprint 8 — Web Dashboard Basic
 
 **Status**
 
-Not started for MVP deliverables yet. Web bootstrap exists, but watchlist and asset-analysis dashboard views are not finished.
+Completed in codebase. The web app now exposes a read-only watchlist overview, asset detail pages, and aggregate API endpoints for seeded BTC/ETH/SOL assets.
 
 **Goal**
 
 Expose watchlist and asset analysis in the dashboard.
+
+**Current delivery**
+
+- watchlist overview ranking for seeded BTC, ETH, and SOL
+- asset detail pages backed by aggregate API endpoints
+- `1H` and `4H` read-timeframe support in the dashboard
+- `4H` remains the scheduled operational baseline for the worker loop
 
 ### [ ] Sprint 9 — Alert Engine
 
@@ -237,7 +244,7 @@ These items are later and must not distort the crypto MVP baseline:
 
 - US stocks via a later adapter
 - IDX stocks via Sectors.app
-- additional timeframes beyond `4H`, including `1H` if justified
+- additional operational timeframes beyond `4H`, including promoting `1H` from read-only support if justified
 - broader context/risk layers
 - approval workflows
 - browser-based execution

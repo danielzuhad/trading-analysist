@@ -9,69 +9,18 @@ import {
   CoinGeckoMarketDataAdapter,
   MarketFetchService,
 } from "@trading-analyst/market-data";
-import type {
-  Asset,
-  IndicatorSnapshot,
-  SignalAggregationSnapshot,
-  SupportedTimeframe,
+import {
+  type Asset,
+  defaultCryptoWatchlistAssets,
+  type IndicatorSnapshot,
+  type SignalAggregationSnapshot,
+  type SupportedTimeframe,
 } from "@trading-analyst/shared-types";
 import { buildSignalAggregationSnapshot } from "@trading-analyst/signal-aggregation";
 
 type Logger = Pick<typeof console, "error" | "log" | "warn">;
 
-export const defaultCryptoWatchlistAssets: Asset[] = [
-  {
-    id: "crypto:global:BTC-USD",
-    symbol: "BTC",
-    displaySymbol: "BTC/USD",
-    name: "Bitcoin",
-    assetClass: "crypto",
-    market: "global",
-    exchange: "global",
-    instrumentType: "spot",
-    baseCurrency: "BTC",
-    quoteCurrency: "USD",
-    providerSymbol: "BTC/USD",
-    isActive: true,
-    metadata: {
-      coingeckoCoinId: "bitcoin",
-    },
-  },
-  {
-    id: "crypto:global:ETH-USD",
-    symbol: "ETH",
-    displaySymbol: "ETH/USD",
-    name: "Ethereum",
-    assetClass: "crypto",
-    market: "global",
-    exchange: "global",
-    instrumentType: "spot",
-    baseCurrency: "ETH",
-    quoteCurrency: "USD",
-    providerSymbol: "ETH/USD",
-    isActive: true,
-    metadata: {
-      coingeckoCoinId: "ethereum",
-    },
-  },
-  {
-    id: "crypto:global:SOL-USD",
-    symbol: "SOL",
-    displaySymbol: "SOL/USD",
-    name: "Solana",
-    assetClass: "crypto",
-    market: "global",
-    exchange: "global",
-    instrumentType: "spot",
-    baseCurrency: "SOL",
-    quoteCurrency: "USD",
-    providerSymbol: "SOL/USD",
-    isActive: true,
-    metadata: {
-      coingeckoCoinId: "solana",
-    },
-  },
-];
+export { defaultCryptoWatchlistAssets };
 
 type MarketFetchServiceLike = Pick<MarketFetchService, "fetchMarketData">;
 

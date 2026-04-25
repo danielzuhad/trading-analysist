@@ -6,7 +6,11 @@
     "NEXT_PUBLIC_API_BASE_URL",
     "REDIS_URL",
     "RUN_INFRA_TESTS",
-    "COINGECKO_API_KEY"
+    "COINGECKO_API_KEY",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "TURBO_CACHE_DIR"
   ],
   "tasks": {
     "build": {

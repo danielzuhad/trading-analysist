@@ -29,7 +29,8 @@ Lingkup MVP saat ini:
 
 - fokus pada aset crypto likuid seperti BTC, ETH, dan SOL
 - MVP ini private/internal dulu
-- analisis operasional berjalan pada timeframe `4H`
+- analisis operasional utama berjalan pada timeframe `4H`
+- dashboard dan API read view mendukung `1H` dan `4H`
 - sistem menghasilkan ranking watchlist, decision card aset, alert bermakna, dan dukungan posisi manual
 - hasil analisis tersedia lewat dashboard web dan WhatsApp API chat layer
 

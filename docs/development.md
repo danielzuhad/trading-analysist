@@ -13,6 +13,7 @@ Repository ini saat ini mencakup:
 - Sprint 5 signal aggregation snapshot assembly and deterministic scoring
 - Sprint 6 AI analysis engine, persistence, and read API
 - Sprint 7 worker full-loop wiring, scheduled seed assets, and context-provider status visibility
+- Sprint 8 read-only dashboard overview, asset detail pages, and aggregate API endpoints
 
 ## Workspace Layout
 
@@ -101,6 +102,8 @@ Endpoint read yang tersedia saat ini:
 - `GET /indicator-snapshots/latest?assetId=...&timeframe=...`
 - `GET /signal-snapshots/latest?assetId=...&timeframe=...`
 - `GET /asset-analyses/latest?assetId=...&timeframe=...`
+- `GET /watchlist/overview?timeframe=...`
+- `GET /assets/:assetId/overview?timeframe=...`
 - `GET /readyz`
 
 `GET /health` dan `GET /readyz` juga membawa status operasional untuk context providers dan AI daily cost cap.
@@ -115,7 +118,10 @@ Current external-provider implementation status through Sprint 7:
 - OpenAI: wired untuk AI analysis engine melalui provider adapter dan `OPENAI_API_KEY`
 - WhatsApp API chat layer: target delivery channel, belum implemented di codebase saat ini
 
-MVP saat ini diasumsikan private/internal dulu, dengan scope operasional `4H` untuk BTC, ETH, dan SOL.
+MVP saat ini diasumsikan private/internal dulu, dengan scope operasional utama `4H` untuk BTC, ETH, dan SOL.
+
+Dashboard dan API read path saat ini mendukung `1H` dan `4H`.
+`1H` belum menjadi scheduled operational baseline untuk worker loop.
 
 Binance tidak dipakai di repository ini.
 
@@ -126,6 +132,11 @@ Kalau satu context provider gagal, worker tetap lanjut dengan `partial context`.
 Husky aktif di repository ini.
 
 - `pre-commit` menjalankan `bun run lint`, `bun run typecheck`, dan `bun run test`
+
+Root validation scripts (`build`, `lint`, `typecheck`, dan `test`) berjalan melalui `scripts/run-turbo.mjs` agar kompatibel dengan PowerShell dan WSL.
+Wrapper ini memilih Turbo cache directory dari `TURBO_CACHE_DIR`, atau memakai temp directory OS bila env tersebut kosong.
+Untuk WSL/Linux, `bun run test` tetap memaksa `TMPDIR`, `TEMP`, dan `TMP` ke `/tmp` bila belum didefinisikan.
+Ini menghindari Vitest/Bun memakai temp directory Windows saat repository dijalankan dari WSL.
 
 CI workflow menyalakan PostgreSQL dan Redis services, menjalankan `bun run db:migrate`, lalu menjalankan test suite dengan `RUN_INFRA_TESTS=true`.
 

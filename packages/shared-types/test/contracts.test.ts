@@ -4,11 +4,14 @@ import {
   alertSchema,
   apiAuthContextSchema,
   assetAnalysisSchema,
+  assetOverviewResponseSchema,
   assetSchema,
   assetStateTransitionSchema,
   authSessionSchema,
   decisionCardSchema,
+  defaultCryptoWatchlistAssets,
   executionRecordSchema,
+  findDefaultCryptoAsset,
   indicatorSnapshotSchema,
   latestAssetAnalysisSchema,
   marketCandleSeriesSchema,
@@ -17,6 +20,7 @@ import {
   signalAggregationSnapshotSchema,
   userPreferenceSchema,
   userWatchlistSchema,
+  watchlistOverviewResponseSchema,
 } from "../src/index.js";
 
 const timestamp = "2026-03-31T09:00:00.000Z";
@@ -735,5 +739,86 @@ describe("shared contracts", () => {
 
     expect(analysis.id).toBe("analysis:latest:crypto:global:BTC-USD:1H");
     expect(analysis.modelUsed).toBe("gpt-4o-mini");
+  });
+
+  it("exposes the seeded crypto watchlist assets through the shared package", () => {
+    expect(defaultCryptoWatchlistAssets.map((asset) => asset.symbol)).toEqual([
+      "BTC",
+      "ETH",
+      "SOL",
+    ]);
+    expect(findDefaultCryptoAsset("crypto:global:ETH-USD")?.name).toBe(
+      "Ethereum",
+    );
+    expect(findDefaultCryptoAsset("crypto:global:XRP-USD")).toBeUndefined();
+  });
+
+  it("parses dashboard watchlist and asset overview contracts", () => {
+    const asset = defaultCryptoWatchlistAssets[0];
+
+    if (!asset) {
+      throw new Error("Expected the seeded BTC asset to exist.");
+    }
+
+    const watchlistOverview = watchlistOverviewResponseSchema.parse({
+      timeframe: "1H",
+      generatedAt: timestamp,
+      items: [
+        {
+          asset,
+          timeframe: "1H",
+          status: "ready",
+          missingData: [],
+          marketCapturedAt: timestamp,
+          analysisGeneratedAt: timestamp,
+          provider: "coingecko",
+          lastPrice: 84250.5,
+          priceChangePercent: 2.1,
+          state: "ACTIONABLE",
+          suggestion: "ENTRY_ON_CONFIRMATION",
+          signalStrengthScore: 82,
+          aiConfidence: 78,
+          regime: "trend",
+          bias: "bullish",
+          riskLevel: "medium",
+          summary:
+            "Trend remains constructive, but confirmation is still required.",
+          keyReasons: ["EMA alignment remains bullish."],
+          concerns: ["Resistance remains close overhead."],
+          nearestSupport: 83200,
+          nearestResistance: 84880,
+          invalidation: 82594.75,
+        },
+      ],
+    });
+
+    const assetOverview = assetOverviewResponseSchema.parse({
+      asset,
+      timeframe: "4H",
+      generatedAt: timestamp,
+      status: "partial",
+      missingData: ["analysis_snapshot"],
+      marketSnapshot: {
+        id: "market:coingecko:crypto:global:BTC-USD:4H",
+        assetId: asset.id,
+        provider: "coingecko",
+        timeframe: "4H",
+        capturedAt: timestamp,
+        lastPrice: 84250.5,
+        candle: {
+          open: 84180.7,
+          high: 84420.2,
+          low: 84090.4,
+          close: 84250.5,
+          volume: 1310.4,
+        },
+        marketSession: "continuous",
+        eventFlags: [],
+        metadata: {},
+      },
+    });
+
+    expect(watchlistOverview.items[0]?.asset.id).toBe(asset.id);
+    expect(assetOverview.status).toBe("partial");
   });
 });
