@@ -51,6 +51,7 @@ async function defaultProcessor(
     ...(env.COINGECKO_API_KEY
       ? { coingeckoApiKey: env.COINGECKO_API_KEY }
       : {}),
+    coingeckoApiPlan: env.COINGECKO_API_PLAN,
     connectionString: env.DATABASE_URL,
     logger,
     maxDailyAiCostUsd: env.MAX_DAILY_AI_COST_USD,
@@ -117,7 +118,7 @@ export function createWorkerRuntime({
 
   worker.on("failed", (job, error) => {
     logger.error(
-      `[worker] failed job ${job?.id ?? "unknown"}: ${error.message}`,
+      `[worker] failed job ${job?.id ?? "unknown"}: ${formatWorkerError(error)}`,
     );
   });
 
@@ -135,6 +136,34 @@ export function createWorkerRuntime({
     worker,
     workerConnection,
   };
+}
+
+export function formatWorkerError(error: Error) {
+  const details = readErrorDetails(error);
+  const statusCode = details?.statusCode;
+  const responseBody = details?.responseBody;
+
+  return [
+    error.message,
+    typeof statusCode === "number" ? `status=${statusCode}` : undefined,
+    typeof responseBody === "string" && responseBody.length > 0
+      ? `body=${responseBody}`
+      : undefined,
+  ]
+    .filter((part): part is string => Boolean(part))
+    .join(" ");
+}
+
+function readErrorDetails(error: Error) {
+  if (!("details" in error) || !isRecord(error.details)) {
+    return undefined;
+  }
+
+  return error.details;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 export async function startWorkerRuntime(

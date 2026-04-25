@@ -95,9 +95,140 @@ describe("MarketFetchService", () => {
     expect(result.snapshot.marketSession).toBe("continuous");
     expect(result.snapshot.metadata).toMatchObject({
       coinId: "solana",
+      coingeckoApiPlan: "demo",
       hasApiKey: false,
       sourceTimeframe: "1H",
     });
+  });
+
+  it("uses the public CoinGecko host and demo API key header for demo keys", async () => {
+    const requests: Array<{
+      headers: unknown;
+      url: URL;
+    }> = [];
+    const service = new MarketFetchService({
+      adapters: [
+        new CoinGeckoMarketDataAdapter({
+          apiKey: "cg-demo-key",
+          apiPlan: "demo",
+          fetchFn: async (input, init) => {
+            const url = new URL(String(input));
+            requests.push({
+              headers: init?.headers,
+              url,
+            });
+
+            if (url.pathname === "/api/v3/coins/solana/ohlc") {
+              return jsonResponse([
+                [1712023200000, 144.8, 146.7, 144.1, 146.4],
+                [1712026800000, 146.4, 149.1, 145.9, 148.2],
+              ]);
+            }
+
+            if (url.pathname === "/api/v3/coins/solana/market_chart") {
+              return jsonResponse({
+                prices: [
+                  [1712023200000, 146.4],
+                  [1712026800000, 148.2],
+                ],
+                total_volumes: [
+                  [1712023200000, 1523400],
+                  [1712026800000, 1823400],
+                ],
+              });
+            }
+
+            return jsonResponse({}, { status: 404 });
+          },
+        }),
+      ],
+    });
+
+    await service.fetchMarketData({
+      asset: cryptoAsset,
+      candleLimit: 2,
+      timeframe: "1H",
+    });
+
+    expect(requests.map((request) => request.url.origin)).toEqual([
+      "https://api.coingecko.com",
+      "https://api.coingecko.com",
+    ]);
+    expect(
+      requests.map((request) =>
+        readHeader(request.headers, "x-cg-demo-api-key"),
+      ),
+    ).toEqual(["cg-demo-key", "cg-demo-key"]);
+    expect(
+      requests.map((request) =>
+        readHeader(request.headers, "x-cg-pro-api-key"),
+      ),
+    ).toEqual([undefined, undefined]);
+  });
+
+  it("uses the pro CoinGecko host and pro API key header for Basic keys", async () => {
+    const requests: Array<{
+      headers: unknown;
+      url: URL;
+    }> = [];
+    const service = new MarketFetchService({
+      adapters: [
+        new CoinGeckoMarketDataAdapter({
+          apiKey: "cg-basic-key",
+          apiPlan: "basic",
+          fetchFn: async (input, init) => {
+            const url = new URL(String(input));
+            requests.push({
+              headers: init?.headers,
+              url,
+            });
+
+            if (url.pathname === "/api/v3/coins/solana/ohlc") {
+              return jsonResponse([
+                [1712023200000, 144.8, 146.7, 144.1, 146.4],
+                [1712026800000, 146.4, 149.1, 145.9, 148.2],
+              ]);
+            }
+
+            if (url.pathname === "/api/v3/coins/solana/market_chart") {
+              return jsonResponse({
+                prices: [
+                  [1712023200000, 146.4],
+                  [1712026800000, 148.2],
+                ],
+                total_volumes: [
+                  [1712023200000, 1523400],
+                  [1712026800000, 1823400],
+                ],
+              });
+            }
+
+            return jsonResponse({}, { status: 404 });
+          },
+        }),
+      ],
+    });
+
+    await service.fetchMarketData({
+      asset: cryptoAsset,
+      candleLimit: 2,
+      timeframe: "1H",
+    });
+
+    expect(requests.map((request) => request.url.origin)).toEqual([
+      "https://pro-api.coingecko.com",
+      "https://pro-api.coingecko.com",
+    ]);
+    expect(
+      requests.map((request) =>
+        readHeader(request.headers, "x-cg-pro-api-key"),
+      ),
+    ).toEqual(["cg-basic-key", "cg-basic-key"]);
+    expect(
+      requests.map((request) =>
+        readHeader(request.headers, "x-cg-demo-api-key"),
+      ),
+    ).toEqual([undefined, undefined]);
   });
 
   it("aggregates hourly CoinGecko candles into complete 4H candles", async () => {
@@ -221,4 +352,14 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
       ...init,
     }),
   );
+}
+
+function readHeader(headers: unknown, name: string) {
+  if (!headers || typeof headers !== "object") {
+    return undefined;
+  }
+
+  const record = headers as Record<string, string | undefined>;
+
+  return record[name] ?? record[name.toLowerCase()];
 }

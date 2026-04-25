@@ -48,10 +48,30 @@ describe("worker environment", () => {
       DATABASE_URL: validTestUrl("database"),
       REDIS_URL: validTestUrl("redis"),
       COINGECKO_API_KEY: "demo-key",
+      COINGECKO_API_PLAN: "demo",
       WORKER_CONCURRENCY: 1,
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("accepts the paid CoinGecko Basic plan setting", () => {
+    const result = workerEnvSchema.safeParse({
+      NODE_ENV: "development",
+      DATABASE_URL: validTestUrl("database"),
+      REDIS_URL: validTestUrl("redis"),
+      COINGECKO_API_KEY: "basic-key",
+      COINGECKO_API_PLAN: "basic",
+      WORKER_CONCURRENCY: 1,
+    });
+
+    expect(result.success).toBe(true);
+
+    if (!result.success) {
+      return;
+    }
+
+    expect(result.data.COINGECKO_API_PLAN).toBe("basic");
   });
 
   it("accepts optional OpenAI settings for Sprint 6 analysis", () => {
@@ -93,6 +113,7 @@ describe("worker environment", () => {
     }
 
     expect(result.data.COINGECKO_API_KEY).toBe("cg-demo-key");
+    expect(result.data.COINGECKO_API_PLAN).toBe("demo");
     expect(result.data.WORKER_ENABLE_SCHEDULER).toBe(false);
   });
 
@@ -116,6 +137,7 @@ describe("worker environment", () => {
         NODE_ENV: "development",
         DATABASE_URL: validTestUrl("database"),
         REDIS_URL: validTestUrl("redis"),
+        COINGECKO_API_PLAN: "demo",
         MAX_DAILY_AI_COST_USD: 2,
         WORKER_CONCURRENCY: 1,
         WORKER_ENABLE_SCHEDULER: true,

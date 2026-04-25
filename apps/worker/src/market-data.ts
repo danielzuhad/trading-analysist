@@ -6,6 +6,7 @@ import {
 } from "@trading-analyst/db";
 import { buildIndicatorSnapshot } from "@trading-analyst/indicators";
 import {
+  type CoinGeckoApiPlan,
   CoinGeckoMarketDataAdapter,
   MarketFetchService,
 } from "@trading-analyst/market-data";
@@ -26,6 +27,7 @@ type MarketFetchServiceLike = Pick<MarketFetchService, "fetchMarketData">;
 
 type IngestLatestMarketDataOptions = {
   apiKey: string;
+  apiPlan?: CoinGeckoApiPlan;
   asset: Asset;
   buildIndicator?: (data: LatestMarketData["series"]) => IndicatorSnapshot;
   buildSignalAggregation?: (input: {
@@ -52,6 +54,7 @@ type IngestLatestMarketDataOptions = {
 
 type ProcessMarketSnapshotJobOptions = {
   apiKey?: string;
+  apiPlan?: CoinGeckoApiPlan;
   assetId: string;
   buildIndicator?: (data: LatestMarketData["series"]) => IndicatorSnapshot;
   buildSignalAggregation?: (input: {
@@ -98,9 +101,12 @@ export type MarketSnapshotJobResult =
       timeframe: SupportedTimeframe;
     };
 
-export function createMarketFetchService(apiKey: string) {
+export function createMarketFetchService(
+  apiKey: string,
+  apiPlan: CoinGeckoApiPlan = "demo",
+) {
   return new MarketFetchService({
-    adapters: [new CoinGeckoMarketDataAdapter({ apiKey })],
+    adapters: [new CoinGeckoMarketDataAdapter({ apiKey, apiPlan })],
   });
 }
 
@@ -110,6 +116,7 @@ export function findDefaultCryptoAsset(assetId: string) {
 
 export async function ingestLatestMarketData({
   apiKey,
+  apiPlan = "demo",
   asset,
   buildIndicator = (series) => buildIndicatorSnapshot({ marketSeries: series }),
   buildSignalAggregation = ({
@@ -124,7 +131,7 @@ export async function ingestLatestMarketData({
       marketSnapshot: marketData.snapshot,
     }),
   connectionString,
-  fetchService = createMarketFetchService(apiKey),
+  fetchService = createMarketFetchService(apiKey, apiPlan),
   persistLatestIndicatorSnapshot = saveLatestIndicatorSnapshot,
   persistLatestMarketData = saveLatestMarketData,
   persistLatestSignalAggregationSnapshot = saveLatestSignalAggregationSnapshot,
@@ -157,6 +164,7 @@ export async function ingestLatestMarketData({
 
 export async function processMarketSnapshotJob({
   apiKey,
+  apiPlan = "demo",
   assetId,
   buildIndicator,
   buildSignalAggregation,
@@ -202,6 +210,7 @@ export async function processMarketSnapshotJob({
   const { indicatorSnapshot, marketData, signalAggregationSnapshot } =
     await ingestLatestMarketData({
       apiKey,
+      apiPlan,
       asset,
       timeframe,
       ...(buildIndicator ? { buildIndicator } : {}),

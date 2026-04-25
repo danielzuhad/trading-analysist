@@ -177,11 +177,57 @@ describe("market context services", () => {
     });
 
     expect(result.status.status).toBe("active");
+    expect(result.status.metadata).toMatchObject({
+      apiPlan: "demo",
+      hasApiKey: false,
+    });
     expect(result.patch).toMatchObject({
       btcDominancePercent: 58.1,
       totalMarketCapUsd: 2_480_000_000_000,
       totalMarketCapChange24hPercent: 1.42,
       totalVolume24hUsd: 98_000_000_000,
+    });
+  });
+
+  it("uses CoinGecko pro API auth for the paid Basic plan", async () => {
+    const provider = new CoinGeckoContextProvider({
+      apiKey: "cg-basic-key",
+      apiPlan: "basic",
+      fetchFn: async (input, init) => {
+        const url = new URL(String(input));
+
+        expect(url.origin).toBe("https://pro-api.coingecko.com");
+        expect(url.pathname).toBe("/api/v3/global");
+        expect(readHeader(init?.headers, "x-cg-pro-api-key")).toBe(
+          "cg-basic-key",
+        );
+        expect(readHeader(init?.headers, "x-cg-demo-api-key")).toBeUndefined();
+
+        return jsonResponse({
+          data: {
+            market_cap_change_percentage_24h_usd: 1.42,
+            market_cap_percentage: {
+              btc: 58.1,
+            },
+            total_market_cap: {
+              usd: 2_480_000_000_000,
+            },
+            total_volume: {
+              usd: 98_000_000_000,
+            },
+          },
+        });
+      },
+    });
+
+    const result = await provider.fetchContext({
+      asset: cryptoAsset,
+      timeframe: "4H",
+    });
+
+    expect(result.status.metadata).toMatchObject({
+      apiPlan: "basic",
+      hasApiKey: true,
     });
   });
 });
@@ -196,4 +242,14 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
       ...init,
     }),
   );
+}
+
+function readHeader(headers: unknown, name: string) {
+  if (!headers || typeof headers !== "object") {
+    return undefined;
+  }
+
+  const record = headers as Record<string, string | undefined>;
+
+  return record[name] ?? record[name.toLowerCase()];
 }

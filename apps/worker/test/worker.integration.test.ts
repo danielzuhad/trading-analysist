@@ -37,6 +37,7 @@ describeInfrastructure("worker bootstrap", () => {
     runtime = await startWorkerRuntime({
       env: {
         COINGECKO_API_KEY: "test-key",
+        COINGECKO_API_PLAN: "demo",
         DATABASE_URL: "https://database.invalid",
         MAX_DAILY_AI_COST_USD: 2,
         NODE_ENV: "test",

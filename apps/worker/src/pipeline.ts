@@ -2,6 +2,7 @@ import type { AiAnalysisProvider } from "@trading-analyst/ai-analysis";
 import { saveServiceHeartbeat } from "@trading-analyst/db";
 import {
   BybitContextProvider,
+  type CoinGeckoApiPlan,
   CoinGeckoContextProvider,
   FearAndGreedContextProvider,
   MarketContextService,
@@ -24,6 +25,7 @@ type RunAnalysisCycleOptions = {
   aiProvider?: AiAnalysisProvider;
   assetId: string;
   coingeckoApiKey?: string;
+  coingeckoApiPlan?: CoinGeckoApiPlan;
   connectionString?: string;
   contextService?: Pick<MarketContextService, "fetchContext">;
   fetchService?: ReturnType<typeof createMarketFetchService>;
@@ -57,6 +59,7 @@ export async function runAnalysisCycle({
   aiProvider,
   assetId,
   coingeckoApiKey,
+  coingeckoApiPlan = "demo",
   connectionString,
   contextService,
   fetchService,
@@ -101,6 +104,7 @@ export async function runAnalysisCycle({
     contextService ??
     createMarketContextService({
       ...(coingeckoApiKey ? { coingeckoApiKey } : {}),
+      coingeckoApiPlan,
     });
   const marketContext = await marketContextService.fetchContext({
     asset,
@@ -116,6 +120,7 @@ export async function runAnalysisCycle({
 
   const { signalAggregationSnapshot } = await ingestLatestMarketDataFn({
     apiKey: coingeckoApiKey,
+    apiPlan: coingeckoApiPlan,
     asset,
     buildSignalAggregation: ({
       asset: currentAsset,
@@ -132,7 +137,12 @@ export async function runAnalysisCycle({
     ...(connectionString ? { connectionString } : {}),
     ...(fetchService
       ? { fetchService }
-      : { fetchService: createMarketFetchService(coingeckoApiKey) }),
+      : {
+          fetchService: createMarketFetchService(
+            coingeckoApiKey,
+            coingeckoApiPlan,
+          ),
+        }),
     timeframe,
   });
 
@@ -166,8 +176,10 @@ export async function runAnalysisCycle({
 
 function createMarketContextService({
   coingeckoApiKey,
+  coingeckoApiPlan,
 }: {
   coingeckoApiKey?: string;
+  coingeckoApiPlan: CoinGeckoApiPlan;
 }) {
   return new MarketContextService({
     providers: [
@@ -175,6 +187,7 @@ function createMarketContextService({
       new BybitContextProvider(),
       new CoinGeckoContextProvider({
         ...(coingeckoApiKey ? { apiKey: coingeckoApiKey } : {}),
+        apiPlan: coingeckoApiPlan,
       }),
     ],
   });

@@ -42,7 +42,7 @@ infrastructure/
 1. Copy `.env.development.example` menjadi `.env.development`.
 2. Isi PostgreSQL credentials dan connection URLs di `.env.development`.
 3. Jalankan PostgreSQL dan Redis untuk local development.
-4. Isi `COINGECKO_API_KEY` untuk mengaktifkan market-data ingestion path saat ini.
+4. Isi `COINGECKO_API_KEY` dan `COINGECKO_API_PLAN` untuk mengaktifkan market-data ingestion path saat ini.
 5. Isi `OPENAI_API_KEY` jika ingin menjalankan AI analysis path secara live.
 6. Gunakan Bun `1.3.11` atau lebih baru.
 7. Jalankan `bun install`.
@@ -80,6 +80,7 @@ Untuk local development, nilai berikut harus didefinisikan di `.env.development`
 - `DATABASE_URL`
 - `REDIS_URL`
 - `COINGECKO_API_KEY`
+- `COINGECKO_API_PLAN` (`demo` untuk Demo/free key, `basic` untuk paid Basic key)
 - `WORKER_ENABLE_SCHEDULER`
 - `WORKER_SCHEDULED_ASSETS`
 - `WORKER_SCHEDULED_TIMEFRAMES`
@@ -88,7 +89,9 @@ Nilai berikut dibutuhkan saat AI analysis live ingin dijalankan:
 
 - `OPENAI_API_KEY`
 
-Context providers gratis yang dipakai saat ini tidak membutuhkan env tambahan selain `COINGECKO_API_KEY` untuk CoinGecko.
+CoinGecko auth dipilih lewat `COINGECKO_API_PLAN`. Nilai `demo` memakai host publik `api.coingecko.com` dengan header `x-cg-demo-api-key`. Nilai `basic` memakai host paid `pro-api.coingecko.com` dengan header `x-cg-pro-api-key`.
+
+Context providers gratis lain yang dipakai saat ini tidak membutuhkan env tambahan.
 
 Tooling database seperti `bun run db:migrate` membaca env dari workspace root dengan urutan `.env`, `.env.development` atau `.env.production`, lalu `.env.local`.
 

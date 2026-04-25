@@ -4,6 +4,12 @@ import {
   marketCandleSeriesSchema,
 } from "@trading-analyst/shared-types";
 import { z } from "zod";
+import {
+  buildCoinGeckoAuthHeaders,
+  type CoinGeckoApiPlan,
+  resolveCoinGeckoApiPlan,
+  resolveCoinGeckoBaseUrl,
+} from "../coingecko-auth.js";
 import { MarketDataValidationError } from "../errors.js";
 import { buildFreshnessMetadata, type FetchLike, fetchJson } from "../http.js";
 import type {
@@ -12,8 +18,6 @@ import type {
 } from "../types.js";
 
 const providerName = "coingecko";
-const defaultPublicBaseUrl = "https://api.coingecko.com/api/v3";
-const defaultProBaseUrl = "https://pro-api.coingecko.com/api/v3";
 const quoteCurrency = "USD";
 const fourHoursMs = 4 * 60 * 60 * 1000;
 
@@ -39,6 +43,7 @@ const marketChartPayloadSchema = z.object({
 
 type CoinGeckoMarketDataAdapterOptions = {
   apiKey?: string;
+  apiPlan?: CoinGeckoApiPlan;
   baseUrl?: string;
   fetchFn?: FetchLike;
   requestTimeoutMs?: number;
@@ -57,13 +62,19 @@ export class CoinGeckoMarketDataAdapter implements MarketDataAdapter {
   readonly provider = providerName;
 
   private readonly apiKey: string | undefined;
+  private readonly apiPlan: CoinGeckoApiPlan;
   private readonly baseUrl: string;
   private readonly fetchFn: FetchLike | undefined;
   private readonly requestTimeoutMs: number | undefined;
 
   constructor(options: CoinGeckoMarketDataAdapterOptions = {}) {
     this.apiKey = options.apiKey;
-    this.baseUrl = options.baseUrl ?? resolveCoinGeckoBaseUrl(options.apiKey);
+    this.apiPlan = resolveCoinGeckoApiPlan(options.apiPlan);
+    this.baseUrl = resolveCoinGeckoBaseUrl({
+      apiKey: options.apiKey,
+      apiPlan: this.apiPlan,
+      baseUrl: options.baseUrl,
+    });
     this.fetchFn = options.fetchFn;
     this.requestTimeoutMs = options.requestTimeoutMs;
   }
@@ -142,6 +153,7 @@ export class CoinGeckoMarketDataAdapter implements MarketDataAdapter {
         ),
         candleCount: candles.length,
         coinId,
+        coingeckoApiPlan: this.apiPlan,
         hasApiKey: Boolean(this.apiKey),
         providerSymbol:
           request.asset.providerSymbol ?? request.asset.displaySymbol,
@@ -162,11 +174,10 @@ export class CoinGeckoMarketDataAdapter implements MarketDataAdapter {
   }
 
   private buildRequestOptions() {
-    const headers = this.apiKey
-      ? ({
-          "x-cg-pro-api-key": this.apiKey,
-        } satisfies Record<string, string>)
-      : undefined;
+    const headers = buildCoinGeckoAuthHeaders({
+      apiKey: this.apiKey,
+      apiPlan: this.apiPlan,
+    });
 
     return {
       ...(this.fetchFn ? { fetchFn: this.fetchFn } : {}),
@@ -302,10 +313,6 @@ function buildCoinGeckoUrl(
 
 function ensureTrailingSlash(value: string) {
   return value.endsWith("/") ? value : `${value}/`;
-}
-
-function resolveCoinGeckoBaseUrl(apiKey: string | undefined) {
-  return apiKey ? defaultProBaseUrl : defaultPublicBaseUrl;
 }
 
 function resolveCoinGeckoCoinId(asset: Asset) {

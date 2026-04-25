@@ -28,6 +28,7 @@ export const workerEnvSchema = z.object({
   REDIS_URL: z.string().url(),
   OPENAI_API_KEY: z.string().trim().min(1).optional(),
   COINGECKO_API_KEY: z.string().trim().min(1).optional(),
+  COINGECKO_API_PLAN: z.enum(["demo", "basic"]).default("demo"),
   MAX_DAILY_AI_COST_USD: z.coerce.number().finite().min(0).default(2),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(1),
   WORKER_ENABLE_SCHEDULER: booleanishSchema.default(true),
