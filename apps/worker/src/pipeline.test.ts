@@ -2,9 +2,11 @@ import type { LatestMarketData } from "@trading-analyst/db";
 import type {
   IndicatorSnapshot,
   MarketContextSnapshot,
+  Position,
   SignalAggregationSnapshot,
 } from "@trading-analyst/shared-types";
 import { describe, expect, it, vi } from "vitest";
+import type { ingestLatestMarketData } from "./market-data.js";
 import { runAnalysisCycle } from "./pipeline.js";
 
 const assetId = "crypto:global:BTC-USD";
@@ -169,6 +171,24 @@ const signalAggregationFixture: SignalAggregationSnapshot = {
   },
 };
 
+const positionFixture: Position = {
+  id: "position-btc-open",
+  userId: "system:default",
+  assetId,
+  direction: "long",
+  status: "open",
+  entryPrice: 83200,
+  averageEntryPrice: 83200,
+  quantity: 0.25,
+  remainingQuantity: 0.25,
+  stopLoss: 82450,
+  takeProfitLevels: [],
+  openedAt: "2026-04-20T06:00:00.000Z",
+  lastUpdatedAt: "2026-04-20T06:00:00.000Z",
+  isBackfilled: false,
+  metadata: {},
+};
+
 describe("worker analysis pipeline", () => {
   it("runs the full cycle and persists provider plus AI heartbeats", async () => {
     const saveHeartbeat = vi.fn(async (heartbeat) => ({
@@ -190,6 +210,7 @@ describe("worker analysis pipeline", () => {
         status: "stored" as const,
         timeframe: "4H" as const,
       })),
+      getActivePositionForAssetFn: vi.fn(async () => null),
       ingestLatestMarketDataFn: vi.fn(async () => ({
         indicatorSnapshot: indicatorFixture,
         marketData: marketDataFixture,
@@ -227,6 +248,69 @@ describe("worker analysis pipeline", () => {
         status: "ok",
       }),
       undefined,
+    );
+  });
+
+  it("passes an active position into signal aggregation", async () => {
+    const generateAnalysisFromSignalSnapshotFn = vi.fn(async () => ({
+      analysisId: "analysis:latest:crypto:global:BTC-USD:4H",
+      assetId,
+      state: "IN_POSITION" as const,
+      status: "stored" as const,
+      timeframe: "4H" as const,
+    }));
+    const ingestLatestMarketDataFn: typeof ingestLatestMarketData = vi.fn(
+      async (options) => {
+        const signalAggregationSnapshot = options.buildSignalAggregation?.({
+          asset: signalAggregationFixture.asset,
+          indicatorSnapshot: indicatorFixture,
+          marketData: marketDataFixture,
+        });
+
+        if (!signalAggregationSnapshot) {
+          throw new Error("Expected signal aggregation builder.");
+        }
+
+        return {
+          indicatorSnapshot: indicatorFixture,
+          marketData: marketDataFixture,
+          signalAggregationSnapshot,
+        };
+      },
+    );
+
+    await runAnalysisCycle({
+      assetId,
+      contextService: {
+        fetchContext: vi.fn(async () => marketContextFixture),
+      },
+      generateAnalysisFromSignalSnapshotFn,
+      getActivePositionForAssetFn: vi.fn(async () => positionFixture),
+      ingestLatestMarketDataFn,
+      logger: {
+        error: vi.fn(),
+        log: vi.fn(),
+        warn: vi.fn(),
+      },
+      coingeckoApiKey: "test-key",
+      requestedAt,
+      saveHeartbeat: vi.fn(async (heartbeat) => ({
+        checkedAt: heartbeat.checkedAt ?? requestedAt,
+        payload: heartbeat.payload ?? null,
+        serviceName: heartbeat.serviceName,
+        status: heartbeat.status,
+      })),
+      timeframe: "4H",
+    });
+
+    expect(generateAnalysisFromSignalSnapshotFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        signalSnapshot: expect.objectContaining({
+          position: expect.objectContaining({
+            id: positionFixture.id,
+          }),
+        }),
+      }),
     );
   });
 

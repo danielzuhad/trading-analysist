@@ -1,24 +1,34 @@
 import {
+  closePosition,
+  createPosition,
+  getActivePositionForAsset,
   getLatestAssetAnalysis,
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
   listAlerts,
+  listPositions,
   listServiceHeartbeats,
   pingDatabase,
+  updatePosition,
 } from "@trading-analyst/db";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "./app.js";
 
 vi.mock("@trading-analyst/db", () => ({
+  closePosition: vi.fn(async () => null),
   closeDatabase: vi.fn(async () => undefined),
+  createPosition: vi.fn(),
+  getActivePositionForAsset: vi.fn(async () => null),
   getLatestAssetAnalysis: vi.fn(async () => null),
   getLatestIndicatorSnapshot: vi.fn(async () => null),
   getLatestMarketData: vi.fn(async () => null),
   getLatestSignalAggregationSnapshot: vi.fn(async () => null),
   listAlerts: vi.fn(async () => []),
+  listPositions: vi.fn(async () => []),
   listServiceHeartbeats: vi.fn(async () => []),
   pingDatabase: vi.fn(async () => undefined),
+  updatePosition: vi.fn(async () => null),
 }));
 
 const pingRedisMock = vi.fn(async () => "PONG");
@@ -44,6 +54,14 @@ const app = await buildApp({
 });
 
 afterEach(() => {
+  vi.mocked(closePosition).mockReset();
+  vi.mocked(closePosition).mockResolvedValue(null);
+  vi.mocked(createPosition).mockReset();
+  vi.mocked(createPosition).mockImplementation(async (input) =>
+    createPositionSnapshot(input.assetId, input.direction),
+  );
+  vi.mocked(getActivePositionForAsset).mockReset();
+  vi.mocked(getActivePositionForAsset).mockResolvedValue(null);
   vi.mocked(getLatestAssetAnalysis).mockReset();
   vi.mocked(getLatestAssetAnalysis).mockResolvedValue(null);
   vi.mocked(getLatestIndicatorSnapshot).mockReset();
@@ -54,10 +72,14 @@ afterEach(() => {
   vi.mocked(getLatestSignalAggregationSnapshot).mockResolvedValue(null);
   vi.mocked(listAlerts).mockReset();
   vi.mocked(listAlerts).mockResolvedValue([]);
+  vi.mocked(listPositions).mockReset();
+  vi.mocked(listPositions).mockResolvedValue([]);
   vi.mocked(listServiceHeartbeats).mockReset();
   vi.mocked(listServiceHeartbeats).mockResolvedValue([]);
   vi.mocked(pingDatabase).mockReset();
   vi.mocked(pingDatabase).mockResolvedValue(undefined);
+  vi.mocked(updatePosition).mockReset();
+  vi.mocked(updatePosition).mockResolvedValue(null);
   pingRedisMock.mockReset();
   pingRedisMock.mockResolvedValue("PONG");
 });
@@ -249,6 +271,37 @@ function createAnalysisSnapshot(
     metadata: {
       signalAggregationSnapshotId: `signal:${asset.id}:${timeframe}:2026-04-20T08:00:00.000Z`,
     },
+  };
+}
+
+function createPositionSnapshot(
+  assetId = "crypto:global:BTC-USD",
+  direction: "long" | "short" = "long",
+) {
+  return {
+    id: "position-btc-open",
+    userId: "system:default",
+    assetId,
+    direction,
+    status: "open" as const,
+    quoteCurrency: "USD",
+    entryPrice: 84250.5,
+    averageEntryPrice: 84250.5,
+    quantity: 0.25,
+    remainingQuantity: 0.25,
+    notionalValue: 21062.625,
+    stopLoss: 82450,
+    takeProfitLevels: [
+      {
+        percentageToClose: 50,
+        price: 86800,
+      },
+    ],
+    thesis: "Breakout continuation after 4H confirmation.",
+    openedAt: "2026-04-21T08:00:00.000Z",
+    lastUpdatedAt: "2026-04-21T08:00:00.000Z",
+    isBackfilled: false,
+    metadata: {},
   };
 }
 
@@ -781,6 +834,157 @@ describe("api health routes", () => {
         },
       ],
       count: 1,
+    });
+  });
+
+  it("creates a manual position", async () => {
+    vi.mocked(createPosition).mockResolvedValueOnce(createPositionSnapshot());
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/positions",
+      payload: {
+        assetId: "crypto:global:BTC-USD",
+        direction: "long",
+        entryPrice: 84250.5,
+        quantity: 0.25,
+        stopLoss: 82450,
+        thesis: "Breakout continuation after 4H confirmation.",
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(createPosition).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetId: "crypto:global:BTC-USD",
+        direction: "long",
+        entryPrice: 84250.5,
+        quantity: 0.25,
+        status: "open",
+        userId: "system:default",
+      }),
+      "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+    );
+    expect(response.json()).toMatchObject({
+      position: {
+        assetId: "crypto:global:BTC-USD",
+        direction: "long",
+        status: "open",
+      },
+    });
+  });
+
+  it("lists active positions with filters", async () => {
+    vi.mocked(listPositions).mockResolvedValueOnce([createPositionSnapshot()]);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/positions?assetId=crypto:global:BTC-USD&activeOnly=true&limit=10",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(listPositions).toHaveBeenCalledWith(
+      {
+        activeOnly: true,
+        assetId: "crypto:global:BTC-USD",
+        limit: 10,
+      },
+      "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+    );
+    expect(response.json()).toMatchObject({
+      count: 1,
+      positions: [
+        {
+          id: "position-btc-open",
+          status: "open",
+        },
+      ],
+    });
+  });
+
+  it("returns the active position for an asset", async () => {
+    vi.mocked(getActivePositionForAsset).mockResolvedValueOnce(
+      createPositionSnapshot(),
+    );
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/positions/active?assetId=crypto:global:BTC-USD",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(getActivePositionForAsset).toHaveBeenCalledWith({
+      assetId: "crypto:global:BTC-USD",
+      connectionString:
+        "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+    });
+    expect(response.json()).toMatchObject({
+      position: {
+        id: "position-btc-open",
+      },
+    });
+  });
+
+  it("updates a manual position", async () => {
+    vi.mocked(updatePosition).mockResolvedValueOnce({
+      ...createPositionSnapshot(),
+      stopLoss: 83200,
+    });
+
+    const response = await app.inject({
+      method: "PATCH",
+      url: "/positions/position-btc-open",
+      payload: {
+        stopLoss: 83200,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(updatePosition).toHaveBeenCalledWith(
+      "position-btc-open",
+      expect.objectContaining({
+        stopLoss: 83200,
+      }),
+      "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+    );
+    expect(response.json()).toMatchObject({
+      position: {
+        stopLoss: 83200,
+      },
+    });
+  });
+
+  it("closes a manual position", async () => {
+    vi.mocked(closePosition).mockResolvedValueOnce({
+      ...createPositionSnapshot(),
+      closedAt: "2026-04-22T08:00:00.000Z",
+      remainingQuantity: 0,
+      status: "closed",
+    });
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/positions/position-btc-open/close",
+      payload: {
+        closedAt: "2026-04-22T08:00:00.000Z",
+        realizedPnl: 420,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(closePosition).toHaveBeenCalledWith(
+      "position-btc-open",
+      expect.objectContaining({
+        closedAt: "2026-04-22T08:00:00.000Z",
+        realizedPnl: 420,
+      }),
+      "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+    );
+    expect(response.json()).toMatchObject({
+      position: {
+        remainingQuantity: 0,
+        status: "closed",
+      },
     });
   });
 

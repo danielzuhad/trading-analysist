@@ -8,6 +8,8 @@ import {
   assetSchema,
   assetStateTransitionSchema,
   authSessionSchema,
+  closePositionInputSchema,
+  createPositionInputSchema,
   decisionCardSchema,
   defaultCryptoWatchlistAssets,
   executionRecordSchema,
@@ -18,6 +20,7 @@ import {
   marketSnapshotSchema,
   positionSchema,
   signalAggregationSnapshotSchema,
+  updatePositionInputSchema,
   userPreferenceSchema,
   userWatchlistSchema,
   watchlistOverviewResponseSchema,
@@ -333,6 +336,30 @@ describe("shared contracts", () => {
     });
 
     expect(executionRecord.positionId).toBe(position.id);
+  });
+
+  it("parses manual position write contracts", () => {
+    const createInput = createPositionInputSchema.parse({
+      assetId: "crypto:global:BTC-USD",
+      direction: "long",
+      entryPrice: 84250.5,
+      quantity: 0.25,
+    });
+    const updateInput = updatePositionInputSchema.parse({
+      stopLoss: 83200,
+      thesis: "Structure remains valid above higher-low support.",
+    });
+    const closeInput = closePositionInputSchema.parse({
+      realizedPnl: 420,
+    });
+
+    expect(createInput).toMatchObject({
+      status: "open",
+      takeProfitLevels: [],
+      userId: "system:default",
+    });
+    expect(updateInput.stopLoss).toBe(83200);
+    expect(closeInput.remainingQuantity).toBe(0);
   });
 
   it("parses analysis, transition, and alert contracts together", () => {

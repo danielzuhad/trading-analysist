@@ -1,7 +1,4 @@
-import type {
-  AiAnalysisEngineOutput,
-  SignalAggregationSnapshot,
-} from "@trading-analyst/shared-types";
+import type { SignalAggregationSnapshot } from "@trading-analyst/shared-types";
 import {
   aiAnalysisEngineOutputSchema,
   assetStates,
@@ -46,15 +43,26 @@ type OpenAiResponsesApiResponse = {
   };
 };
 
+type OpenAiAnalysisErrorDetails = {
+  responseBody?: string;
+  statusCode?: number;
+};
+
+type ResponseLike = Pick<Response, "json" | "ok" | "status"> &
+  Partial<Pick<Response, "text">>;
+
 type FetchLike = (
   input: string | URL | Request,
   init?: RequestInit,
-) => Promise<Pick<Response, "json" | "ok" | "status">>;
+) => Promise<ResponseLike>;
 
 export class OpenAiAnalysisError extends Error {
-  constructor(message: string) {
+  readonly details: OpenAiAnalysisErrorDetails | undefined;
+
+  constructor(message: string, details?: OpenAiAnalysisErrorDetails) {
     super(message);
     this.name = "OpenAiAnalysisError";
+    this.details = details;
   }
 }
 
@@ -125,8 +133,14 @@ export async function requestOpenAiAnalysis({
   const latencyMs = Date.now() - startedAt;
 
   if (!response.ok) {
+    const responseBody = await readResponseBody(response);
+
     throw new OpenAiAnalysisError(
       `OpenAI Responses API request failed with status ${response.status}.`,
+      {
+        ...(responseBody ? { responseBody } : {}),
+        statusCode: response.status,
+      },
     );
   }
 
@@ -250,7 +264,7 @@ export function buildOpenAiAnalysisJsonSchema(
         maximum: 100,
       },
       notes: {
-        type: "string",
+        type: ["string", "null"],
       },
     },
     required: [
@@ -265,15 +279,34 @@ export function buildOpenAiAnalysisJsonSchema(
       "riskLevel",
       "suggestedPositionSize",
       "aiConfidence",
+      "notes",
     ],
     additionalProperties: false,
   };
 }
 
 export function parseOpenAiAnalysisOutput(outputText: string) {
-  const parsed = JSON.parse(outputText) as AiAnalysisEngineOutput;
+  const parsed = normalizeOpenAiAnalysisOutput(JSON.parse(outputText));
 
   return aiAnalysisEngineOutputSchema.parse(parsed);
+}
+
+function normalizeOpenAiAnalysisOutput(value: unknown) {
+  if (typeof value !== "object" || value === null || !("notes" in value)) {
+    return value;
+  }
+
+  const output = { ...value } as Record<string, unknown>;
+
+  if (output.notes === null) {
+    delete output.notes;
+  }
+
+  if (typeof output.notes === "string" && output.notes.trim().length === 0) {
+    delete output.notes;
+  }
+
+  return output;
 }
 
 function extractOutputText(response: OpenAiResponsesApiResponse) {
@@ -302,4 +335,26 @@ function extractRefusal(response: OpenAiResponsesApiResponse) {
   }
 
   return null;
+}
+
+async function readResponseBody(response: ResponseLike) {
+  if (typeof response.text === "function") {
+    return truncateResponseBody(await response.text());
+  }
+
+  try {
+    return truncateResponseBody(JSON.stringify(await response.json()));
+  } catch {
+    return undefined;
+  }
+}
+
+function truncateResponseBody(value: string) {
+  const normalized = value.trim();
+
+  if (normalized.length <= 1_000) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, 1_000)}...`;
 }

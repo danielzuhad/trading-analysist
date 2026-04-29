@@ -15,6 +15,7 @@ Repository ini saat ini mencakup:
 - Sprint 7 worker full-loop wiring, scheduled seed assets, and context-provider status visibility
 - Sprint 8 read-only dashboard overview, asset detail pages, and aggregate API endpoints
 - Sprint 9 alert engine, PostgreSQL alert persistence, worker state-transition alert generation, and alert read API
+- Sprint 10 manual positions module, active-position API, worker position-aware analysis wiring, and basic dashboard position recording
 
 ## Workspace Layout
 
@@ -90,6 +91,7 @@ Nilai berikut dibutuhkan saat AI analysis live ingin dijalankan:
 - `OPENAI_API_KEY`
 
 CoinGecko auth dipilih lewat `COINGECKO_API_PLAN`. Nilai `demo` memakai host publik `api.coingecko.com` dengan header `x-cg-demo-api-key`. Nilai `basic` memakai host paid `pro-api.coingecko.com` dengan header `x-cg-pro-api-key`.
+Pada `demo`, worker memakai `market_chart` 90 hari tanpa parameter `interval`, lalu membentuk candle 1H/4H internal agar indikator EMA200 tetap punya histori yang cukup. Paid Basic tetap memakai OHLC hourly dari Pro API.
 
 Context providers gratis lain yang dipakai saat ini tidak membutuhkan env tambahan.
 
@@ -110,6 +112,11 @@ Endpoint read yang tersedia saat ini:
 - `GET /watchlist/overview?timeframe=...`
 - `GET /assets/:assetId/overview?timeframe=...`
 - `GET /alerts?assetId=...&timeframe=...&status=...&limit=...`
+- `GET /positions?assetId=...&status=...&activeOnly=...&limit=...`
+- `GET /positions/active?assetId=...`
+- `POST /positions`
+- `PATCH /positions/:positionId`
+- `POST /positions/:positionId/close`
 - `GET /readyz`
 
 `GET /health` dan `GET /readyz` juga membawa status operasional untuk context providers dan AI daily cost cap.

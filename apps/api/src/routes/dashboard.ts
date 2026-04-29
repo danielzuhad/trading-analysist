@@ -10,6 +10,7 @@ import {
   findDefaultCryptoAsset,
   type IndicatorSnapshot,
   type OverviewStatus,
+  type Position,
   pickLatestAnalysisRiskLevel,
   type SignalAggregationSnapshot,
   type SupportedTimeframe,
@@ -63,10 +64,14 @@ type Dependencies = {
     assetId: string,
     timeframe: SupportedTimeframe,
   ) => Promise<SignalAggregationSnapshot | null>;
+  getActivePositionForAsset: (filters: {
+    assetId: string;
+  }) => Promise<Position | null>;
 };
 
 type LatestAssetSnapshots = {
   analysisSnapshot: LatestAssetAnalysis | null;
+  activePosition: Position | null;
   indicatorSnapshot: IndicatorSnapshot | null;
   marketData: LatestMarketData | null;
   signalSnapshot: SignalAggregationSnapshot | null;
@@ -173,6 +178,9 @@ export async function buildAssetOverviewResponse(
     ...(snapshots.analysisSnapshot
       ? { analysisSnapshot: snapshots.analysisSnapshot }
       : {}),
+    ...(snapshots.activePosition
+      ? { activePosition: snapshots.activePosition }
+      : {}),
   });
 }
 
@@ -245,16 +253,23 @@ async function loadLatestAssetSnapshots(
   timeframe: SupportedTimeframe,
   dependencies: Dependencies,
 ): Promise<LatestAssetSnapshots> {
-  const [marketData, indicatorSnapshot, signalSnapshot, analysisSnapshot] =
-    await Promise.all([
-      dependencies.getLatestMarketData(assetId, timeframe),
-      dependencies.getLatestIndicatorSnapshot(assetId, timeframe),
-      dependencies.getLatestSignalAggregationSnapshot(assetId, timeframe),
-      dependencies.getLatestAssetAnalysis(assetId, timeframe),
-    ]);
+  const [
+    marketData,
+    indicatorSnapshot,
+    signalSnapshot,
+    analysisSnapshot,
+    activePosition,
+  ] = await Promise.all([
+    dependencies.getLatestMarketData(assetId, timeframe),
+    dependencies.getLatestIndicatorSnapshot(assetId, timeframe),
+    dependencies.getLatestSignalAggregationSnapshot(assetId, timeframe),
+    dependencies.getLatestAssetAnalysis(assetId, timeframe),
+    dependencies.getActivePositionForAsset({ assetId }),
+  ]);
 
   return {
     analysisSnapshot,
+    activePosition,
     indicatorSnapshot,
     marketData,
     signalSnapshot,

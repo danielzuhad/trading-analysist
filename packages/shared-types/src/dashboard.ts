@@ -13,6 +13,7 @@ import {
 } from "./common.js";
 import { indicatorSnapshotSchema } from "./indicator.js";
 import { marketSnapshotSchema } from "./market.js";
+import { positionSchema } from "./position.js";
 import {
   analysisBiasSchema,
   analysisSuggestionSchema,
@@ -68,6 +69,7 @@ export const assetOverviewResponseSchema = z.object({
   indicatorSnapshot: indicatorSnapshotSchema.optional(),
   signalSnapshot: signalAggregationSnapshotSchema.optional(),
   analysisSnapshot: latestAssetAnalysisSchema.optional(),
+  activePosition: positionSchema.optional(),
 });
 
 export type WatchlistOverviewItem = z.infer<typeof watchlistOverviewItemSchema>;

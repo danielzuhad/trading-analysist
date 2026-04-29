@@ -17,6 +17,7 @@ import {
   OverviewStatusBadge,
   StateBadge,
 } from "../../dashboard-primitives";
+import { recordPositionAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ type AssetDetailPageProps = {
     symbol: string;
   }>;
   searchParams?: Promise<{
+    positionStatus?: string | string[];
     timeframe?: string | string[];
   }>;
 };
@@ -49,6 +51,10 @@ export default async function AssetDetailPage({
     timeframe,
   );
   const overview = overviewResult.data;
+  const positionStatus = Array.isArray(resolvedSearchParams?.positionStatus)
+    ? resolvedSearchParams.positionStatus[0]
+    : resolvedSearchParams?.positionStatus;
+  const activePosition = overview?.activePosition;
 
   return (
     <main className="shell shell--detail">
@@ -156,6 +162,76 @@ export default async function AssetDetailPage({
                   )}
                 </span>
               </div>
+            </article>
+
+            <article className="card card--summary">
+              <div className="card-heading">
+                <h2>Manual Position</h2>
+                <OverviewStatusBadge
+                  status={activePosition ? "ready" : "pending"}
+                />
+              </div>
+
+              {activePosition ? (
+                <div className="detail-list">
+                  <p>Direction: {activePosition.direction}</p>
+                  <p>Status: {activePosition.status}</p>
+                  <p>Entry: {formatPrice(activePosition.averageEntryPrice)}</p>
+                  <p>Quantity: {activePosition.remainingQuantity}</p>
+                  <p>Stop loss: {formatPrice(activePosition.stopLoss)}</p>
+                </div>
+              ) : (
+                <form className="position-form" action={recordPositionAction}>
+                  <input type="hidden" name="assetId" value={asset.id} />
+                  <input
+                    type="hidden"
+                    name="symbol"
+                    value={asset.symbol.toLowerCase()}
+                  />
+                  <input type="hidden" name="timeframe" value={timeframe} />
+                  <label>
+                    Direction
+                    <select name="direction" defaultValue="long">
+                      <option value="long">Long</option>
+                      <option value="short">Short</option>
+                    </select>
+                  </label>
+                  <label>
+                    Entry
+                    <input
+                      name="entryPrice"
+                      type="number"
+                      step="any"
+                      min="0"
+                      defaultValue={overview.marketSnapshot?.lastPrice ?? ""}
+                      required
+                    />
+                  </label>
+                  <label>
+                    Quantity
+                    <input
+                      name="quantity"
+                      type="number"
+                      step="any"
+                      min="0"
+                      required
+                    />
+                  </label>
+                  <label>
+                    Stop
+                    <input name="stopLoss" type="number" step="any" min="0" />
+                  </label>
+                  <label className="position-form__wide">
+                    Thesis
+                    <input name="thesis" type="text" />
+                  </label>
+                  <button type="submit">Record Position</button>
+                </form>
+              )}
+
+              {positionStatus ? (
+                <p className="issue-text">Position status: {positionStatus}</p>
+              ) : null}
             </article>
           </section>
 

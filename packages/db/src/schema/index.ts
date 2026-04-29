@@ -5,6 +5,7 @@ import type {
   MarketCandle,
   MarketSnapshot,
   OhlcvCandle,
+  Position,
   SignalAggregationSnapshot,
 } from "@trading-analyst/shared-types";
 import {
@@ -187,6 +188,65 @@ export const assetAnalysisLatestSnapshots = pgTable(
   },
 );
 
+export const positions = pgTable(
+  "positions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull(),
+    assetId: text("asset_id").notNull(),
+    watchlistId: text("watchlist_id"),
+    sourceAccount: text("source_account"),
+    direction: text("direction").notNull(),
+    status: text("status").notNull(),
+    quoteCurrency: text("quote_currency"),
+    entryPrice: text("entry_price").notNull(),
+    averageEntryPrice: text("average_entry_price").notNull(),
+    quantity: text("quantity").notNull(),
+    remainingQuantity: text("remaining_quantity").notNull(),
+    notionalValue: text("notional_value"),
+    realizedPnl: text("realized_pnl"),
+    unrealizedPnl: text("unrealized_pnl"),
+    realizedPnlPercent: text("realized_pnl_percent"),
+    unrealizedPnlPercent: text("unrealized_pnl_percent"),
+    stopLoss: text("stop_loss"),
+    takeProfitLevels: jsonb("take_profit_levels")
+      .$type<Position["takeProfitLevels"]>()
+      .notNull(),
+    thesis: text("thesis"),
+    notes: text("notes"),
+    latestState: text("latest_state"),
+    latestSuggestion: text("latest_suggestion"),
+    openedAt: timestamp("opened_at", {
+      withTimezone: true,
+    }).notNull(),
+    closedAt: timestamp("closed_at", {
+      withTimezone: true,
+    }),
+    lastUpdatedAt: timestamp("last_updated_at", {
+      withTimezone: true,
+    }).notNull(),
+    isBackfilled: boolean("is_backfilled").notNull().default(false),
+    metadata: jsonb("metadata").$type<Position["metadata"]>().notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("positions_user_status_opened_at_idx").on(
+      table.userId,
+      table.status,
+      table.openedAt,
+    ),
+    index("positions_asset_status_opened_at_idx").on(
+      table.assetId,
+      table.status,
+      table.openedAt,
+    ),
+  ],
+);
+
 export const alerts = pgTable(
   "alerts",
   {
@@ -245,6 +305,7 @@ export const schema = {
   assetAnalysisLatestSnapshots,
   indicatorLatestSnapshots,
   marketLatestSnapshots,
+  positions,
   signalAggregationLatestSnapshots,
   serviceHeartbeats,
 };

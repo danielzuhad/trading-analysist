@@ -58,6 +58,17 @@ type CandlePoint = {
   volume: number;
 };
 
+type CoinGeckoSourceKind = "market_chart" | "ohlc";
+type CoinGeckoSourceTimeframe = "1H";
+
+type CoinGeckoSeriesRequestConfig = {
+  days: "90";
+  marketChartInterval?: "hourly";
+  ohlcInterval?: "hourly";
+  sourceKind: CoinGeckoSourceKind;
+  sourceTimeframe: CoinGeckoSourceTimeframe;
+};
+
 export class CoinGeckoMarketDataAdapter implements MarketDataAdapter {
   readonly provider = providerName;
 
@@ -94,32 +105,41 @@ export class CoinGeckoMarketDataAdapter implements MarketDataAdapter {
     }
 
     const coinId = resolveCoinGeckoCoinId(request.asset);
-    const [rawOhlc, rawMarketChart] = await Promise.all([
+    const requestConfig = resolveCoinGeckoSeriesRequestConfig(
+      request.timeframe,
+      this.apiPlan,
+    );
+    const [rawMarketChart, rawOhlc] = await Promise.all([
       fetchJson(
-        buildCoinGeckoUrl(this.baseUrl, `/coins/${coinId}/ohlc`, {
-          days: "90",
-          interval: "hourly",
-          vs_currency: quoteCurrency.toLowerCase(),
-        }),
+        buildCoinGeckoUrl(
+          this.baseUrl,
+          `/coins/${coinId}/market_chart`,
+          buildCoinGeckoQuery(requestConfig, "market_chart"),
+        ),
         this.buildRequestOptions(),
       ),
-      fetchJson(
-        buildCoinGeckoUrl(this.baseUrl, `/coins/${coinId}/market_chart`, {
-          days: "90",
-          interval: "hourly",
-          vs_currency: quoteCurrency.toLowerCase(),
-        }),
-        this.buildRequestOptions(),
-      ),
+      requestConfig.sourceKind === "ohlc"
+        ? fetchJson(
+            buildCoinGeckoUrl(
+              this.baseUrl,
+              `/coins/${coinId}/ohlc`,
+              buildCoinGeckoQuery(requestConfig, "ohlc"),
+            ),
+            this.buildRequestOptions(),
+          )
+        : Promise.resolve(undefined),
     ]);
 
-    const hourlyOhlc = ohlcPayloadSchema.parse(rawOhlc);
     const marketChart = marketChartPayloadSchema.parse(rawMarketChart);
-    const hourlyCandles = buildHourlyCandles(hourlyOhlc, marketChart);
-    const candles =
-      request.timeframe === "4H"
-        ? aggregateHourlyCandles(hourlyCandles)
-        : hourlyCandles;
+    const sourceCandles =
+      requestConfig.sourceKind === "ohlc"
+        ? buildOhlcCandles(ohlcPayloadSchema.parse(rawOhlc), marketChart)
+        : buildMarketChartCandles(marketChart);
+    const candles = normalizeCandles(
+      sourceCandles,
+      requestConfig.sourceTimeframe,
+      request.timeframe,
+    );
     const latestCandle = candles.at(-1);
 
     if (!latestCandle) {
@@ -157,7 +177,8 @@ export class CoinGeckoMarketDataAdapter implements MarketDataAdapter {
         hasApiKey: Boolean(this.apiKey),
         providerSymbol:
           request.asset.providerSymbol ?? request.asset.displaySymbol,
-        sourceTimeframe: "1H",
+        sourceKind: requestConfig.sourceKind,
+        sourceTimeframe: requestConfig.sourceTimeframe,
       },
       ...(previousCandle
         ? {
@@ -190,7 +211,44 @@ export class CoinGeckoMarketDataAdapter implements MarketDataAdapter {
   }
 }
 
-function buildHourlyCandles(
+function buildCoinGeckoQuery(
+  requestConfig: CoinGeckoSeriesRequestConfig,
+  endpoint: "market_chart" | "ohlc",
+): Record<string, string> {
+  const interval =
+    endpoint === "ohlc"
+      ? requestConfig.ohlcInterval
+      : requestConfig.marketChartInterval;
+
+  return {
+    days: requestConfig.days,
+    ...(interval ? { interval } : {}),
+    vs_currency: quoteCurrency.toLowerCase(),
+  };
+}
+
+function resolveCoinGeckoSeriesRequestConfig(
+  _timeframe: ValidatedMarketDataRequest["timeframe"],
+  apiPlan: CoinGeckoApiPlan,
+): CoinGeckoSeriesRequestConfig {
+  if (apiPlan === "basic") {
+    return {
+      days: "90",
+      marketChartInterval: "hourly",
+      ohlcInterval: "hourly",
+      sourceKind: "ohlc",
+      sourceTimeframe: "1H",
+    };
+  }
+
+  return {
+    days: "90",
+    sourceKind: "market_chart",
+    sourceTimeframe: "1H",
+  };
+}
+
+function buildOhlcCandles(
   ohlcPayload: z.infer<typeof ohlcPayloadSchema>,
   marketChartPayload: z.infer<typeof marketChartPayloadSchema>,
 ) {
@@ -210,11 +268,58 @@ function buildHourlyCandles(
     }));
 }
 
-function aggregateHourlyCandles(candles: CandlePoint[]) {
+function buildMarketChartCandles(
+  marketChartPayload: z.infer<typeof marketChartPayloadSchema>,
+) {
+  const volumePoints = [...marketChartPayload.total_volumes].sort(
+    (left, right) => left[0] - right[0],
+  );
+  const pricePoints = [...marketChartPayload.prices].sort(
+    (left, right) => left[0] - right[0],
+  );
+
+  return pricePoints.map(([timestamp, close], index) => {
+    const previousPrice = pricePoints[index - 1]?.[1];
+    const open = previousPrice ?? close;
+
+    return {
+      close,
+      high: Math.max(open, close),
+      low: Math.min(open, close),
+      open,
+      timestamp: new Date(timestamp).toISOString(),
+      volume: resolveNearestVolume(timestamp, volumePoints),
+    };
+  });
+}
+
+function normalizeCandles(
+  candles: CandlePoint[],
+  sourceTimeframe: CoinGeckoSourceTimeframe,
+  targetTimeframe: ValidatedMarketDataRequest["timeframe"],
+) {
+  if (sourceTimeframe === targetTimeframe) {
+    return candles;
+  }
+
+  if (sourceTimeframe === "1H" && targetTimeframe === "4H") {
+    return aggregateCandles(candles, fourHoursMs, 4);
+  }
+
+  return [];
+}
+
+function aggregateCandles(
+  candles: CandlePoint[],
+  targetTimeframeMs: number,
+  minimumCandlesPerBucket: number,
+) {
   const grouped = new Map<number, CandlePoint[]>();
 
   for (const candle of candles) {
-    const bucket = Math.floor((Date.parse(candle.timestamp) - 1) / fourHoursMs);
+    const bucket = Math.floor(
+      (Date.parse(candle.timestamp) - 1) / targetTimeframeMs,
+    );
     const existing = grouped.get(bucket);
 
     if (existing) {
@@ -228,7 +333,7 @@ function aggregateHourlyCandles(candles: CandlePoint[]) {
   return [...grouped.entries()]
     .sort((left, right) => left[0] - right[0])
     .flatMap(([, bucketCandles]) => {
-      if (bucketCandles.length < 4) {
+      if (bucketCandles.length < minimumCandlesPerBucket) {
         return [];
       }
 

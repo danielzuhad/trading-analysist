@@ -1,5 +1,8 @@
 import type { AiAnalysisProvider } from "@trading-analyst/ai-analysis";
-import { saveServiceHeartbeat } from "@trading-analyst/db";
+import {
+  getActivePositionForAsset,
+  saveServiceHeartbeat,
+} from "@trading-analyst/db";
 import {
   BybitContextProvider,
   type CoinGeckoApiPlan,
@@ -29,6 +32,7 @@ type RunAnalysisCycleOptions = {
   connectionString?: string;
   contextService?: Pick<MarketContextService, "fetchContext">;
   fetchService?: ReturnType<typeof createMarketFetchService>;
+  getActivePositionForAssetFn?: typeof getActivePositionForAsset;
   generateAnalysisFromSignalSnapshotFn?: typeof generateAssetAnalysisFromSignalSnapshot;
   ingestLatestMarketDataFn?: typeof ingestLatestMarketData;
   logger?: Logger;
@@ -63,6 +67,7 @@ export async function runAnalysisCycle({
   connectionString,
   contextService,
   fetchService,
+  getActivePositionForAssetFn = getActivePositionForAsset,
   generateAnalysisFromSignalSnapshotFn = generateAssetAnalysisFromSignalSnapshot,
   ingestLatestMarketDataFn = ingestLatestMarketData,
   logger = console,
@@ -118,6 +123,11 @@ export async function runAnalysisCycle({
     ...(connectionString ? { connectionString } : {}),
   });
 
+  const activePosition = await getActivePositionForAssetFn({
+    assetId: asset.id,
+    ...(connectionString ? { connectionString } : {}),
+  });
+
   const { signalAggregationSnapshot } = await ingestLatestMarketDataFn({
     apiKey: coingeckoApiKey,
     apiPlan: coingeckoApiPlan,
@@ -133,6 +143,7 @@ export async function runAnalysisCycle({
         indicatorSnapshot,
         marketContext,
         marketSnapshot: marketData.snapshot,
+        ...(activePosition ? { position: activePosition } : {}),
       }),
     ...(connectionString ? { connectionString } : {}),
     ...(fetchService

@@ -338,6 +338,51 @@ a {
   gap: 10px;
 }
 
+.position-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.position-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.position-form input,
+.position-form select {
+  min-height: 42px;
+  width: 100%;
+  border: 1px solid rgba(24, 33, 47, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--ink);
+  font: inherit;
+  letter-spacing: 0;
+  padding: 0 12px;
+}
+
+.position-form button {
+  min-height: 42px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #c0542c, #a14120);
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.position-form__wide,
+.position-form button {
+  grid-column: 1 / -1;
+}
+
 .issue-text {
   color: #9a3412;
 }
@@ -436,7 +481,8 @@ a {
   }
 
   .metric-grid,
-  .asset-card__scores {
+  .asset-card__scores,
+  .position-form {
     grid-template-columns: 1fr;
   }
 

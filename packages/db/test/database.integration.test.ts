@@ -2,12 +2,14 @@ import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, it } from "vitest";
 import {
   closeDatabase,
+  getActivePositionForAsset,
   getDailyAiCostTotalUsd,
   getLatestAssetAnalysis,
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
   listAlerts,
+  listPositions,
   pingDatabase,
   runRawQuery,
   saveAlert,
@@ -15,6 +17,7 @@ import {
   saveLatestIndicatorSnapshot,
   saveLatestMarketData,
   saveLatestSignalAggregationSnapshot,
+  savePosition,
 } from "../src/index.js";
 
 const runInfrastructureTests = process.env.RUN_INFRA_TESTS === "true";
@@ -39,7 +42,7 @@ describeInfrastructure("database integration", () => {
       `
         select table_name
         from information_schema.tables
-        where table_schema = 'public' and table_name in ($1, $2, $3, $4, $5, $6)
+        where table_schema = 'public' and table_name in ($1, $2, $3, $4, $5, $6, $7)
         order by table_name
       `,
       [
@@ -47,6 +50,7 @@ describeInfrastructure("database integration", () => {
         "asset_analysis_latest_snapshots",
         "indicator_latest_snapshots",
         "market_latest_snapshots",
+        "positions",
         "signal_aggregation_latest_snapshots",
         "service_heartbeats",
       ],
@@ -58,9 +62,51 @@ describeInfrastructure("database integration", () => {
       { table_name: "asset_analysis_latest_snapshots" },
       { table_name: "indicator_latest_snapshots" },
       { table_name: "market_latest_snapshots" },
+      { table_name: "positions" },
       { table_name: "service_heartbeats" },
       { table_name: "signal_aggregation_latest_snapshots" },
     ]);
+  });
+
+  it("persists and lists active position rows", async () => {
+    const unique = randomUUID();
+    const assetId = `crypto:test:${unique}`;
+    const position = {
+      id: `position:${unique}`,
+      userId: "system:default",
+      assetId,
+      direction: "long" as const,
+      status: "open" as const,
+      quoteCurrency: "USD",
+      entryPrice: 84250.5,
+      averageEntryPrice: 84250.5,
+      quantity: 0.25,
+      remainingQuantity: 0.25,
+      stopLoss: 82450,
+      takeProfitLevels: [],
+      thesis: "Breakout continuation after 4H confirmation.",
+      openedAt: "2026-04-21T08:00:00.000Z",
+      lastUpdatedAt: "2026-04-21T08:00:00.000Z",
+      isBackfilled: false,
+      metadata: {},
+    };
+
+    await savePosition(position, databaseUrl);
+
+    const activePosition = await getActivePositionForAsset({
+      assetId,
+      ...(databaseUrl ? { connectionString: databaseUrl } : {}),
+    });
+    const positions = await listPositions(
+      {
+        activeOnly: true,
+        assetId,
+      },
+      databaseUrl,
+    );
+
+    expect(activePosition).toEqual(position);
+    expect(positions).toContainEqual(position);
   });
 
   it("deduplicates and lists alert rows", async () => {

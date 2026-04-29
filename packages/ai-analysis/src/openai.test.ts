@@ -3,6 +3,7 @@ import {
   buildOpenAiAnalysisJsonSchema,
   createOpenAiAnalysisProvider,
   OpenAiAnalysisError,
+  parseOpenAiAnalysisOutput,
 } from "./openai.js";
 import {
   createAiOutputFixture,
@@ -20,6 +21,8 @@ describe("OpenAI analysis adapter", () => {
       "ENTRY_ON_CONFIRMATION",
       "ENTRY_SMALL",
     ]);
+    expect(schema.required).toEqual(Object.keys(schema.properties));
+    expect(schema.properties.notes.type).toEqual(["string", "null"]);
   });
 
   it("builds a position-management suggestion schema when a position exists", () => {
@@ -87,6 +90,49 @@ describe("OpenAI analysis adapter", () => {
       outputTokens: 321,
     });
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("normalizes nullable notes from strict structured output", () => {
+    const output = parseOpenAiAnalysisOutput(
+      JSON.stringify({
+        ...createAiOutputFixture(),
+        notes: null,
+      }),
+    );
+
+    expect(output.notes).toBeUndefined();
+  });
+
+  it("includes non-secret OpenAI error details for failed requests", async () => {
+    const fetchMock = vi.fn(async () => ({
+      json: async () => ({}),
+      ok: false,
+      status: 400,
+      text: async () =>
+        JSON.stringify({
+          error: {
+            message: "Invalid schema for response format.",
+            type: "invalid_request_error",
+          },
+        }),
+    }));
+    const provider = createOpenAiAnalysisProvider({
+      apiKey: "test-key",
+      fetchImpl: fetchMock,
+    });
+
+    await expect(
+      provider({
+        model: "gpt-4o-mini",
+        promptVersion: "ai-analysis:v1",
+        signalSnapshot: createSignalSnapshotFixture(),
+      }),
+    ).rejects.toMatchObject({
+      details: {
+        responseBody: expect.stringContaining("Invalid schema"),
+        statusCode: 400,
+      },
+    });
   });
 
   it("throws when OpenAI refuses the request", async () => {

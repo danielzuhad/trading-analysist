@@ -6,8 +6,8 @@ Development must follow the sprint order unless the user explicitly reprioritize
 
 Current implementation checkpoint for this repository:
 
-- [x] Sprints 1-9 are implemented in the codebase
-- [ ] Sprint 10 is the next active target
+- [x] Sprints 1-10 are implemented in the codebase
+- [ ] Sprint 11 is the next active target
 
 ## Phase 1 — Crypto MVP
 
@@ -216,15 +216,23 @@ Generate meaningful, deduplicated alerts on real state changes.
 - alert records are stored in PostgreSQL with indexed asset/timeframe/status read paths
 - `GET /alerts` supports optional `assetId`, `timeframe`, `status`, and `limit` filters
 
-### [ ] Sprint 10 — Positions Module
+### [x] Sprint 10 — Positions Module
 
 **Status**
 
-Not started yet.
+Completed in codebase. Manual position contracts, PostgreSQL persistence, API routes, worker position-aware snapshot wiring, and basic dashboard position recording are implemented.
 
 **Goal**
 
 Support manual position recording and position-aware analysis.
+
+**Current delivery**
+
+- `positions` table and Drizzle migration
+- create, update, close, list, and active-position DB helpers
+- `GET /positions`, `GET /positions/active`, `POST /positions`, `PATCH /positions/:positionId`, and `POST /positions/:positionId/close`
+- worker injects active positions into signal aggregation before AI analysis
+- asset detail dashboard shows active position context and can record a manual position
 
 ### [ ] Sprint 11 — Chat Layer via WhatsApp API
 

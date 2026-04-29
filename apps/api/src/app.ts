@@ -1,12 +1,17 @@
 import {
   closeDatabase,
+  closePosition,
+  createPosition,
+  getActivePositionForAsset,
   getLatestAssetAnalysis,
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
   listAlerts,
+  listPositions,
   listServiceHeartbeats,
   pingDatabase,
+  updatePosition,
 } from "@trading-analyst/db";
 import Fastify from "fastify";
 import { Redis } from "ioredis";
@@ -16,6 +21,7 @@ import { registerAlertRoutes } from "./routes/alerts.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerMarketDataRoutes } from "./routes/market-data.js";
+import { registerPositionRoutes } from "./routes/positions.js";
 
 export async function buildApp(env: ApiEnv = loadApiEnv()) {
   const app = Fastify({
@@ -53,9 +59,28 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
       getLatestMarketData(assetId, timeframe, env.DATABASE_URL),
     getLatestSignalAggregationSnapshot: (assetId, timeframe) =>
       getLatestSignalAggregationSnapshot(assetId, timeframe, env.DATABASE_URL),
+    getActivePositionForAsset: ({ assetId }) =>
+      getActivePositionForAsset({
+        assetId,
+        connectionString: env.DATABASE_URL,
+      }),
   });
   await registerAlertRoutes(app, {
     listAlerts: (filters) => listAlerts(filters, env.DATABASE_URL),
+  });
+  await registerPositionRoutes(app, {
+    closePosition: (positionId, input) =>
+      closePosition(positionId, input, env.DATABASE_URL),
+    createPosition: (input) => createPosition(input, env.DATABASE_URL),
+    getActivePositionForAsset: ({ assetId, userId }) =>
+      getActivePositionForAsset({
+        assetId,
+        connectionString: env.DATABASE_URL,
+        ...(userId ? { userId } : {}),
+      }),
+    listPositions: (filters) => listPositions(filters, env.DATABASE_URL),
+    updatePosition: (positionId, input) =>
+      updatePosition(positionId, input, env.DATABASE_URL),
   });
 
   app.addHook("onClose", async () => {
