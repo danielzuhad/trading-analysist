@@ -95,7 +95,7 @@ export function generateStateTransitionAlert({
         currentAnalysis.state,
       ),
       status: "suggested",
-      channels: ["dashboard"],
+      channels: ["dashboard", "whatsapp"],
       title: buildAlertTitle(currentAnalysis),
       message: buildAlertMessage(previousAnalysis.state, currentAnalysis),
       summary: currentAnalysis.decisionCard.summary,

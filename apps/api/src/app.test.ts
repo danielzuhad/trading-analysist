@@ -1,3 +1,4 @@
+import { buildTwilioWebhookSignature } from "@trading-analyst/chat-layer";
 import {
   closePosition,
   createPosition,
@@ -51,6 +52,17 @@ const app = await buildApp({
   API_PORT: 3001,
   DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
   REDIS_URL: "redis://127.0.0.1:6379",
+});
+const twilioAuthToken = "twilio-auth-token";
+const twilioWebhookUrl = "http://api.invalid/chat-layer/twilio/webhook";
+const twilioApp = await buildApp({
+  NODE_ENV: "test",
+  API_HOST: "api.invalid",
+  API_PORT: 3001,
+  DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+  REDIS_URL: "redis://127.0.0.1:6379",
+  TWILIO_AUTH_TOKEN: twilioAuthToken,
+  TWILIO_WEBHOOK_URL: twilioWebhookUrl,
 });
 
 afterEach(() => {
@@ -1132,6 +1144,153 @@ describe("api health routes", () => {
   });
 });
 
+describe("api chat layer routes", () => {
+  it("returns a disabled message when the chat layer is not configured", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/chat-layer/twilio/webhook",
+      payload:
+        "Body=watchlist+4H&From=whatsapp%3A%2B628123&To=whatsapp%3A%2B14155238886",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+      },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.body).toContain("WhatsApp chat layer belum dikonfigurasi");
+  });
+
+  it("rejects an invalid Twilio signature", async () => {
+    const response = await twilioApp.inject({
+      method: "POST",
+      url: "/chat-layer/twilio/webhook",
+      payload:
+        "Body=watchlist+4H&From=whatsapp%3A%2B628123&To=whatsapp%3A%2B14155238886",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        host: "api.invalid",
+        "x-twilio-signature": "invalid",
+      },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      error: "INVALID_TWILIO_SIGNATURE",
+    });
+  });
+
+  it("returns a watchlist summary for a valid Twilio webhook", async () => {
+    const payload =
+      "Body=watchlist+4H&From=whatsapp%3A%2B628123&To=whatsapp%3A%2B14155238886";
+    const params = {
+      Body: "watchlist 4H",
+      From: "whatsapp:+628123",
+      To: "whatsapp:+14155238886",
+    };
+    const signature = buildTwilioWebhookSignature({
+      authToken: twilioAuthToken,
+      params,
+      url: twilioWebhookUrl,
+    });
+    const btc = createAsset("crypto:global:BTC-USD", "BTC", "Bitcoin");
+
+    vi.mocked(getLatestMarketData).mockImplementation(async (assetId) => {
+      if (assetId === btc.id) {
+        return createMarketData(btc, "4H");
+      }
+
+      return null;
+    });
+    vi.mocked(getLatestIndicatorSnapshot).mockImplementation(
+      async (assetId) => {
+        if (assetId === btc.id) {
+          return createIndicatorSnapshot(btc, "4H");
+        }
+
+        return null;
+      },
+    );
+    vi.mocked(getLatestSignalAggregationSnapshot).mockImplementation(
+      async (assetId) => {
+        if (assetId === btc.id) {
+          return createSignalSnapshot(btc, "4H");
+        }
+
+        return null;
+      },
+    );
+    vi.mocked(getLatestAssetAnalysis).mockImplementation(async (assetId) => {
+      if (assetId === btc.id) {
+        return createAnalysisSnapshot(btc, "4H");
+      }
+
+      return null;
+    });
+
+    const response = await twilioApp.inject({
+      method: "POST",
+      url: "/chat-layer/twilio/webhook",
+      payload,
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        host: "api.invalid",
+        "x-twilio-signature": signature,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("Watchlist 4H");
+    expect(response.body).toContain("BTC ACTIONABLE");
+  });
+
+  it("records a position from a valid Twilio webhook command", async () => {
+    const payload =
+      "Body=position+btc+long+entry+84000+qty+0.10+stop+82000&From=whatsapp%3A%2B628123&To=whatsapp%3A%2B14155238886&MessageSid=SM123";
+    const params = {
+      Body: "position btc long entry 84000 qty 0.10 stop 82000",
+      From: "whatsapp:+628123",
+      MessageSid: "SM123",
+      To: "whatsapp:+14155238886",
+    };
+    const signature = buildTwilioWebhookSignature({
+      authToken: twilioAuthToken,
+      params,
+      url: twilioWebhookUrl,
+    });
+
+    const response = await twilioApp.inject({
+      method: "POST",
+      url: "/chat-layer/twilio/webhook",
+      payload,
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        host: "api.invalid",
+        "x-twilio-signature": signature,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(vi.mocked(createPosition)).toHaveBeenCalledOnce();
+    expect(vi.mocked(createPosition).mock.calls[0]?.[0]).toMatchObject({
+      assetId: "crypto:global:BTC-USD",
+      direction: "long",
+      entryPrice: 84000,
+      quantity: 0.1,
+      stopLoss: 82000,
+      userId: "system:default",
+      metadata: {
+        channel: "whatsapp",
+        provider: "twilio",
+        requestedTimeframe: "4H",
+        sourceFrom: "whatsapp:+628123",
+        sourceMessageSid: "SM123",
+      },
+    });
+    expect(response.body).toContain("position recorded");
+  });
+});
+
 afterAll(async () => {
   await app.close();
+  await twilioApp.close();
 });

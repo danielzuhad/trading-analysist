@@ -18,6 +18,7 @@ import { Redis } from "ioredis";
 import { registerCors } from "./cors.js";
 import { type ApiEnv, loadApiEnv } from "./env.js";
 import { registerAlertRoutes } from "./routes/alerts.js";
+import { registerChatLayerRoutes } from "./routes/chat-layer.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerMarketDataRoutes } from "./routes/market-data.js";
@@ -32,6 +33,16 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
     lazyConnect: true,
     maxRetriesPerRequest: 1,
   });
+
+  app.addContentTypeParser(
+    /^application\/x-www-form-urlencoded(?:;.*)?$/u,
+    {
+      parseAs: "string",
+    },
+    (_request, body, done) => {
+      done(null, body);
+    },
+  );
 
   await registerCors(app);
   await registerHealthRoutes(app, {
@@ -81,6 +92,27 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
     listPositions: (filters) => listPositions(filters, env.DATABASE_URL),
     updatePosition: (positionId, input) =>
       updatePosition(positionId, input, env.DATABASE_URL),
+  });
+  await registerChatLayerRoutes(app, {
+    ...(env.TWILIO_AUTH_TOKEN ? { authToken: env.TWILIO_AUTH_TOKEN } : {}),
+    closePosition: (positionId, input) =>
+      closePosition(positionId, input, env.DATABASE_URL),
+    createPosition: (input) => createPosition(input, env.DATABASE_URL),
+    getActivePositionForAsset: ({ assetId, userId }) =>
+      getActivePositionForAsset({
+        assetId,
+        connectionString: env.DATABASE_URL,
+        ...(userId ? { userId } : {}),
+      }),
+    getLatestAssetAnalysis: (assetId, timeframe) =>
+      getLatestAssetAnalysis(assetId, timeframe, env.DATABASE_URL),
+    getLatestIndicatorSnapshot: (assetId, timeframe) =>
+      getLatestIndicatorSnapshot(assetId, timeframe, env.DATABASE_URL),
+    getLatestMarketData: (assetId, timeframe) =>
+      getLatestMarketData(assetId, timeframe, env.DATABASE_URL),
+    getLatestSignalAggregationSnapshot: (assetId, timeframe) =>
+      getLatestSignalAggregationSnapshot(assetId, timeframe, env.DATABASE_URL),
+    ...(env.TWILIO_WEBHOOK_URL ? { webhookUrl: env.TWILIO_WEBHOOK_URL } : {}),
   });
 
   app.addHook("onClose", async () => {

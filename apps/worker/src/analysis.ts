@@ -7,9 +7,14 @@ import {
 } from "@trading-analyst/ai-analysis";
 import { generateStateTransitionAlert } from "@trading-analyst/alert-engine";
 import {
+  formatAlertDeliveryMessage,
+  sendTwilioMessage,
+} from "@trading-analyst/chat-layer";
+import {
   getDailyAiCostTotalUsd,
   getLatestAssetAnalysis,
   getLatestSignalAggregationSnapshot,
+  markAlertDelivered,
   saveAlert,
   saveLatestAssetAnalysis,
 } from "@trading-analyst/db";
@@ -22,6 +27,14 @@ import type {
 } from "@trading-analyst/shared-types";
 
 type Logger = Pick<typeof console, "error" | "log" | "warn">;
+
+type WhatsappAlertDelivery = {
+  accountSid: string;
+  authToken: string;
+  from: string;
+  statusCallbackUrl?: string;
+  to: string;
+};
 
 type GenerateLatestAssetAnalysisOptions = {
   assetId: string;
@@ -38,10 +51,13 @@ type GenerateLatestAssetAnalysisOptions = {
   openAiApiKey?: string;
   promptVersion?: string;
   provider?: AiAnalysisProvider;
+  markDeliveredAlert?: typeof markAlertDelivered;
   saveGeneratedAlert?: typeof saveAlert;
   saveAnalysis?: typeof saveLatestAssetAnalysis;
+  sendWhatsappMessage?: typeof sendTwilioMessage;
   timeframe: SupportedTimeframe;
   triggeredBy?: AnalysisTrigger;
+  whatsappAlertDelivery?: WhatsappAlertDelivery;
 };
 
 type GenerateAssetAnalysisFromSignalSnapshotOptions = Omit<
@@ -84,10 +100,13 @@ export async function generateLatestAssetAnalysis({
   openAiApiKey,
   promptVersion = defaultAiAnalysisPromptVersion,
   provider,
+  markDeliveredAlert = markAlertDelivered,
   saveGeneratedAlert = saveAlert,
   saveAnalysis = saveLatestAssetAnalysis,
+  sendWhatsappMessage = sendTwilioMessage,
   timeframe,
   triggeredBy = "manual_recalculation",
+  whatsappAlertDelivery,
 }: GenerateLatestAssetAnalysisOptions): Promise<GenerateLatestAssetAnalysisResult> {
   const signalSnapshot = await getLatestSignalSnapshot(
     assetId,
@@ -174,8 +193,11 @@ export async function generateLatestAssetAnalysis({
     currentAnalysis: result.analysis,
     generateAlert,
     logger,
+    markDeliveredAlert,
     previousAnalysis,
     saveGeneratedAlert,
+    sendWhatsappMessage,
+    ...(whatsappAlertDelivery ? { whatsappAlertDelivery } : {}),
   });
   logger.log(
     `[worker] stored AI analysis ${result.analysis.id} for ${assetId} ${timeframe} in state ${result.analysis.state}`,
@@ -203,10 +225,13 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   openAiApiKey,
   promptVersion = defaultAiAnalysisPromptVersion,
   provider,
+  markDeliveredAlert = markAlertDelivered,
   saveGeneratedAlert = saveAlert,
   saveAnalysis = saveLatestAssetAnalysis,
+  sendWhatsappMessage = sendTwilioMessage,
   signalSnapshot,
   triggeredBy = "manual_recalculation",
+  whatsappAlertDelivery,
 }: GenerateAssetAnalysisFromSignalSnapshotOptions): Promise<GenerateLatestAssetAnalysisResult> {
   const timeframe = toSupportedTimeframe(
     signalSnapshot.marketSnapshot.timeframe,
@@ -279,8 +304,11 @@ export async function generateAssetAnalysisFromSignalSnapshot({
     currentAnalysis: result.analysis,
     generateAlert,
     logger,
+    markDeliveredAlert,
     previousAnalysis,
     saveGeneratedAlert,
+    sendWhatsappMessage,
+    ...(whatsappAlertDelivery ? { whatsappAlertDelivery } : {}),
   });
   logger.log(
     `[worker] stored AI analysis ${result.analysis.id} for ${signalSnapshot.asset.id} ${signalSnapshot.marketSnapshot.timeframe} in state ${result.analysis.state}`,
@@ -300,15 +328,21 @@ async function generateAndPersistAlert({
   currentAnalysis,
   generateAlert,
   logger,
+  markDeliveredAlert,
   previousAnalysis,
   saveGeneratedAlert,
+  sendWhatsappMessage,
+  whatsappAlertDelivery,
 }: {
   connectionString: string | undefined;
   currentAnalysis: LatestAssetAnalysis;
   generateAlert: typeof generateStateTransitionAlert;
   logger: Logger;
+  markDeliveredAlert: typeof markAlertDelivered;
   previousAnalysis: LatestAssetAnalysis | null;
   saveGeneratedAlert: typeof saveAlert;
+  sendWhatsappMessage: typeof sendTwilioMessage;
+  whatsappAlertDelivery?: WhatsappAlertDelivery | undefined;
 }) {
   const alertResult = generateAlert({
     currentAnalysis,
@@ -330,6 +364,48 @@ async function generateAndPersistAlert({
   logger.log(
     `[worker] ${saveResult.status === "created" ? "created" : "deduplicated"} alert ${alertResult.alert.id} for ${currentAnalysis.asset.id} ${currentAnalysis.marketSnapshot.timeframe}`,
   );
+
+  if (saveResult.status !== "created" || !whatsappAlertDelivery) {
+    return;
+  }
+
+  if (!alertResult.alert.channels.includes("whatsapp")) {
+    return;
+  }
+
+  try {
+    const deliveryResult = await sendWhatsappMessage({
+      accountSid: whatsappAlertDelivery.accountSid,
+      authToken: whatsappAlertDelivery.authToken,
+      body: formatAlertDeliveryMessage(alertResult.alert),
+      from: whatsappAlertDelivery.from,
+      ...(whatsappAlertDelivery.statusCallbackUrl
+        ? { statusCallbackUrl: whatsappAlertDelivery.statusCallbackUrl }
+        : {}),
+      to: whatsappAlertDelivery.to,
+    });
+
+    await markDeliveredAlert(
+      alertResult.alert.id,
+      {
+        metadata: {
+          chatLayerChannel: "whatsapp",
+          chatLayerMessageSid: deliveryResult.sid,
+          chatLayerProvider: "twilio",
+          chatLayerRecipient: deliveryResult.to,
+          chatLayerStatus: deliveryResult.status,
+        },
+      },
+      connectionString,
+    );
+    logger.log(
+      `[worker] delivered alert ${alertResult.alert.id} to WhatsApp recipient ${deliveryResult.to}`,
+    );
+  } catch (error) {
+    logger.error(
+      `[worker] failed WhatsApp delivery for alert ${alertResult.alert.id}: ${formatDeliveryError(error)}`,
+    );
+  }
 }
 
 function toSupportedTimeframe(
@@ -340,4 +416,12 @@ function toSupportedTimeframe(
   }
 
   throw new Error(`Unsupported analysis timeframe: ${timeframe}`);
+}
+
+function formatDeliveryError(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
 }

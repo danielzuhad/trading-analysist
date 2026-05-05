@@ -138,6 +138,62 @@ export async function listAlerts(
   return rows.map(parseAlert);
 }
 
+export async function getAlert(
+  alertId: string,
+  connectionString?: string,
+): Promise<Alert | null> {
+  const db = getDb(connectionString);
+  const row = await db.query.alerts.findFirst({
+    where: eq(alerts.id, alertId),
+  });
+
+  return row ? parseAlert(row) : null;
+}
+
+export async function markAlertDelivered(
+  alertId: string,
+  {
+    deliveredAt = new Date().toISOString(),
+    metadata,
+    status = "delivered",
+  }: {
+    deliveredAt?: string;
+    metadata?: Record<string, unknown>;
+    status?: AlertStatus;
+  } = {},
+  connectionString?: string,
+) {
+  const current = await getAlert(alertId, connectionString);
+
+  if (!current) {
+    return null;
+  }
+
+  const updated = alertSchema.parse({
+    ...current,
+    deliveredAt,
+    metadata: {
+      ...current.metadata,
+      ...(metadata ?? {}),
+    },
+    status,
+  });
+  const values = serializeAlert(updated);
+  const db = getDb(connectionString);
+
+  await db
+    .update(alerts)
+    .set({
+      deliveredAt: values.deliveredAt,
+      metadata: values.metadata,
+      status: values.status,
+      updatedAt: sql`now()`,
+    })
+    .where(eq(alerts.id, alertId));
+
+  return updated;
+}
+
 export async function markStaleAlertsForAssetTimeframe({
   assetId,
   connectionString,

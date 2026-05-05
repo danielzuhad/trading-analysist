@@ -58,6 +58,22 @@ async function defaultProcessor(
     ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
     requestedAt: job.data.requestedAt,
     timeframe: job.data.timeframe,
+    ...(env.TWILIO_ACCOUNT_SID &&
+    env.TWILIO_AUTH_TOKEN &&
+    env.TWILIO_WHATSAPP_FROM &&
+    env.TWILIO_WHATSAPP_TO
+      ? {
+          whatsappAlertDelivery: {
+            accountSid: env.TWILIO_ACCOUNT_SID,
+            authToken: env.TWILIO_AUTH_TOKEN,
+            from: env.TWILIO_WHATSAPP_FROM,
+            ...(env.TWILIO_STATUS_CALLBACK_URL
+              ? { statusCallbackUrl: env.TWILIO_STATUS_CALLBACK_URL }
+              : {}),
+            to: env.TWILIO_WHATSAPP_TO,
+          },
+        }
+      : {}),
   });
 
   if (result.status === "skipped") {

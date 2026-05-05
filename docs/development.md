@@ -16,6 +16,7 @@ Repository ini saat ini mencakup:
 - Sprint 8 read-only dashboard overview, asset detail pages, and aggregate API endpoints
 - Sprint 9 alert engine, PostgreSQL alert persistence, worker state-transition alert generation, and alert read API
 - Sprint 10 manual positions module, active-position API, worker position-aware analysis wiring, and basic dashboard position recording
+- Sprint 11 WhatsApp API chat layer via Twilio, including inbound webhook handling and outbound alert delivery
 
 ## Workspace Layout
 
@@ -28,6 +29,7 @@ apps/
 packages/
   ai-analysis/
   alert-engine/
+  chat-layer/
   db/
   indicators/
   market-data/
@@ -90,6 +92,18 @@ Nilai berikut dibutuhkan saat AI analysis live ingin dijalankan:
 
 - `OPENAI_API_KEY`
 
+Nilai berikut dibutuhkan saat WhatsApp API chat layer ingin dijalankan secara live:
+
+- `TWILIO_ACCOUNT_SID`
+- `TWILIO_AUTH_TOKEN`
+- `TWILIO_WHATSAPP_FROM`
+- `TWILIO_WHATSAPP_TO`
+- `TWILIO_WEBHOOK_URL`
+
+Nilai berikut opsional untuk delivery callback:
+
+- `TWILIO_STATUS_CALLBACK_URL` jika ingin mengarahkan status callback ke endpoint publik terpisah di luar route repo saat ini
+
 CoinGecko auth dipilih lewat `COINGECKO_API_PLAN`. Nilai `demo` memakai host publik `api.coingecko.com` dengan header `x-cg-demo-api-key`. Nilai `basic` memakai host paid `pro-api.coingecko.com` dengan header `x-cg-pro-api-key`.
 Pada `demo`, worker memakai `market_chart` 90 hari tanpa parameter `interval`, lalu membentuk candle 1H/4H internal agar indikator EMA200 tetap punya histori yang cukup. Paid Basic tetap memakai OHLC hourly dari Pro API.
 
@@ -119,6 +133,10 @@ Endpoint read yang tersedia saat ini:
 - `POST /positions/:positionId/close`
 - `GET /readyz`
 
+Endpoint chat layer yang tersedia saat ini:
+
+- `POST /chat-layer/twilio/webhook`
+
 `GET /health` dan `GET /readyz` juga membawa status operasional untuk context providers dan AI daily cost cap.
 
 ## Provider Notes
@@ -129,10 +147,10 @@ Current external-provider implementation status through Sprint 7:
 - alternative.me Fear & Greed: wired untuk market sentiment context
 - Bybit: wired untuk funding rate dan open interest context
 - OpenAI: wired untuk AI analysis engine melalui provider adapter dan `OPENAI_API_KEY`
-- WhatsApp API chat layer: target delivery channel, belum implemented di codebase saat ini
+- WhatsApp API chat layer: implemented via Twilio for outbound alerts and inbound chat commands
 
-Sprint 9 alert delivery saat ini hanya membuat alert channel `dashboard`.
-Outbound WhatsApp delivery tetap scope Sprint 11.
+Alert generation sekarang membuat channel `dashboard` dan `whatsapp`.
+Worker akan mencoba delivery WhatsApp melalui Twilio saat env chat layer tersedia.
 
 MVP saat ini diasumsikan private/internal dulu, dengan scope operasional utama `4H` untuk BTC, ETH, dan SOL.
 

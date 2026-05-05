@@ -365,11 +365,105 @@ describe("worker AI analysis helper", () => {
     expect(saveGeneratedAlert).toHaveBeenCalledOnce();
     expect(saveGeneratedAlert.mock.calls[0]?.[0]).toMatchObject({
       assetId: "crypto:global:BTC-USD",
+      channels: ["dashboard", "whatsapp"],
       currentState: "ACTIONABLE",
       previousState: "WATCH",
       severity: "critical",
       status: "suggested",
       timeframe: "1H",
+    });
+  });
+
+  it("delivers a newly created alert through Twilio WhatsApp when configured", async () => {
+    const saveAnalysis = vi.fn(
+      async (analysis: LatestAssetAnalysis) => analysis,
+    );
+    const saveGeneratedAlert = vi.fn(async (alert: Alert) => ({
+      alert,
+      status: "created" as const,
+    }));
+    const markDeliveredAlert = vi.fn(async () => null);
+    const sendWhatsappMessage = vi.fn(async () => ({
+      from: "whatsapp:+14155238886",
+      sid: "SM123",
+      status: "queued",
+      to: "whatsapp:+628123456789",
+    }));
+    const providerResult = {
+      aiLatencyMs: 840,
+      modelUsed: "gpt-4o-mini",
+      output: {
+        state: "ACTIONABLE",
+        suggestion: "ENTRY_ON_CONFIRMATION",
+        summary:
+          "Trend remains constructive, but confirmation is still required.",
+        keyReasons: ["EMA alignment remains bullish."],
+        concerns: ["Resistance remains close overhead."],
+        actionPlan: ["Wait for a decisive close above nearby resistance."],
+        executionMethod: "Enter after breakout confirmation above resistance.",
+        invalidation: "Stand aside if price loses the nearest support.",
+        riskLevel: "medium",
+        suggestedPositionSize: "conservative",
+        aiConfidence: 78,
+      },
+      usage: {
+        cachedInputTokens: 0,
+        inputTokens: 1000,
+        outputTokens: 250,
+      },
+    } satisfies AiAnalysisProviderResult;
+
+    await generateAssetAnalysisFromSignalSnapshot({
+      getCurrentDailyAiCostUsd: vi.fn(async () => 0),
+      getLatestAnalysis: vi.fn(async () => createAnalysisFixture("WATCH")),
+      markDeliveredAlert:
+        markDeliveredAlert as typeof import("@trading-analyst/db").markAlertDelivered,
+      provider: vi.fn(async () => providerResult),
+      saveAnalysis,
+      saveGeneratedAlert,
+      sendWhatsappMessage,
+      signalSnapshot: signalSnapshotFixture,
+      timeframe: "1H",
+      whatsappAlertDelivery: {
+        accountSid: "AC123",
+        authToken: "auth",
+        from: "+14155238886",
+        to: "+628123456789",
+      },
+    });
+
+    expect(sendWhatsappMessage).toHaveBeenCalledOnce();
+    const firstWhatsappCall = (sendWhatsappMessage.mock.calls[0] ??
+      []) as unknown as [
+      {
+        accountSid: string;
+        body: string;
+        from: string;
+        to: string;
+      },
+    ];
+
+    expect(firstWhatsappCall[0]).toMatchObject({
+      accountSid: "AC123",
+      body: expect.stringContaining("BTC/USD actionable setup"),
+      from: "+14155238886",
+      to: "+628123456789",
+    });
+    expect(markDeliveredAlert).toHaveBeenCalledOnce();
+    const firstDeliveryCall = (markDeliveredAlert.mock.calls[0] ??
+      []) as unknown as [string, Record<string, unknown>];
+
+    expect(firstDeliveryCall[0]).toBe(
+      "alert:crypto:global:BTC-USD:1H:WATCH->ACTIONABLE:signal-hash-btc-1h",
+    );
+    expect(firstDeliveryCall[1]).toMatchObject({
+      metadata: {
+        chatLayerChannel: "whatsapp",
+        chatLayerMessageSid: "SM123",
+        chatLayerProvider: "twilio",
+        chatLayerRecipient: "whatsapp:+628123456789",
+        chatLayerStatus: "queued",
+      },
     });
   });
 });

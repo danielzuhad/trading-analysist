@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@trading-analyst/chat-layer": "workspace:*",
     "@trading-analyst/db": "workspace:*",
     "@trading-analyst/shared-types": "workspace:*",
     "dotenv": "^17.3.1",

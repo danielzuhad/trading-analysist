@@ -30,7 +30,7 @@ describe("alert engine", () => {
 
     expect(result.alert).toMatchObject({
       assetId: "crypto:global:BTC-USD",
-      channels: ["dashboard"],
+      channels: ["dashboard", "whatsapp"],
       currentState: "ACTIONABLE",
       dedupeKey:
         "crypto:global:BTC-USD:4H:WATCH->ACTIONABLE:signal-hash-btc-4h-next",

@@ -6,8 +6,8 @@ Development must follow the sprint order unless the user explicitly reprioritize
 
 Current implementation checkpoint for this repository:
 
-- [x] Sprints 1-10 are implemented in the codebase
-- [ ] Sprint 11 is the next active target
+- [x] Sprints 1-11 are implemented in the codebase
+- [ ] Next target is post-MVP expansion or explicit reprioritization
 
 ## Phase 1 — Crypto MVP
 
@@ -234,11 +234,11 @@ Support manual position recording and position-aware analysis.
 - worker injects active positions into signal aggregation before AI analysis
 - asset detail dashboard shows active position context and can record a manual position
 
-### [ ] Sprint 11 — Chat Layer via WhatsApp API
+### [x] Sprint 11 — Chat Layer via WhatsApp API
 
 **Status**
 
-Not started yet.
+Completed in codebase. A Twilio-backed WhatsApp chat layer now handles outbound alert delivery, inbound watchlist and asset-analysis queries, and quick position record/close flows.
 
 **Goal**
 

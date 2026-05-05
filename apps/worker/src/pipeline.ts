@@ -41,6 +41,13 @@ type RunAnalysisCycleOptions = {
   requestedAt: string;
   saveHeartbeat?: typeof saveServiceHeartbeat;
   timeframe: SupportedTimeframe;
+  whatsappAlertDelivery?: {
+    accountSid: string;
+    authToken: string;
+    from: string;
+    statusCallbackUrl?: string;
+    to: string;
+  };
 };
 
 export type AnalysisCycleResult =
@@ -76,6 +83,7 @@ export async function runAnalysisCycle({
   requestedAt,
   saveHeartbeat = saveServiceHeartbeat,
   timeframe,
+  whatsappAlertDelivery,
 }: RunAnalysisCycleOptions): Promise<AnalysisCycleResult> {
   const asset = findDefaultCryptoAsset(assetId);
 
@@ -165,6 +173,7 @@ export async function runAnalysisCycle({
     ...(aiProvider ? { provider: aiProvider } : {}),
     signalSnapshot: signalAggregationSnapshot,
     timeframe,
+    ...(whatsappAlertDelivery ? { whatsappAlertDelivery } : {}),
   });
 
   await persistAiHeartbeat({

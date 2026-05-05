@@ -12,6 +12,8 @@ export const apiEnvSchema = z.object({
   API_PORT: z.coerce.number().int().positive().default(3001),
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
+  TWILIO_AUTH_TOKEN: z.string().trim().min(1).optional(),
+  TWILIO_WEBHOOK_URL: z.string().url().optional(),
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
