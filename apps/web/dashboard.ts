@@ -8,6 +8,7 @@ import {
   type WatchlistOverviewResponse,
   watchlistOverviewResponseSchema,
 } from "@trading-analyst/shared-types";
+import { buildApiAuthHeaders } from "./api-auth";
 
 export type DashboardDataStatus =
   | "api-unconfigured"
@@ -56,6 +57,7 @@ export async function fetchWatchlistOverview(
       `${apiBaseUrl}/watchlist/overview?timeframe=${timeframe}`,
       {
         cache: "no-store",
+        headers: buildApiAuthHeaders(),
       },
     );
 
@@ -124,6 +126,7 @@ export async function fetchAssetOverview(
       `${apiBaseUrl}/assets/${assetId}/overview?timeframe=${timeframe}`,
       {
         cache: "no-store",
+        headers: buildApiAuthHeaders(),
       },
     );
 
@@ -209,6 +212,7 @@ export async function fetchAlerts(
     });
     const response = await fetchImpl(`${apiBaseUrl}/alerts?${searchParams}`, {
       cache: "no-store",
+      headers: buildApiAuthHeaders(),
     });
 
     if (!response.ok) {

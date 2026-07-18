@@ -8,6 +8,7 @@ export const apiEnvSchema = z.object({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
+  API_AUTH_TOKEN: z.string().trim().min(16).optional(),
   API_HOST: z.string().default("0.0.0.0"),
   API_PORT: z.coerce.number().int().positive().default(3001),
   DATABASE_URL: z.string().url(),
@@ -90,7 +91,15 @@ export function loadApiEnv(
 
   ensureWorkspaceEnvLoaded(loadOptions);
 
-  return apiEnvSchema.parse({
+  const parsed = apiEnvSchema.parse({
     ...env,
   });
+
+  if (parsed.NODE_ENV === "production" && !parsed.API_AUTH_TOKEN) {
+    throw new Error(
+      "API_AUTH_TOKEN is required when NODE_ENV is production. Generate one with: openssl rand -hex 32",
+    );
+  }
+
+  return parsed;
 }

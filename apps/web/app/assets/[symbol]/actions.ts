@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { buildApiAuthHeaders } from "../../../api-auth";
 import { loadWebEnv } from "../../../env";
 import {
   buildClosePositionPayload,
@@ -23,6 +24,7 @@ export async function recordPositionAction(formData: FormData) {
     body: JSON.stringify(payload),
     headers: {
       "Content-Type": "application/json",
+      ...buildApiAuthHeaders(),
     },
     method: "POST",
   });
@@ -53,6 +55,7 @@ export async function updatePositionAction(formData: FormData) {
       body: JSON.stringify(payload),
       headers: {
         "Content-Type": "application/json",
+        ...buildApiAuthHeaders(),
       },
       method: "PATCH",
     },
@@ -84,6 +87,7 @@ export async function closePositionAction(formData: FormData) {
       body: JSON.stringify(payload),
       headers: {
         "Content-Type": "application/json",
+        ...buildApiAuthHeaders(),
       },
       method: "POST",
     },

@@ -47,10 +47,11 @@ infrastructure/
 2. Isi PostgreSQL credentials dan connection URLs di `.env.development`.
 3. Jalankan PostgreSQL dan Redis untuk local development.
 4. Isi `COINGECKO_API_KEY` dan `COINGECKO_API_PLAN` untuk mengaktifkan market-data ingestion path saat ini.
-5. Isi `OPENAI_API_KEY` jika ingin menjalankan AI analysis path secara live.
-6. Gunakan Bun `1.3.11` atau lebih baru.
-7. Jalankan `bun install`.
-8. Jalankan monorepo dengan `bun run dev`.
+5. Isi `API_AUTH_TOKEN` (generate dengan `openssl rand -hex 32`) untuk mengaktifkan API authentication. Semua route API kecuali `/health`, `/readyz`, dan webhook chat-layer membutuhkan header `Authorization: Bearer <token>`. Optional di development (auth nonaktif jika kosong), wajib di production.
+6. Isi `OPENAI_API_KEY` jika ingin menjalankan AI analysis path secara live.
+7. Gunakan Bun `1.3.11` atau lebih baru.
+8. Jalankan `bun install`.
+9. Jalankan monorepo dengan `bun run dev`.
 
 Untuk menjalankan local infrastructure:
 
