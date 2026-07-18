@@ -8,6 +8,7 @@ import {
 import { generateStateTransitionAlert } from "@trading-analyst/alert-engine";
 import {
   formatAlertDeliveryMessage,
+  sendTelegramMessage,
   sendTwilioMessage,
 } from "@trading-analyst/chat-layer";
 import {
@@ -25,6 +26,7 @@ import type {
   SignalAggregationSnapshot,
   SupportedTimeframe,
 } from "@trading-analyst/shared-types";
+import { recordPendingAnalysisOutcome } from "./outcomes.js";
 
 type Logger = Pick<typeof console, "error" | "log" | "warn">;
 
@@ -34,6 +36,11 @@ type WhatsappAlertDelivery = {
   from: string;
   statusCallbackUrl?: string;
   to: string;
+};
+
+type TelegramAlertDelivery = {
+  botToken: string;
+  chatId: string;
 };
 
 type GenerateLatestAssetAnalysisOptions = {
@@ -52,9 +59,12 @@ type GenerateLatestAssetAnalysisOptions = {
   promptVersion?: string;
   provider?: AiAnalysisProvider;
   markDeliveredAlert?: typeof markAlertDelivered;
+  recordOutcome?: typeof recordPendingAnalysisOutcome;
   saveGeneratedAlert?: typeof saveAlert;
   saveAnalysis?: typeof saveLatestAssetAnalysis;
+  sendTelegramMessageFn?: typeof sendTelegramMessage;
   sendWhatsappMessage?: typeof sendTwilioMessage;
+  telegramAlertDelivery?: TelegramAlertDelivery;
   timeframe: SupportedTimeframe;
   triggeredBy?: AnalysisTrigger;
   whatsappAlertDelivery?: WhatsappAlertDelivery;
@@ -101,9 +111,12 @@ export async function generateLatestAssetAnalysis({
   promptVersion = defaultAiAnalysisPromptVersion,
   provider,
   markDeliveredAlert = markAlertDelivered,
+  recordOutcome = recordPendingAnalysisOutcome,
   saveGeneratedAlert = saveAlert,
   saveAnalysis = saveLatestAssetAnalysis,
+  sendTelegramMessageFn = sendTelegramMessage,
   sendWhatsappMessage = sendTwilioMessage,
+  telegramAlertDelivery,
   timeframe,
   triggeredBy = "manual_recalculation",
   whatsappAlertDelivery,
@@ -188,6 +201,11 @@ export async function generateLatestAssetAnalysis({
   }
 
   await saveAnalysis(result.analysis, connectionString);
+  await recordOutcome({
+    analysis: result.analysis,
+    ...(connectionString ? { connectionString } : {}),
+    logger,
+  });
   await generateAndPersistAlert({
     connectionString,
     currentAnalysis: result.analysis,
@@ -196,7 +214,9 @@ export async function generateLatestAssetAnalysis({
     markDeliveredAlert,
     previousAnalysis,
     saveGeneratedAlert,
+    sendTelegramMessageFn,
     sendWhatsappMessage,
+    ...(telegramAlertDelivery ? { telegramAlertDelivery } : {}),
     ...(whatsappAlertDelivery ? { whatsappAlertDelivery } : {}),
   });
   logger.log(
@@ -226,10 +246,13 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   promptVersion = defaultAiAnalysisPromptVersion,
   provider,
   markDeliveredAlert = markAlertDelivered,
+  recordOutcome = recordPendingAnalysisOutcome,
   saveGeneratedAlert = saveAlert,
   saveAnalysis = saveLatestAssetAnalysis,
+  sendTelegramMessageFn = sendTelegramMessage,
   sendWhatsappMessage = sendTwilioMessage,
   signalSnapshot,
+  telegramAlertDelivery,
   triggeredBy = "manual_recalculation",
   whatsappAlertDelivery,
 }: GenerateAssetAnalysisFromSignalSnapshotOptions): Promise<GenerateLatestAssetAnalysisResult> {
@@ -299,6 +322,11 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   }
 
   await saveAnalysis(result.analysis, connectionString);
+  await recordOutcome({
+    analysis: result.analysis,
+    ...(connectionString ? { connectionString } : {}),
+    logger,
+  });
   await generateAndPersistAlert({
     connectionString,
     currentAnalysis: result.analysis,
@@ -307,7 +335,9 @@ export async function generateAssetAnalysisFromSignalSnapshot({
     markDeliveredAlert,
     previousAnalysis,
     saveGeneratedAlert,
+    sendTelegramMessageFn,
     sendWhatsappMessage,
+    ...(telegramAlertDelivery ? { telegramAlertDelivery } : {}),
     ...(whatsappAlertDelivery ? { whatsappAlertDelivery } : {}),
   });
   logger.log(
@@ -331,7 +361,9 @@ async function generateAndPersistAlert({
   markDeliveredAlert,
   previousAnalysis,
   saveGeneratedAlert,
+  sendTelegramMessageFn,
   sendWhatsappMessage,
+  telegramAlertDelivery,
   whatsappAlertDelivery,
 }: {
   connectionString: string | undefined;
@@ -341,7 +373,9 @@ async function generateAndPersistAlert({
   markDeliveredAlert: typeof markAlertDelivered;
   previousAnalysis: LatestAssetAnalysis | null;
   saveGeneratedAlert: typeof saveAlert;
+  sendTelegramMessageFn: typeof sendTelegramMessage;
   sendWhatsappMessage: typeof sendTwilioMessage;
+  telegramAlertDelivery?: TelegramAlertDelivery | undefined;
   whatsappAlertDelivery?: WhatsappAlertDelivery | undefined;
 }) {
   const alertResult = generateAlert({
@@ -365,7 +399,45 @@ async function generateAndPersistAlert({
     `[worker] ${saveResult.status === "created" ? "created" : "deduplicated"} alert ${alertResult.alert.id} for ${currentAnalysis.asset.id} ${currentAnalysis.marketSnapshot.timeframe}`,
   );
 
-  if (saveResult.status !== "created" || !whatsappAlertDelivery) {
+  if (saveResult.status !== "created") {
+    return;
+  }
+
+  if (
+    telegramAlertDelivery &&
+    alertResult.alert.channels.includes("telegram")
+  ) {
+    try {
+      const telegramResult = await sendTelegramMessageFn({
+        botToken: telegramAlertDelivery.botToken,
+        chatId: telegramAlertDelivery.chatId,
+        text: formatAlertDeliveryMessage(alertResult.alert),
+      });
+
+      await markDeliveredAlert(
+        alertResult.alert.id,
+        {
+          metadata: {
+            chatLayerChannel: "telegram",
+            chatLayerMessageId: String(telegramResult.messageId),
+            chatLayerProvider: "telegram",
+            chatLayerRecipient: String(telegramResult.chatId),
+            chatLayerStatus: telegramResult.status,
+          },
+        },
+        connectionString,
+      );
+      logger.log(
+        `[worker] delivered alert ${alertResult.alert.id} to Telegram chat ${telegramResult.chatId}`,
+      );
+    } catch (error) {
+      logger.error(
+        `[worker] failed Telegram delivery for alert ${alertResult.alert.id}: ${formatDeliveryError(error)}`,
+      );
+    }
+  }
+
+  if (!whatsappAlertDelivery) {
     return;
   }
 

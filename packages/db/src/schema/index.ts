@@ -1,5 +1,6 @@
 import type {
   Alert,
+  AnalysisOutcome,
   IndicatorSnapshot,
   LatestAssetAnalysis,
   MarketCandle,
@@ -300,8 +301,63 @@ export const alerts = pgTable(
   ],
 );
 
+export const analysisOutcomes = pgTable(
+  "analysis_outcomes",
+  {
+    id: text("id").primaryKey(),
+    analysisId: text("analysis_id").notNull(),
+    assetId: text("asset_id").notNull(),
+    timeframe: text("timeframe").notNull(),
+    snapshotHash: text("snapshot_hash").notNull(),
+    modelUsed: text("model_used").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    state: text("state").notNull(),
+    suggestion: text("suggestion").notNull(),
+    bias: text("bias").notNull(),
+    signalStrengthScore: integer("signal_strength_score").notNull(),
+    aiConfidence: integer("ai_confidence").notNull(),
+    keyLevels: jsonb("key_levels")
+      .$type<AnalysisOutcome["keyLevels"]>()
+      .notNull(),
+    priceAtAnalysis: text("price_at_analysis").notNull(),
+    analysisGeneratedAt: timestamp("analysis_generated_at", {
+      withTimezone: true,
+    }).notNull(),
+    evaluateAfter: timestamp("evaluate_after", {
+      withTimezone: true,
+    }).notNull(),
+    status: text("status").notNull(),
+    evaluatedAt: timestamp("evaluated_at", {
+      withTimezone: true,
+    }),
+    priceAtEvaluation: text("price_at_evaluation"),
+    priceChangePercent: text("price_change_percent"),
+    directionCorrect: boolean("direction_correct"),
+    invalidationHit: boolean("invalidation_hit"),
+    candlesCovered: integer("candles_covered"),
+    metadata: jsonb("metadata").$type<AnalysisOutcome["metadata"]>().notNull(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("analysis_outcomes_status_evaluate_after_idx").on(
+      table.status,
+      table.evaluateAfter,
+    ),
+    index("analysis_outcomes_asset_timeframe_generated_at_idx").on(
+      table.assetId,
+      table.timeframe,
+      table.analysisGeneratedAt,
+    ),
+  ],
+);
+
 export const schema = {
   alerts,
+  analysisOutcomes,
   assetAnalysisLatestSnapshots,
   indicatorLatestSnapshots,
   marketLatestSnapshots,

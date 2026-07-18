@@ -44,6 +44,7 @@ describeInfrastructure("worker bootstrap", () => {
         OPENAI_API_KEY: undefined,
         REDIS_URL: requireRedisUrl(),
         WORKER_CONCURRENCY: 1,
+        WORKER_ENABLE_OUTCOME_EVALUATION: false,
         WORKER_ENABLE_SCHEDULER: false,
         WORKER_ENABLE_THRESHOLD_CHECKS: false,
         WORKER_SCHEDULED_ASSETS:

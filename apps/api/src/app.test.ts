@@ -3,6 +3,7 @@ import {
   closePosition,
   createPosition,
   getActivePositionForAsset,
+  getAnalysisQualitySummary,
   getLatestAssetAnalysis,
   getLatestIndicatorSnapshot,
   getLatestMarketData,
@@ -21,6 +22,11 @@ vi.mock("@trading-analyst/db", () => ({
   closeDatabase: vi.fn(async () => undefined),
   createPosition: vi.fn(),
   getActivePositionForAsset: vi.fn(async () => null),
+  getAnalysisQualitySummary: vi.fn(async () => ({
+    buckets: [],
+    evaluatedCount: 0,
+    pendingCount: 0,
+  })),
   getLatestAssetAnalysis: vi.fn(async () => null),
   getLatestIndicatorSnapshot: vi.fn(async () => null),
   getLatestMarketData: vi.fn(async () => null),
@@ -63,6 +69,17 @@ const twilioApp = await buildApp({
   REDIS_URL: "redis://127.0.0.1:6379",
   TWILIO_AUTH_TOKEN: twilioAuthToken,
   TWILIO_WEBHOOK_URL: twilioWebhookUrl,
+});
+const telegramWebhookSecret = "telegram-webhook-secret-0123456789";
+const telegramApp = await buildApp({
+  NODE_ENV: "test",
+  API_HOST: "api.invalid",
+  API_PORT: 3001,
+  DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+  REDIS_URL: "redis://127.0.0.1:6379",
+  TELEGRAM_BOT_TOKEN: "telegram-bot-token",
+  TELEGRAM_CHAT_ID: "8786340516",
+  TELEGRAM_WEBHOOK_SECRET: telegramWebhookSecret,
 });
 
 afterEach(() => {
@@ -825,6 +842,53 @@ describe("api health routes", () => {
     });
   });
 
+  it("returns the analysis quality summary with filters", async () => {
+    vi.mocked(getAnalysisQualitySummary).mockResolvedValueOnce({
+      buckets: [
+        {
+          modelUsed: "gpt-4o-mini",
+          promptVersion: "ai-analysis:v1",
+          timeframe: "4H",
+          state: "ACTIONABLE",
+          evaluatedCount: 12,
+          directionKnownCount: 10,
+          directionCorrectCount: 7,
+          invalidationKnownCount: 12,
+          invalidationHitCount: 2,
+          avgPriceChangePercent: 1.35,
+        },
+      ],
+      evaluatedCount: 12,
+      pendingCount: 3,
+    });
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/analysis-quality?timeframe=4H&modelUsed=gpt-4o-mini",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(getAnalysisQualitySummary).toHaveBeenCalledWith(
+      {
+        modelUsed: "gpt-4o-mini",
+        timeframe: "4H",
+      },
+      "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+    );
+    expect(response.json()).toMatchObject({
+      buckets: [
+        {
+          modelUsed: "gpt-4o-mini",
+          state: "ACTIONABLE",
+          evaluatedCount: 12,
+          directionCorrectCount: 7,
+        },
+      ],
+      evaluatedCount: 12,
+      pendingCount: 3,
+    });
+  });
+
   it("returns filtered alerts", async () => {
     vi.mocked(listAlerts).mockResolvedValueOnce([
       {
@@ -1325,7 +1389,96 @@ describe("api chat layer routes", () => {
   });
 });
 
+describe("api telegram chat layer routes", () => {
+  it("returns 503 when the Telegram chat layer is not configured", async () => {
+    const response = await app.inject({
+      method: "POST",
+      url: "/chat-layer/telegram/webhook",
+      payload: {
+        message: {
+          chat: { id: 8786340516 },
+          message_id: 1,
+          text: "watchlist 4H",
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      error: "TELEGRAM_CHAT_LAYER_DISABLED",
+    });
+  });
+
+  it("rejects an invalid webhook secret", async () => {
+    const response = await telegramApp.inject({
+      method: "POST",
+      url: "/chat-layer/telegram/webhook",
+      payload: {
+        message: {
+          chat: { id: 8786340516 },
+          message_id: 1,
+          text: "watchlist 4H",
+        },
+      },
+      headers: {
+        "x-telegram-bot-api-secret-token": "wrong-secret",
+      },
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      error: "INVALID_TELEGRAM_WEBHOOK_SECRET",
+    });
+  });
+
+  it("ignores updates from chats outside the allowed chat id", async () => {
+    const response = await telegramApp.inject({
+      method: "POST",
+      url: "/chat-layer/telegram/webhook",
+      payload: {
+        message: {
+          chat: { id: 999 },
+          message_id: 1,
+          text: "watchlist 4H",
+        },
+      },
+      headers: {
+        "x-telegram-bot-api-secret-token": telegramWebhookSecret,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      skipped: "chat_not_allowed",
+    });
+  });
+
+  it("acknowledges non-text updates without replying", async () => {
+    const response = await telegramApp.inject({
+      method: "POST",
+      url: "/chat-layer/telegram/webhook",
+      payload: {
+        message: {
+          chat: { id: 8786340516 },
+          message_id: 2,
+        },
+      },
+      headers: {
+        "x-telegram-bot-api-secret-token": telegramWebhookSecret,
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      ok: true,
+      skipped: "unsupported_update",
+    });
+  });
+});
+
 afterAll(async () => {
   await app.close();
   await twilioApp.close();
+  await telegramApp.close();
 });

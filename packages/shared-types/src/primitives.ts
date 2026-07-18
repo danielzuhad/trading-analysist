@@ -146,6 +146,7 @@ export type AnalysisTrigger = z.infer<typeof analysisTriggerSchema>;
 
 export const notificationChannelValues = [
   "dashboard",
+  "telegram",
   "whatsapp",
   "email",
   "webhook",

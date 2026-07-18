@@ -108,6 +108,7 @@ const signalSnapshotFixture: SignalAggregationSnapshot = {
 describe("worker AI analysis helper", () => {
   it("skips when no signal snapshot exists", async () => {
     const result = await generateLatestAssetAnalysis({
+      recordOutcome: vi.fn(async () => undefined),
       assetId: "crypto:global:BTC-USD",
       getLatestSignalSnapshot: vi.fn(async () => null),
       timeframe: "1H",
@@ -150,6 +151,7 @@ describe("worker AI analysis helper", () => {
     } satisfies AiAnalysisProviderResult;
 
     const result = await generateLatestAssetAnalysis({
+      recordOutcome: vi.fn(async () => undefined),
       assetId: "crypto:global:BTC-USD",
       getCurrentDailyAiCostUsd: vi.fn(async () => 0),
       getLatestAnalysis: vi.fn(async () => null),
@@ -175,6 +177,7 @@ describe("worker AI analysis helper", () => {
     });
 
     const result = await generateLatestAssetAnalysis({
+      recordOutcome: vi.fn(async () => undefined),
       assetId: "crypto:global:BTC-USD",
       currentDailyCostUsd: 2.5,
       getLatestAnalysis: vi.fn(
@@ -259,6 +262,7 @@ describe("worker AI analysis helper", () => {
     } satisfies AiAnalysisProviderResult;
 
     const result = await generateAssetAnalysisFromSignalSnapshot({
+      recordOutcome: vi.fn(async () => undefined),
       getCurrentDailyAiCostUsd: vi.fn(async () => 0),
       getLatestAnalysis: vi.fn(async () => null),
       provider: vi.fn(async () => providerResult),
@@ -346,6 +350,7 @@ describe("worker AI analysis helper", () => {
     } satisfies AiAnalysisProviderResult;
 
     const result = await generateAssetAnalysisFromSignalSnapshot({
+      recordOutcome: vi.fn(async () => undefined),
       getCurrentDailyAiCostUsd: vi.fn(async () => 0),
       getLatestAnalysis: vi.fn(async () => createAnalysisFixture("WATCH")),
       provider: vi.fn(async () => providerResult),
@@ -365,7 +370,7 @@ describe("worker AI analysis helper", () => {
     expect(saveGeneratedAlert).toHaveBeenCalledOnce();
     expect(saveGeneratedAlert.mock.calls[0]?.[0]).toMatchObject({
       assetId: "crypto:global:BTC-USD",
-      channels: ["dashboard", "whatsapp"],
+      channels: ["dashboard", "telegram", "whatsapp"],
       currentState: "ACTIONABLE",
       previousState: "WATCH",
       severity: "critical",
@@ -414,6 +419,7 @@ describe("worker AI analysis helper", () => {
     } satisfies AiAnalysisProviderResult;
 
     await generateAssetAnalysisFromSignalSnapshot({
+      recordOutcome: vi.fn(async () => undefined),
       getCurrentDailyAiCostUsd: vi.fn(async () => 0),
       getLatestAnalysis: vi.fn(async () => createAnalysisFixture("WATCH")),
       markDeliveredAlert:

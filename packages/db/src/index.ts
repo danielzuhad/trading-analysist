@@ -1,4 +1,5 @@
 export * from "./alerts.js";
+export * from "./analysis-outcomes.js";
 export * from "./asset-analysis.js";
 export * from "./client.js";
 export * from "./indicators.js";

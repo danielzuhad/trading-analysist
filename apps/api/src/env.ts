@@ -13,6 +13,9 @@ export const apiEnvSchema = z.object({
   API_PORT: z.coerce.number().int().positive().default(3001),
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
+  TELEGRAM_BOT_TOKEN: z.string().trim().min(1).optional(),
+  TELEGRAM_CHAT_ID: z.string().trim().min(1).optional(),
+  TELEGRAM_WEBHOOK_SECRET: z.string().trim().min(16).optional(),
   TWILIO_AUTH_TOKEN: z.string().trim().min(1).optional(),
   TWILIO_WEBHOOK_URL: z.string().url().optional(),
 });

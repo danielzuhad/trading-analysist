@@ -1,5 +1,6 @@
 export * from "./alert.js";
 export * from "./analysis.js";
+export * from "./analysis-outcome.js";
 export * from "./asset.js";
 export * from "./auth.js";
 export * from "./common.js";

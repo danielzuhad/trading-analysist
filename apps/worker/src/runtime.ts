@@ -2,11 +2,13 @@ import type { AnalysisTrigger } from "@trading-analyst/shared-types";
 import { type Job, Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { loadWorkerEnv, type WorkerEnv } from "./env.js";
+import { processOutcomeEvaluationJob } from "./outcomes.js";
 import { runAnalysisCycle } from "./pipeline.js";
 import {
   analysisQueueName,
   type MarketSnapshotJobData,
   marketSnapshotJobName,
+  outcomeEvaluationJobName,
   thresholdCheckJobName,
   type WorkerJobTrigger,
 } from "./queues.js";
@@ -57,6 +59,14 @@ async function defaultProcessor(
       maxDailyAiCostUsd: env.MAX_DAILY_AI_COST_USD,
       ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
       requestedAt: job.data.requestedAt,
+      ...(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID
+        ? {
+            telegramAlertDelivery: {
+              botToken: env.TELEGRAM_BOT_TOKEN,
+              chatId: env.TELEGRAM_CHAT_ID,
+            },
+          }
+        : {}),
       timeframe: job.data.timeframe,
       triggeredBy: resolveAnalysisTrigger(job.data.trigger),
       ...(env.TWILIO_ACCOUNT_SID &&
@@ -97,6 +107,30 @@ async function defaultProcessor(
     return;
   }
 
+  if (job.name === outcomeEvaluationJobName) {
+    const outcomeResult = await processOutcomeEvaluationJob({
+      assetId: job.data.assetId,
+      connectionString: env.DATABASE_URL,
+      logger,
+      requestedAt: job.data.requestedAt,
+      timeframe: job.data.timeframe,
+    });
+
+    if (outcomeResult.status === "skipped_no_market_data") {
+      logger.warn(
+        `[worker] outcome evaluation skipped for ${outcomeResult.assetId} ${outcomeResult.timeframe}: no market data`,
+      );
+      return;
+    }
+
+    if (outcomeResult.evaluated > 0) {
+      logger.log(
+        `[worker] outcome evaluation completed for ${outcomeResult.assetId} ${outcomeResult.timeframe}: ${outcomeResult.evaluated} evaluated`,
+      );
+    }
+    return;
+  }
+
   if (job.name === thresholdCheckJobName) {
     const thresholdResult = await processThresholdCheckJob({
       ...(env.COINGECKO_API_KEY ? { apiKey: env.COINGECKO_API_KEY } : {}),
@@ -129,6 +163,14 @@ async function defaultProcessor(
       maxDailyAiCostUsd: env.MAX_DAILY_AI_COST_USD,
       ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
       requestedAt: job.data.requestedAt,
+      ...(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID
+        ? {
+            telegramAlertDelivery: {
+              botToken: env.TELEGRAM_BOT_TOKEN,
+              chatId: env.TELEGRAM_CHAT_ID,
+            },
+          }
+        : {}),
       timeframe: job.data.timeframe,
       triggeredBy: "realtime_event",
       ...(env.TWILIO_ACCOUNT_SID &&
@@ -270,6 +312,8 @@ export async function startWorkerRuntime(
     (runtime.env.NODE_ENV !== "test" && runtime.env.WORKER_ENABLE_SCHEDULER);
   const shouldEnableThresholdChecks =
     shouldEnableScheduler && runtime.env.WORKER_ENABLE_THRESHOLD_CHECKS;
+  const shouldEnableOutcomeEvaluation =
+    shouldEnableScheduler && runtime.env.WORKER_ENABLE_OUTCOME_EVALUATION;
   const scheduledAssets = parseCsvList(runtime.env.WORKER_SCHEDULED_ASSETS);
   const scheduledTimeframes = parseTimeframes(
     runtime.env.WORKER_SCHEDULED_TIMEFRAMES,
@@ -327,6 +371,24 @@ export async function startWorkerRuntime(
     schedulerHandles.push(handle);
     logger.log(
       `[worker] scheduled lightweight threshold checks for ${scheduledAssets.length} asset(s) on ${scheduledTimeframes.join(", ")} every ${runtime.env.WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES} minute(s)`,
+    );
+  }
+
+  if (shouldEnableOutcomeEvaluation) {
+    const outcomeIntervalMs = 60 * 60 * 1000;
+    const handle = setInterval(() => {
+      void enqueueWorkerJobs({
+        assetIds: scheduledAssets,
+        jobName: outcomeEvaluationJobName,
+        queue: runtime.analysisQueue,
+        timeframes: scheduledTimeframes,
+        trigger: "scheduled",
+      });
+    }, outcomeIntervalMs);
+
+    schedulerHandles.push(handle);
+    logger.log(
+      `[worker] scheduled analysis outcome evaluation for ${scheduledAssets.length} asset(s) on ${scheduledTimeframes.join(", ")} every 60 minute(s)`,
     );
   }
 

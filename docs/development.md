@@ -18,6 +18,9 @@ Repository ini saat ini mencakup:
 - Sprint 10 manual positions module, active-position API, worker position-aware analysis wiring, and basic dashboard position recording
 - Sprint 11 WhatsApp API chat layer via Twilio, including inbound webhook handling and outbound alert delivery
 - lightweight threshold checks that poll current price, compare against the latest key levels, and trigger full re-analysis between scheduled deep-analysis runs
+- API bearer-token authentication (`API_AUTH_TOKEN`) untuk semua route kecuali health dan webhook chat-layer
+- analysis outcome tracking: prediksi setiap analisis di-snapshot lalu dievaluasi deterministik setelah 24 jam, agregatnya tersedia di `GET /analysis-quality`
+- Telegram chat layer (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET`): outbound alert delivery dari worker dan inbound command via `POST /chat-layer/telegram/webhook` (diverifikasi dengan header `X-Telegram-Bot-Api-Secret-Token`). Twilio WhatsApp tetap ada sebagai legacy path.
 
 ## Workspace Layout
 

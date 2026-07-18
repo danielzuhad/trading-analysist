@@ -2,6 +2,7 @@ import type { SupportedTimeframe } from "@trading-analyst/shared-types";
 
 export const analysisQueueName = "analysis";
 export const marketSnapshotJobName = "fetch-market-snapshot";
+export const outcomeEvaluationJobName = "evaluate-outcomes";
 export const thresholdCheckJobName = "check-thresholds";
 
 export type WorkerJobTrigger =

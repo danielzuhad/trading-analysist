@@ -46,6 +46,10 @@ type RunAnalysisCycleOptions = {
   openAiApiKey?: string;
   requestedAt: string;
   saveHeartbeat?: typeof saveServiceHeartbeat;
+  telegramAlertDelivery?: {
+    botToken: string;
+    chatId: string;
+  };
   timeframe: SupportedTimeframe;
   triggeredBy?: AnalysisTrigger;
   whatsappAlertDelivery?: {
@@ -89,6 +93,7 @@ export async function runAnalysisCycle({
   openAiApiKey,
   requestedAt,
   saveHeartbeat = saveServiceHeartbeat,
+  telegramAlertDelivery,
   timeframe,
   triggeredBy = "manual_recalculation",
   whatsappAlertDelivery,
@@ -183,6 +188,7 @@ export async function runAnalysisCycle({
       ...(openAiApiKey ? { openAiApiKey } : {}),
       ...(aiProvider ? { provider: aiProvider } : {}),
       signalSnapshot: signalAggregationSnapshot,
+      ...(telegramAlertDelivery ? { telegramAlertDelivery } : {}),
       timeframe,
       triggeredBy,
       ...(whatsappAlertDelivery ? { whatsappAlertDelivery } : {}),

@@ -3,6 +3,7 @@ import {
   closePosition,
   createPosition,
   getActivePositionForAsset,
+  getAnalysisQualitySummary,
   getLatestAssetAnalysis,
   getLatestIndicatorSnapshot,
   getLatestMarketData,
@@ -19,6 +20,7 @@ import { registerAuthGuard } from "./auth.js";
 import { registerCors } from "./cors.js";
 import { type ApiEnv, loadApiEnv } from "./env.js";
 import { registerAlertRoutes } from "./routes/alerts.js";
+import { registerAnalysisQualityRoutes } from "./routes/analysis-quality.js";
 import { registerChatLayerRoutes } from "./routes/chat-layer.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerHealthRoutes } from "./routes/health.js";
@@ -81,6 +83,10 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
   await registerAlertRoutes(app, {
     listAlerts: (filters) => listAlerts(filters, env.DATABASE_URL),
   });
+  await registerAnalysisQualityRoutes(app, {
+    getAnalysisQualitySummary: (filters) =>
+      getAnalysisQualitySummary(filters, env.DATABASE_URL),
+  });
   await registerPositionRoutes(app, {
     closePosition: (positionId, input) =>
       closePosition(positionId, input, env.DATABASE_URL),
@@ -115,6 +121,17 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
     getLatestSignalAggregationSnapshot: (assetId, timeframe) =>
       getLatestSignalAggregationSnapshot(assetId, timeframe, env.DATABASE_URL),
     ...(env.TWILIO_WEBHOOK_URL ? { webhookUrl: env.TWILIO_WEBHOOK_URL } : {}),
+    ...(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET
+      ? {
+          telegram: {
+            botToken: env.TELEGRAM_BOT_TOKEN,
+            webhookSecret: env.TELEGRAM_WEBHOOK_SECRET,
+            ...(env.TELEGRAM_CHAT_ID
+              ? { allowedChatId: env.TELEGRAM_CHAT_ID }
+              : {}),
+          },
+        }
+      : {}),
   });
 
   app.addHook("onClose", async () => {

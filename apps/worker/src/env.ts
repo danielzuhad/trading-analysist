@@ -34,8 +34,11 @@ export const workerEnvSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().trim().min(1).optional(),
   TWILIO_STATUS_CALLBACK_URL: z.string().url().optional(),
   TWILIO_WHATSAPP_FROM: z.string().trim().min(1).optional(),
+  TELEGRAM_BOT_TOKEN: z.string().trim().min(1).optional(),
+  TELEGRAM_CHAT_ID: z.string().trim().min(1).optional(),
   TWILIO_WHATSAPP_TO: z.string().trim().min(1).optional(),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(1),
+  WORKER_ENABLE_OUTCOME_EVALUATION: booleanishSchema.default(true),
   WORKER_ENABLE_SCHEDULER: booleanishSchema.default(true),
   WORKER_ENABLE_THRESHOLD_CHECKS: booleanishSchema.default(true),
   WORKER_SCHEDULED_ASSETS: z

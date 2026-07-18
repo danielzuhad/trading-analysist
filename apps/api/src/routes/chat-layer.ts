@@ -9,8 +9,11 @@ import {
   formatUnknownCommandMessage,
   formatWatchlistMessage,
   parseChatCommand,
+  parseTelegramUpdate,
   parseTwilioFormBody,
   parseTwilioInboundMessage,
+  sendTelegramMessage,
+  validateTelegramWebhookSecret,
   validateTwilioWebhookSignature,
 } from "@trading-analyst/chat-layer";
 import type {
@@ -35,8 +38,24 @@ import {
 
 const defaultChatUserId = "system:default";
 
+type ChatInboundMessage = {
+  channel: "telegram" | "whatsapp";
+  from: string;
+  provider: "telegram" | "twilio";
+  sourceMessageId?: string;
+  text: string;
+};
+
+type TelegramDependencies = {
+  allowedChatId?: string;
+  botToken: string;
+  sendMessage?: typeof sendTelegramMessage;
+  webhookSecret: string;
+};
+
 type Dependencies = {
   authToken?: string;
+  telegram?: TelegramDependencies;
   closePosition: (
     positionId: string,
     input: ClosePositionInput,
@@ -99,19 +118,90 @@ export async function registerChatLayerRoutes(
     }
 
     const inboundMessage = parseTwilioInboundMessage(formParams);
-    const responseText = await buildChatReply(inboundMessage, dependencies);
+    const responseText = await buildChatReply(
+      {
+        channel: "whatsapp",
+        from: inboundMessage.from,
+        provider: "twilio",
+        ...(inboundMessage.messageSid
+          ? { sourceMessageId: inboundMessage.messageSid }
+          : {}),
+        text: inboundMessage.body,
+      },
+      dependencies,
+    );
 
     return reply
       .type("text/xml; charset=utf-8")
       .send(buildTwilioMessagingResponse(responseText));
   });
+
+  app.post("/chat-layer/telegram/webhook", async (request, reply) => {
+    const telegram = dependencies.telegram;
+
+    if (!telegram) {
+      return reply.code(503).send({
+        error: "TELEGRAM_CHAT_LAYER_DISABLED",
+        message: formatChatLayerDisabledMessage(),
+      });
+    }
+
+    const secretHeader = request.headers["x-telegram-bot-api-secret-token"];
+
+    if (
+      !validateTelegramWebhookSecret(
+        typeof secretHeader === "string" ? secretHeader : undefined,
+        telegram.webhookSecret,
+      )
+    ) {
+      return reply.code(401).send({
+        error: "INVALID_TELEGRAM_WEBHOOK_SECRET",
+      });
+    }
+
+    const inbound = parseTelegramUpdate(request.body);
+
+    // Telegram expects 200 for every update, otherwise it keeps retrying.
+    if (!inbound) {
+      return reply.send({ ok: true, skipped: "unsupported_update" });
+    }
+
+    if (
+      telegram.allowedChatId &&
+      String(inbound.chatId) !== telegram.allowedChatId
+    ) {
+      return reply.send({ ok: true, skipped: "chat_not_allowed" });
+    }
+
+    const responseText = await buildChatReply(
+      {
+        channel: "telegram",
+        from: inbound.from ?? String(inbound.chatId),
+        provider: "telegram",
+        ...(inbound.messageId !== undefined
+          ? { sourceMessageId: String(inbound.messageId) }
+          : {}),
+        text: inbound.text,
+      },
+      dependencies,
+    );
+    const sendMessage = telegram.sendMessage ?? sendTelegramMessage;
+
+    await sendMessage({
+      botToken: telegram.botToken,
+      chatId: inbound.chatId,
+      text: responseText,
+    });
+
+    return reply.send({ ok: true });
+  });
 }
 
 async function buildChatReply(
-  inboundMessage: ReturnType<typeof parseTwilioInboundMessage>,
+  inboundMessage: ChatInboundMessage,
   dependencies: Dependencies,
 ) {
-  const command = parseChatCommand(inboundMessage.body);
+  const command = parseChatCommand(inboundMessage.text);
 
   switch (command.kind) {
     case "help":
@@ -168,11 +258,11 @@ async function buildChatReply(
           dependencies,
         ),
         metadata: {
-          channel: "whatsapp",
-          provider: "twilio",
+          channel: inboundMessage.channel,
+          provider: inboundMessage.provider,
           requestedTimeframe: command.timeframe,
           sourceFrom: inboundMessage.from,
-          sourceMessageSid: inboundMessage.messageSid,
+          sourceMessageSid: inboundMessage.sourceMessageId,
         },
         ...(command.stopLoss !== undefined
           ? { stopLoss: command.stopLoss }
@@ -205,10 +295,10 @@ async function buildChatReply(
         activePosition.id,
         {
           metadata: {
-            channel: "whatsapp",
-            provider: "twilio",
+            channel: inboundMessage.channel,
+            provider: inboundMessage.provider,
             sourceFrom: inboundMessage.from,
-            sourceMessageSid: inboundMessage.messageSid,
+            sourceMessageSid: inboundMessage.sourceMessageId,
           },
           ...(command.note ? { notes: command.note } : {}),
           remainingQuantity: 0,
