@@ -92,6 +92,93 @@ export function formatMissingDataLabel(value: string) {
     .join(" ");
 }
 
+export function formatRelativeTime(value?: string, nowMs = Date.now()) {
+  if (value === undefined) {
+    return "Unavailable";
+  }
+
+  const timestampMs = new Date(value).getTime();
+
+  if (!Number.isFinite(timestampMs)) {
+    return "Unavailable";
+  }
+
+  const elapsedMs = nowMs - timestampMs;
+
+  if (elapsedMs < 0) {
+    return "just now";
+  }
+
+  const minutes = Math.floor(elapsedMs / 60_000);
+
+  if (minutes < 1) {
+    return "just now";
+  }
+
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+
+  if (hours < 24) {
+    return `${hours}h ago`;
+  }
+
+  const days = Math.floor(hours / 24);
+
+  if (days < 30) {
+    return `${days}d ago`;
+  }
+
+  return formatAlertTimestamp(value);
+}
+
+export function mapAssetStateClass(state?: AssetState) {
+  switch (state) {
+    case "IGNORE":
+      return "ignore";
+    case "WATCH":
+      return "watch";
+    case "PREPARE":
+      return "prepare";
+    case "ACTIONABLE":
+      return "actionable";
+    case "IN_POSITION":
+      return "in-position";
+    case "EXIT_WARNING":
+      return "exit-warning";
+    case "INVALID":
+      return "invalid";
+    default:
+      return "none";
+  }
+}
+
+export function mapDeltaClass(value?: number) {
+  if (value === undefined || value === 0) {
+    return "flat";
+  }
+
+  return value > 0 ? "up" : "down";
+}
+
+export function mapScoreClass(value?: number) {
+  if (value === undefined) {
+    return "none";
+  }
+
+  if (value >= 70) {
+    return "high";
+  }
+
+  if (value >= 45) {
+    return "mid";
+  }
+
+  return "low";
+}
+
 export function mapAssetStateTone(state?: AssetState) {
   if (state === "ACTIONABLE" || state === "IN_POSITION") {
     return "active";

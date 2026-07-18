@@ -11,11 +11,12 @@ import {
   fetchInfrastructureStatus,
 } from "../status";
 import { AlertFeed } from "./alert-feed";
-import { formatPercent, formatPrice, formatScore } from "./dashboard-format";
+import { formatPrice } from "./dashboard-format";
 import {
   DashboardTimeframeTabs,
+  DeltaText,
   MissingDataList,
-  OverviewStatusBadge,
+  ScoreBar,
   StateBadge,
 } from "./dashboard-primitives";
 import { InfrastructureStatusCard } from "./infrastructure-status-card";
@@ -44,215 +45,117 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     ]);
   const items = overviewResult.data?.items ?? [];
   const alerts = alertsResult.data?.alerts ?? [];
-  const counts = items.reduce(
-    (summary, item) => {
-      summary[item.status] += 1;
-      return summary;
-    },
-    {
-      partial: 0,
-      pending: 0,
-      ready: 0,
-    },
-  );
-  const leadItem = items[0];
   const aiWarning = buildAiOperationalWarning(infrastructureStatus);
+  const systemTone =
+    infrastructureStatus.status === "ready"
+      ? "ok"
+      : infrastructureStatus.status === "degraded"
+        ? "warn"
+        : "down";
 
   return (
-    <main className="shell shell--dashboard">
-      <section className="hero hero--dashboard">
-        <div className="hero-copy">
-          <p className="eyebrow">Sprint 8 Dashboard</p>
-          <h1>Crypto Watchlist Overview</h1>
-          <p className="lede">
-            Read-only ranking for the seeded BTC, ETH, and SOL MVP universe. The
-            dashboard now supports both 1H and 4H read views while 4H remains
-            the operational baseline for the worker loop.
-          </p>
-        </div>
-
-        <div className="hero-actions">
+    <main className="shell">
+      <div className="page-heading">
+        <h1>Watchlist</h1>
+        <div className="page-heading__meta">
+          <span className="inline-chip">
+            <span className={`status-dot status-dot--${systemTone}`} />
+            {systemTone === "ok"
+              ? "All systems running"
+              : systemTone === "warn"
+                ? "System degraded"
+                : "System issue"}
+          </span>
           <DashboardTimeframeTabs basePath="/" timeframe={timeframe} />
-          <div className="hero-metrics">
-            <article className="hero-metric-card">
-              <span className="hero-metric-label">Primary loop</span>
-              <strong>4H</strong>
-              <p>Worker schedule and AI baseline stay anchored here.</p>
-            </article>
-            <article className="hero-metric-card">
-              <span className="hero-metric-label">Top ranked asset</span>
-              <strong>{leadItem?.asset.symbol ?? "Unavailable"}</strong>
-              <p>
-                {leadItem?.summary ??
-                  "No ranked asset is available until snapshots are stored."}
-              </p>
-            </article>
-          </div>
         </div>
-      </section>
+      </div>
 
       {aiWarning ? <OperationalWarningBanner warning={aiWarning} /> : null}
 
-      <section className="dashboard-grid">
-        <article className="card card--summary">
-          <div className="card-heading">
-            <h2>Loop Snapshot</h2>
-            <OverviewStatusBadge
-              status={
-                overviewResult.status === "ready"
-                  ? "ready"
-                  : items.length > 0
-                    ? "partial"
-                    : "pending"
-              }
-            />
-          </div>
-          <p>{overviewResult.message}</p>
-          <div className="metric-grid">
-            <div className="metric">
-              <span>Ready</span>
-              <strong>{counts.ready}</strong>
-            </div>
-            <div className="metric">
-              <span>Partial</span>
-              <strong>{counts.partial}</strong>
-            </div>
-            <div className="metric">
-              <span>Pending</span>
-              <strong>{counts.pending}</strong>
-            </div>
-          </div>
-          {overviewResult.issues.map((issue) => (
-            <p key={issue} className="issue-text">
-              {issue}
-            </p>
-          ))}
-        </article>
-
-        <article className="card card--summary">
-          <div className="card-heading">
-            <h2>API Reachability</h2>
-            <OverviewStatusBadge
-              status={
-                infrastructureStatus.status === "ready"
-                  ? "ready"
-                  : infrastructureStatus.status === "degraded"
-                    ? "partial"
-                    : "pending"
-              }
-            />
-          </div>
-          <p>{infrastructureStatus.message}</p>
-          <p>
-            API base URL: {apiBaseUrl ?? "Set NEXT_PUBLIC_API_BASE_URL first"}
-          </p>
-          <p>Dashboard timeframe: {timeframe}</p>
-        </article>
-
-        <InfrastructureStatusCard apiBaseUrl={apiBaseUrl} />
-      </section>
-
-      <section className="watchlist-section">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Watchlist</p>
-            <h2>Ranked Assets</h2>
-          </div>
-          <p className="section-copy">
-            Each card merges the latest market, signal, and AI read model for
-            the selected timeframe.
-          </p>
-        </div>
-
-        {items.length === 0 ? (
-          <article className="card">
-            <h3>No watchlist data yet</h3>
-            <p>
-              Run the worker loop first so the API can serve market snapshots,
-              signal snapshots, and the latest analysis records.
-            </p>
-          </article>
-        ) : (
-          <div className="asset-grid">
-            {items.map((item) => (
-              <Link
-                key={`${item.asset.id}:${item.timeframe}`}
-                className="asset-card"
-                href={`/assets/${item.asset.symbol.toLowerCase()}?timeframe=${timeframe}`}
-              >
-                <div className="asset-card__header">
-                  <div>
-                    <p className="asset-card__symbol">{item.asset.symbol}</p>
-                    <p className="asset-card__name">{item.asset.name}</p>
-                  </div>
-                  <OverviewStatusBadge status={item.status} />
-                </div>
-
-                <div className="asset-card__meta">
-                  <StateBadge state={item.state} />
-                  <span className="inline-chip">{item.timeframe}</span>
-                </div>
-
-                <div className="asset-card__price">
-                  <strong>{formatPrice(item.lastPrice)}</strong>
-                  <span>{formatPercent(item.priceChangePercent)}</span>
-                </div>
-
-                <div className="asset-card__scores">
-                  <div>
-                    <span>Signal</span>
-                    <strong>{formatScore(item.signalStrengthScore)}</strong>
-                  </div>
-                  <div>
-                    <span>AI confidence</span>
-                    <strong>{formatScore(item.aiConfidence)}</strong>
-                  </div>
-                </div>
-
-                <p className="asset-card__summary">
-                  {item.summary ?? "Awaiting analysis output for this asset."}
+      <div className="dashboard-columns">
+        <section aria-label="Ranked assets">
+          {items.length === 0 ? (
+            <article className="card">
+              <h3>No data yet</h3>
+              <p>
+                The analysis worker hasn't stored any snapshots for this
+                timeframe. Data appears here after the first analysis cycle
+                completes.
+              </p>
+              {overviewResult.issues.map((issue) => (
+                <p key={issue} className="issue-text">
+                  {issue}
                 </p>
+              ))}
+            </article>
+          ) : (
+            <div className="asset-grid">
+              {items.map((item) => (
+                <Link
+                  key={`${item.asset.id}:${item.timeframe}`}
+                  className="asset-card"
+                  href={`/assets/${item.asset.symbol.toLowerCase()}?timeframe=${timeframe}`}
+                >
+                  <div className="asset-card__header">
+                    <div>
+                      <p className="asset-card__symbol">{item.asset.symbol}</p>
+                      <p className="asset-card__name">{item.asset.name}</p>
+                    </div>
+                    <StateBadge state={item.state} />
+                  </div>
 
-                <div className="asset-card__levels">
-                  <span>Support {formatPrice(item.nearestSupport)}</span>
-                  <span>Resistance {formatPrice(item.nearestResistance)}</span>
-                  <span>Invalidation {formatPrice(item.invalidation)}</span>
-                </div>
+                  <div className="asset-card__price">
+                    <strong>{formatPrice(item.lastPrice)}</strong>
+                    <DeltaText value={item.priceChangePercent} />
+                  </div>
 
-                {item.keyReasons.length > 0 ? (
-                  <ul className="asset-card__list">
-                    {item.keyReasons.slice(0, 2).map((reason) => (
-                      <li key={reason}>{reason}</li>
-                    ))}
-                  </ul>
-                ) : null}
+                  <div className="score-row">
+                    <ScoreBar label="Signal" value={item.signalStrengthScore} />
+                    <ScoreBar label="AI confidence" value={item.aiConfidence} />
+                  </div>
 
-                <MissingDataList items={item.missingData} />
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+                  <p className="asset-card__summary">
+                    {item.summary ?? "Waiting for the first analysis."}
+                  </p>
 
-      <section className="watchlist-section">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Alerts</p>
-            <h2>Recent Feed</h2>
-          </div>
-          <p className="section-copy">
-            Latest state-transition alerts for the selected dashboard timeframe.
-          </p>
-        </div>
+                  <div className="asset-card__levels">
+                    <span className="level-text level-text--support">
+                      S <strong>{formatPrice(item.nearestSupport)}</strong>
+                    </span>
+                    <span className="level-text level-text--resistance">
+                      R <strong>{formatPrice(item.nearestResistance)}</strong>
+                    </span>
+                    <span className="level-text level-text--invalidation">
+                      Inv <strong>{formatPrice(item.invalidation)}</strong>
+                    </span>
+                  </div>
 
-        <AlertFeed
-          alerts={alerts}
-          emptyMessage="No alerts have been generated for this timeframe yet."
-          issues={alertsResult.issues}
-          message={alertsResult.message}
-          title="Recent Alerts"
-        />
-      </section>
+                  {item.keyReasons.length > 0 ? (
+                    <ul className="asset-card__list">
+                      {item.keyReasons.slice(0, 2).map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                  ) : null}
+
+                  <MissingDataList items={item.missingData} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section aria-label="Alerts and system status">
+          <AlertFeed
+            alerts={alerts}
+            emptyMessage="No alerts for this timeframe yet. Alerts appear when an asset changes state."
+            issues={alertsResult.issues}
+            message={alertsResult.message}
+            title="Recent Alerts"
+          />
+          <InfrastructureStatusCard apiBaseUrl={apiBaseUrl} />
+        </section>
+      </div>
     </main>
   );
 }

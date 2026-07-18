@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Trading Analyst",
-  description: "Crypto watchlist dashboard with 1H and 4H read views.",
+  title: "Pythia — Trading Analyst",
+  description:
+    "Crypto decision-support dashboard: watchlist ranking, AI analysis, and alerts.",
 };
 
 export default function RootLayout({
@@ -13,7 +15,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        <header className="topbar">
+          <div className="topbar__inner">
+            <Link className="topbar__brand" href="/">
+              Pythia <span>Trading Analyst</span>
+            </Link>
+          </div>
+        </header>
+        {children}
+      </body>
     </html>
   );
 }

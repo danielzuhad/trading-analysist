@@ -16,13 +16,15 @@ import {
   formatPercent,
   formatPositionStatusMessage,
   formatPrice,
-  formatScore,
+  formatRelativeTime,
+  mapDeltaClass,
   mapPositionStatusTone,
 } from "../../dashboard-format";
 import {
   DashboardTimeframeTabs,
+  DeltaText,
   MissingDataList,
-  OverviewStatusBadge,
+  ScoreBar,
   StateBadge,
 } from "../../dashboard-primitives";
 import { OperationalWarningBanner } from "../../operational-warning-banner";
@@ -44,6 +46,124 @@ type AssetDetailPageProps = {
     timeframe?: string | string[];
   }>;
 };
+
+function LevelBar({
+  invalidation,
+  price,
+  resistance,
+  support,
+}: {
+  invalidation?: number | undefined;
+  price?: number | undefined;
+  resistance?: number | undefined;
+  support?: number | undefined;
+}) {
+  const values = [support, resistance, invalidation, price].filter(
+    (value): value is number => value !== undefined,
+  );
+
+  if (price === undefined || values.length < 2) {
+    return null;
+  }
+
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const pad = (max - min || max * 0.01 || 1) * 0.1;
+  const lo = min - pad;
+  const hi = max + pad;
+  const position = (value: number) => ((value - lo) / (hi - lo)) * 100;
+
+  return (
+    <div className="level-bar">
+      <div className="level-bar__track">
+        {support !== undefined ? (
+          <span
+            className="level-bar__marker level-bar__marker--support"
+            style={{ left: `${position(support)}%` }}
+            title={`Support ${formatPrice(support)}`}
+          />
+        ) : null}
+        {resistance !== undefined ? (
+          <span
+            className="level-bar__marker level-bar__marker--resistance"
+            style={{ left: `${position(resistance)}%` }}
+            title={`Resistance ${formatPrice(resistance)}`}
+          />
+        ) : null}
+        {invalidation !== undefined ? (
+          <span
+            className="level-bar__marker level-bar__marker--invalidation"
+            style={{ left: `${position(invalidation)}%` }}
+            title={`Invalidation ${formatPrice(invalidation)}`}
+          />
+        ) : null}
+        <span
+          className="level-bar__marker level-bar__marker--price"
+          style={{ left: `${position(price)}%` }}
+          title={`Price ${formatPrice(price)}`}
+        />
+      </div>
+      <div className="level-bar__legend">
+        {support !== undefined ? (
+          <span>
+            <i style={{ background: "var(--up)" }} />
+            Support {formatPrice(support)}
+          </span>
+        ) : null}
+        {resistance !== undefined ? (
+          <span>
+            <i style={{ background: "var(--accent)" }} />
+            Resistance {formatPrice(resistance)}
+          </span>
+        ) : null}
+        {invalidation !== undefined ? (
+          <span>
+            <i style={{ background: "var(--down)" }} />
+            Invalidation {formatPrice(invalidation)}
+          </span>
+        ) : null}
+        <span>
+          <i style={{ background: "var(--ink)" }} />
+          Price {formatPrice(price)}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  valueClass,
+}: {
+  label: string;
+  value?: string | number | undefined;
+  valueClass?: string | undefined;
+}) {
+  return (
+    <p>
+      <span>{label}</span>
+      <span className={valueClass}>{value ?? "—"}</span>
+    </p>
+  );
+}
+
+function mapChangeClass(value?: number) {
+  const deltaClass = mapDeltaClass(value);
+  return deltaClass === "flat" ? "value--muted" : `value--${deltaClass}`;
+}
+
+function mapBiasClass(bias?: string) {
+  if (bias === "bullish") {
+    return "value--up";
+  }
+
+  if (bias === "bearish") {
+    return "value--down";
+  }
+
+  return "value--muted";
+}
 
 export default async function AssetDetailPage({
   params,
@@ -78,123 +198,250 @@ export default async function AssetDetailPage({
   const positionStatusMessage = formatPositionStatusMessage(positionStatus);
   const positionStatusTone = mapPositionStatusTone(positionStatus);
   const activePosition = overview?.activePosition;
+  const analysis = overview?.analysisSnapshot;
+  const decision = analysis?.decisionCard;
 
   return (
-    <main className="shell shell--detail">
-      <section className="hero hero--detail">
-        <div className="hero-copy">
-          <Link className="back-link" href={`/?timeframe=${timeframe}`}>
-            Back to watchlist
-          </Link>
-          <p className="eyebrow">Asset Detail</p>
-          <h1>
-            {asset.name}{" "}
-            <span className="hero-subtitle">{asset.displaySymbol}</span>
-          </h1>
-          <p className="lede">
-            Read-only snapshot for the selected timeframe. This page combines
-            the latest market read model, indicator output, signal aggregation,
-            and AI analysis when available.
-          </p>
-        </div>
-
-        <div className="hero-actions">
+    <main className="shell">
+      <div className="detail-header">
+        <Link className="back-link" href={`/?timeframe=${timeframe}`}>
+          ← Watchlist
+        </Link>
+        <div className="detail-header__row">
+          <div className="detail-header__identity">
+            <h1>{asset.symbol}</h1>
+            <p className="asset-card__name">{asset.name}</p>
+            <StateBadge state={analysis?.state} />
+          </div>
           <DashboardTimeframeTabs
             basePath={`/assets/${asset.symbol.toLowerCase()}`}
             timeframe={timeframe}
           />
-          <div className="hero-metrics">
-            <article className="hero-metric-card">
-              <span className="hero-metric-label">Asset scope</span>
-              <strong>{asset.symbol}</strong>
-              <p>Seeded MVP asset from the internal crypto watchlist.</p>
-            </article>
-            <article className="hero-metric-card">
-              <span className="hero-metric-label">Overview status</span>
-              <strong>{overview?.status ?? overviewResult.status}</strong>
-              <p>{overviewResult.message}</p>
-            </article>
+        </div>
+        <div className="detail-header__row">
+          <div className="detail-price">
+            <strong>{formatPrice(overview?.marketSnapshot?.lastPrice)}</strong>
+            <DeltaText value={overview?.marketSnapshot?.priceChangePercent} />
+          </div>
+          <div className="page-heading__meta">
+            <span className="inline-chip">
+              Updated {formatRelativeTime(overview?.marketSnapshot?.capturedAt)}
+            </span>
+            <span className="inline-chip">
+              {overview?.marketSnapshot?.provider ?? "no provider"}
+            </span>
           </div>
         </div>
-      </section>
+      </div>
 
       {aiWarning ? <OperationalWarningBanner warning={aiWarning} /> : null}
 
       {overview ? (
         <>
-          <section className="detail-summary-grid">
-            <article className="card card--summary">
-              <div className="card-heading">
-                <h2>Current Snapshot</h2>
-                <OverviewStatusBadge status={overview.status} />
+          <section className="decision-card" aria-label="AI decision">
+            <div className="card-heading">
+              <h2>AI Decision</h2>
+              <div className="page-heading__meta">
+                {analysis?.suggestion ? (
+                  <span className="inline-chip">
+                    {analysis.suggestion.replaceAll("_", " ")}
+                  </span>
+                ) : null}
+                <StateBadge state={analysis?.state} />
               </div>
-              <div className="metric-grid">
-                <div className="metric">
-                  <span>Last price</span>
-                  <strong>
-                    {formatPrice(overview.marketSnapshot?.lastPrice)}
-                  </strong>
+            </div>
+
+            <p className="decision-card__summary">
+              {analysis?.summary ??
+                "No AI analysis has been stored for this asset and timeframe yet."}
+            </p>
+
+            <LevelBar
+              invalidation={analysis?.keyLevels.invalidation}
+              price={overview.marketSnapshot?.lastPrice}
+              resistance={analysis?.keyLevels.nearestResistance}
+              support={analysis?.keyLevels.nearestSupport}
+            />
+
+            {decision ? (
+              <div className="decision-card__grid">
+                <div className="decision-block">
+                  <span className="decision-block__label">Action plan</span>
+                  <ul>
+                    {decision.actionPlan.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ul>
                 </div>
-                <div className="metric">
-                  <span>Signal score</span>
-                  <strong>
-                    {formatScore(overview.signalSnapshot?.signalStrengthScore)}
-                  </strong>
+                <div className="decision-block decision-block--invalidation">
+                  <span className="decision-block__label">Invalidation</span>
+                  <p>{decision.invalidation}</p>
                 </div>
-                <div className="metric">
-                  <span>AI confidence</span>
-                  <strong>
-                    {formatScore(overview.analysisSnapshot?.aiConfidence)}
-                  </strong>
+                <div className="decision-block">
+                  <span className="decision-block__label">Key reasons</span>
+                  <ul>
+                    {decision.keyReasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="decision-block">
+                  <span className="decision-block__label">
+                    Concerns · risk {decision.riskLevel}
+                  </span>
+                  {analysis?.concerns.length ? (
+                    <ul>
+                      {analysis.concerns.map((concern) => (
+                        <li key={concern}>{concern}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p>No concerns recorded.</p>
+                  )}
                 </div>
               </div>
-              <div className="asset-card__meta">
-                <StateBadge state={overview.analysisSnapshot?.state} />
-                <span className="inline-chip">{timeframe}</span>
+            ) : null}
+
+            <div className="score-row">
+              <ScoreBar
+                label="Signal"
+                value={overview.signalSnapshot?.signalStrengthScore}
+              />
+              <ScoreBar label="AI confidence" value={analysis?.aiConfidence} />
+            </div>
+
+            <div className="page-heading__meta">
+              <span className="inline-chip">
+                {analysis?.modelUsed ?? "no model"}
+              </span>
+              <span className="inline-chip">
+                Generated {formatRelativeTime(analysis?.generatedAt)}
+              </span>
+              {analysis?.suggestedPositionSize ? (
                 <span className="inline-chip">
-                  {overview.marketSnapshot?.provider ?? "No provider data"}
+                  Size: {analysis.suggestedPositionSize}
                 </span>
+              ) : null}
+            </div>
+            <MissingDataList items={overview.missingData} />
+          </section>
+
+          <section className="detail-grid" aria-label="Snapshots">
+            <article className="card">
+              <h2>Market</h2>
+              <div className="detail-list">
+                <DetailRow
+                  label="Open"
+                  value={formatPrice(overview.marketSnapshot?.candle.open)}
+                />
+                <DetailRow
+                  label="High"
+                  value={formatPrice(overview.marketSnapshot?.candle.high)}
+                />
+                <DetailRow
+                  label="Low"
+                  value={formatPrice(overview.marketSnapshot?.candle.low)}
+                />
+                <DetailRow
+                  label="Close"
+                  value={formatPrice(overview.marketSnapshot?.candle.close)}
+                />
+                <DetailRow
+                  label="Change"
+                  value={formatPercent(
+                    overview.marketSnapshot?.priceChangePercent,
+                  )}
+                  valueClass={mapChangeClass(
+                    overview.marketSnapshot?.priceChangePercent,
+                  )}
+                />
+                <DetailRow
+                  label="Captured"
+                  value={formatRelativeTime(
+                    overview.marketSnapshot?.capturedAt,
+                  )}
+                />
               </div>
-              <MissingDataList items={overview.missingData} />
             </article>
 
-            <article className="card card--summary">
-              <div className="card-heading">
-                <h2>AI Decision</h2>
-                <StateBadge state={overview.analysisSnapshot?.state} />
+            <article className="card">
+              <h2>Indicators</h2>
+              <div className="detail-list">
+                <DetailRow
+                  label="EMA 20"
+                  value={formatPrice(
+                    overview.indicatorSnapshot?.movingAverages.ema20,
+                  )}
+                />
+                <DetailRow
+                  label="EMA 50"
+                  value={formatPrice(
+                    overview.indicatorSnapshot?.movingAverages.ema50,
+                  )}
+                />
+                <DetailRow
+                  label="EMA 200"
+                  value={formatPrice(
+                    overview.indicatorSnapshot?.movingAverages.ema200,
+                  )}
+                />
+                <DetailRow
+                  label="RSI 14"
+                  value={overview.indicatorSnapshot?.oscillators.rsi14}
+                />
+                <DetailRow
+                  label="ATR %"
+                  value={formatPercent(
+                    overview.indicatorSnapshot?.volatility.atrPercent,
+                  )}
+                />
+                <DetailRow
+                  label="Structure"
+                  value={overview.indicatorSnapshot?.structure}
+                />
+              </div>
+            </article>
+
+            <article className="card">
+              <h2>Signal</h2>
+              <div className="detail-list">
+                <DetailRow
+                  label="Bias"
+                  value={overview.signalSnapshot?.bias}
+                  valueClass={mapBiasClass(overview.signalSnapshot?.bias)}
+                />
+                <DetailRow
+                  label="Regime"
+                  value={overview.signalSnapshot?.regime}
+                />
+                <DetailRow
+                  label="Score"
+                  value={
+                    overview.signalSnapshot?.signalStrengthScore !== undefined
+                      ? `${overview.signalSnapshot.signalStrengthScore}/100`
+                      : undefined
+                  }
+                />
               </div>
               <p>
-                {overview.analysisSnapshot?.summary ??
-                  "No AI analysis is stored yet for this asset and timeframe."}
+                {overview.signalSnapshot?.summary ??
+                  "No signal snapshot stored yet."}
               </p>
-              <div className="asset-card__levels">
-                <span>
-                  Support{" "}
-                  {formatPrice(
-                    overview.analysisSnapshot?.keyLevels.nearestSupport,
-                  )}
-                </span>
-                <span>
-                  Resistance{" "}
-                  {formatPrice(
-                    overview.analysisSnapshot?.keyLevels.nearestResistance,
-                  )}
-                </span>
-                <span>
-                  Invalidation{" "}
-                  {formatPrice(
-                    overview.analysisSnapshot?.keyLevels.invalidation,
-                  )}
-                </span>
-              </div>
+              {overview.signalSnapshot?.riskFlags.length ? (
+                <ul className="asset-card__list">
+                  {overview.signalSnapshot.riskFlags.map((flag) => (
+                    <li key={flag}>{flag}</li>
+                  ))}
+                </ul>
+              ) : null}
             </article>
 
-            <article className="card card--summary" id={manualPositionAnchorId}>
+            <article className="card" id={manualPositionAnchorId}>
               <div className="card-heading">
                 <h2>Manual Position</h2>
-                <OverviewStatusBadge
-                  status={activePosition ? "ready" : "pending"}
-                />
+                <span className="inline-chip">
+                  {activePosition ? "active" : "none"}
+                </span>
               </div>
 
               {positionStatusMessage ? (
@@ -209,19 +456,27 @@ export default async function AssetDetailPage({
               {activePosition ? (
                 <div className="position-stack">
                   <div className="detail-list">
-                    <p>Direction: {activePosition.direction}</p>
-                    <p>Status: {activePosition.status}</p>
-                    <p>
-                      Average entry:{" "}
-                      {formatPrice(activePosition.averageEntryPrice)}
-                    </p>
-                    <p>Initial quantity: {activePosition.quantity}</p>
-                    <p>
-                      Remaining quantity: {activePosition.remainingQuantity}
-                    </p>
-                    <p>Stop loss: {formatPrice(activePosition.stopLoss)}</p>
-                    <p>Opened at: {activePosition.openedAt}</p>
-                    <p>Last updated: {activePosition.lastUpdatedAt}</p>
+                    <DetailRow
+                      label="Direction"
+                      value={activePosition.direction}
+                    />
+                    <DetailRow label="Status" value={activePosition.status} />
+                    <DetailRow
+                      label="Average entry"
+                      value={formatPrice(activePosition.averageEntryPrice)}
+                    />
+                    <DetailRow
+                      label="Remaining qty"
+                      value={activePosition.remainingQuantity}
+                    />
+                    <DetailRow
+                      label="Stop loss"
+                      value={formatPrice(activePosition.stopLoss)}
+                    />
+                    <DetailRow
+                      label="Opened"
+                      value={formatRelativeTime(activePosition.openedAt)}
+                    />
                   </div>
 
                   <form className="position-form" action={updatePositionAction}>
@@ -396,145 +651,18 @@ export default async function AssetDetailPage({
             </article>
           </section>
 
-          <section className="detail-grid">
-            <article className="card">
-              <h2>Market Snapshot</h2>
-              <div className="detail-list">
-                <p>
-                  Captured at:{" "}
-                  {overview.marketSnapshot?.capturedAt ?? "Unavailable"}
-                </p>
-                <p>
-                  Provider: {overview.marketSnapshot?.provider ?? "Unavailable"}
-                </p>
-                <p>Open: {formatPrice(overview.marketSnapshot?.candle.open)}</p>
-                <p>High: {formatPrice(overview.marketSnapshot?.candle.high)}</p>
-                <p>Low: {formatPrice(overview.marketSnapshot?.candle.low)}</p>
-                <p>
-                  Close: {formatPrice(overview.marketSnapshot?.candle.close)}
-                </p>
-                <p>
-                  Change:{" "}
-                  {formatPercent(overview.marketSnapshot?.priceChangePercent)}
-                </p>
-              </div>
-            </article>
-
-            <article className="card">
-              <h2>Indicator Snapshot</h2>
-              <div className="detail-list">
-                <p>
-                  EMA20:{" "}
-                  {formatPrice(
-                    overview.indicatorSnapshot?.movingAverages.ema20,
-                  )}
-                </p>
-                <p>
-                  EMA50:{" "}
-                  {formatPrice(
-                    overview.indicatorSnapshot?.movingAverages.ema50,
-                  )}
-                </p>
-                <p>
-                  EMA200:{" "}
-                  {formatPrice(
-                    overview.indicatorSnapshot?.movingAverages.ema200,
-                  )}
-                </p>
-                <p>
-                  RSI14:{" "}
-                  {overview.indicatorSnapshot?.oscillators.rsi14 ??
-                    "Unavailable"}
-                </p>
-                <p>
-                  ATR %:{" "}
-                  {formatPercent(
-                    overview.indicatorSnapshot?.volatility.atrPercent,
-                  )}
-                </p>
-                <p>
-                  Structure:{" "}
-                  {overview.indicatorSnapshot?.structure ?? "Unavailable"}
-                </p>
-              </div>
-            </article>
-
-            <article className="card">
-              <h2>Signal Snapshot</h2>
-              <div className="detail-list">
-                <p>Bias: {overview.signalSnapshot?.bias ?? "Unavailable"}</p>
-                <p>
-                  Regime: {overview.signalSnapshot?.regime ?? "Unavailable"}
-                </p>
-                <p>
-                  Score:{" "}
-                  {formatScore(overview.signalSnapshot?.signalStrengthScore)}
-                </p>
-                <p>
-                  Summary:{" "}
-                  {overview.signalSnapshot?.summary ??
-                    "No signal snapshot is stored yet."}
-                </p>
-              </div>
-              {overview.signalSnapshot?.riskFlags.length ? (
-                <ul className="asset-card__list">
-                  {overview.signalSnapshot.riskFlags.map((flag) => (
-                    <li key={flag}>{flag}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </article>
-
-            <article className="card">
-              <h2>AI Analysis</h2>
-              <div className="detail-list">
-                <p>
-                  Suggestion:{" "}
-                  {overview.analysisSnapshot?.suggestion ?? "Unavailable"}
-                </p>
-                <p>
-                  Generated at:{" "}
-                  {overview.analysisSnapshot?.generatedAt ?? "Unavailable"}
-                </p>
-                <p>
-                  Prompt version:{" "}
-                  {overview.analysisSnapshot?.promptVersion ?? "Unavailable"}
-                </p>
-                <p>
-                  Model: {overview.analysisSnapshot?.modelUsed ?? "Unavailable"}
-                </p>
-              </div>
-              {overview.analysisSnapshot?.decisionCard.keyReasons.length ? (
-                <ul className="asset-card__list">
-                  {overview.analysisSnapshot.decisionCard.keyReasons.map(
-                    (reason) => (
-                      <li key={reason}>{reason}</li>
-                    ),
-                  )}
-                </ul>
-              ) : null}
-              {overview.analysisSnapshot?.concerns.length ? (
-                <ul className="asset-card__list">
-                  {overview.analysisSnapshot.concerns.map((concern) => (
-                    <li key={concern}>{concern}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </article>
-
-            <AlertFeed
-              alerts={alerts}
-              emptyMessage="No alerts have been generated for this asset yet."
-              issues={alertsResult.issues}
-              message={alertsResult.message}
-              title="Asset Alerts"
-            />
-          </section>
+          <AlertFeed
+            alerts={alerts}
+            emptyMessage="No alerts for this asset yet."
+            issues={alertsResult.issues}
+            message={alertsResult.message}
+            title="Asset Alerts"
+          />
         </>
       ) : (
         <section className="detail-grid">
           <article className="card">
-            <h2>Asset overview unavailable</h2>
+            <h2>Asset data unavailable</h2>
             <p>{overviewResult.message}</p>
             {overviewResult.issues.map((issue) => (
               <p key={issue} className="issue-text">

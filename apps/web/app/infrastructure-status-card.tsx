@@ -6,6 +6,7 @@ import {
   fetchInfrastructureStatus,
   type InfrastructureStatus,
 } from "../status";
+import { formatRelativeTime } from "./dashboard-format";
 
 type InfrastructureStatusCardProps = {
   apiBaseUrl: string | undefined;
@@ -38,85 +39,99 @@ export function InfrastructureStatusCard({
 
   if (infrastructureStatus === null) {
     return (
-      <article className="card">
-        <h2>Infrastructure Status</h2>
-        <p>Status: checking</p>
-        <p>Checking live API reachability from the web app.</p>
-      </article>
+      <details className="status-strip">
+        <summary>
+          <span className="status-dot status-dot--unknown" />
+          Checking system status…
+        </summary>
+      </details>
     );
   }
 
   const aiWarning = buildAiOperationalWarning(infrastructureStatus);
+  const tone =
+    infrastructureStatus.status === "ready"
+      ? "ok"
+      : infrastructureStatus.status === "degraded"
+        ? "warn"
+        : "down";
 
   return (
-    <article className="card">
-      <h2>Infrastructure Status</h2>
-      <p>Status: {infrastructureStatus.status}</p>
-      <p>{infrastructureStatus.message}</p>
-      {aiWarning ? <p>AI warning: {aiWarning.title}</p> : null}
-      {infrastructureStatus.checks ? (
-        <>
-          <p>
-            PostgreSQL:{" "}
-            {infrastructureStatus.checks.database.ok
-              ? `reachable${infrastructureStatus.checks.database.target ? ` at ${infrastructureStatus.checks.database.target}` : ""}`
-              : infrastructureStatus.checks.database.message}
-          </p>
-          <p>
-            Redis:{" "}
-            {infrastructureStatus.checks.redis.ok
-              ? `reachable${infrastructureStatus.checks.redis.target ? ` at ${infrastructureStatus.checks.redis.target}` : ""}`
-              : infrastructureStatus.checks.redis.message}
-          </p>
-          {infrastructureStatus.checks.redis.hint ? (
-            <p>Worker note: {infrastructureStatus.checks.redis.hint}</p>
-          ) : null}
-        </>
-      ) : null}
-      {infrastructureStatus.issues.map((issue) => (
-        <p key={issue}>{issue}</p>
-      ))}
-      {infrastructureStatus.operational ? (
-        <>
-          <p>
-            AI budget:{" "}
-            <span
-              className={`status-badge status-badge--${mapAiStateToTone(
-                infrastructureStatus.operational.ai.currentState,
-              )}`}
-            >
-              {infrastructureStatus.operational.ai.currentState}
-            </span>
-          </p>
-          {infrastructureStatus.operational.ai.detail ? (
-            <p>AI note: {infrastructureStatus.operational.ai.detail}</p>
-          ) : null}
-          {infrastructureStatus.operational.ai.checkedAt ? (
-            <p>AI heartbeat: {infrastructureStatus.operational.ai.checkedAt}</p>
-          ) : null}
-          {Object.entries(infrastructureStatus.operational.providers).length >
-          0 ? (
-            <div className="status-provider-list">
-              {Object.entries(infrastructureStatus.operational.providers).map(
-                ([provider, status]) => (
-                  <p key={provider}>
-                    {provider}:{" "}
-                    <span
-                      className={`status-badge status-badge--${mapProviderStatusToTone(
-                        status.status,
-                      )}`}
-                    >
-                      {status.status}
-                    </span>
-                    {status.detail ? ` (${status.detail})` : ""}
-                  </p>
-                ),
-              )}
-            </div>
-          ) : null}
-        </>
-      ) : null}
-    </article>
+    <details className="status-strip">
+      <summary>
+        <span className={`status-dot status-dot--${tone}`} />
+        System status: {infrastructureStatus.status}
+      </summary>
+      <div className="status-strip__body">
+        <p>{infrastructureStatus.message}</p>
+        {aiWarning ? <p>AI: {aiWarning.title}</p> : null}
+        {infrastructureStatus.checks ? (
+          <>
+            <p>
+              PostgreSQL:{" "}
+              {infrastructureStatus.checks.database.ok
+                ? "reachable"
+                : infrastructureStatus.checks.database.message}
+            </p>
+            <p>
+              Redis:{" "}
+              {infrastructureStatus.checks.redis.ok
+                ? "reachable"
+                : infrastructureStatus.checks.redis.message}
+            </p>
+            {infrastructureStatus.checks.redis.hint ? (
+              <p>{infrastructureStatus.checks.redis.hint}</p>
+            ) : null}
+          </>
+        ) : null}
+        {infrastructureStatus.issues.map((issue) => (
+          <p key={issue}>{issue}</p>
+        ))}
+        {infrastructureStatus.operational ? (
+          <>
+            <p>
+              AI budget:{" "}
+              <span
+                className={`status-badge status-badge--${mapAiStateToTone(
+                  infrastructureStatus.operational.ai.currentState,
+                )}`}
+              >
+                {infrastructureStatus.operational.ai.currentState}
+              </span>
+            </p>
+            {infrastructureStatus.operational.ai.detail ? (
+              <p>{infrastructureStatus.operational.ai.detail}</p>
+            ) : null}
+            {infrastructureStatus.operational.ai.checkedAt ? (
+              <p>
+                Last worker heartbeat:{" "}
+                {formatRelativeTime(
+                  infrastructureStatus.operational.ai.checkedAt,
+                )}
+              </p>
+            ) : null}
+            {Object.entries(infrastructureStatus.operational.providers).length >
+            0 ? (
+              <div className="status-provider-list">
+                {Object.entries(infrastructureStatus.operational.providers).map(
+                  ([provider, status]) => (
+                    <p key={provider}>
+                      {provider}:{" "}
+                      <span
+                        className={`status-badge status-badge--${status.status}`}
+                      >
+                        {status.status}
+                      </span>
+                      {status.detail ? ` (${status.detail})` : ""}
+                    </p>
+                  ),
+                )}
+              </div>
+            ) : null}
+          </>
+        ) : null}
+      </div>
+    </details>
   );
 }
 
@@ -142,10 +157,4 @@ function mapAiStateToTone(
   }
 
   return "down";
-}
-
-function mapProviderStatusToTone(
-  status: "active" | "degraded" | "down" | "disabled",
-) {
-  return status;
 }

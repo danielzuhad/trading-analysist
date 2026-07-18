@@ -7,8 +7,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import {
   formatMissingDataLabel,
-  mapAssetStateTone,
+  formatPercent,
+  formatScore,
+  mapAssetStateClass,
+  mapDeltaClass,
   mapOverviewStatusTone,
+  mapScoreClass,
 } from "./dashboard-format";
 
 type DashboardTimeframeTabsProps = {
@@ -41,14 +45,48 @@ export function DashboardTimeframeTabs({
 
 export function StateBadge({ state }: { state: AssetState | undefined }) {
   return (
-    <ToneBadge tone={mapAssetStateTone(state)}>
-      {state ?? "No AI State"}
-    </ToneBadge>
+    <span className={`state-badge state-badge--${mapAssetStateClass(state)}`}>
+      {state?.replaceAll("_", " ") ?? "No AI state"}
+    </span>
   );
 }
 
 export function OverviewStatusBadge({ status }: { status: OverviewStatus }) {
   return <ToneBadge tone={mapOverviewStatusTone(status)}>{status}</ToneBadge>;
+}
+
+export function DeltaText({ value }: { value?: number | undefined }) {
+  return (
+    <span className={`delta delta--${mapDeltaClass(value)}`}>
+      {value === undefined ? "—" : formatPercent(value)}
+    </span>
+  );
+}
+
+export function ScoreBar({
+  label,
+  value,
+}: {
+  label: string;
+  value?: number | undefined;
+}) {
+  const clamped =
+    value === undefined ? 0 : Math.max(0, Math.min(100, Math.round(value)));
+
+  return (
+    <div className="score-bar">
+      <span className="score-bar__label">
+        {label}
+        <strong>{value === undefined ? "—" : formatScore(value)}</strong>
+      </span>
+      <div className="score-bar__track" aria-hidden="true">
+        <div
+          className={`score-bar__fill score-bar__fill--${mapScoreClass(value)}`}
+          style={{ width: `${clamped}%` }}
+        />
+      </div>
+    </div>
+  );
 }
 
 export function MissingDataList({ items }: { items: string[] }) {

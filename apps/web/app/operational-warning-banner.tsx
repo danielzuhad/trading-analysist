@@ -1,4 +1,5 @@
 import type { AiOperationalWarning } from "../status";
+import { formatRelativeTime } from "./dashboard-format";
 
 export function OperationalWarningBanner({
   warning,
@@ -24,7 +25,7 @@ export function OperationalWarningBanner({
       ) : null}
       {warning.checkedAt ? (
         <p className="operational-banner__meta">
-          Last worker update: {warning.checkedAt}
+          Last worker update: {formatRelativeTime(warning.checkedAt)}
         </p>
       ) : null}
     </section>
