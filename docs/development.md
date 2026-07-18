@@ -17,6 +17,7 @@ Repository ini saat ini mencakup:
 - Sprint 9 alert engine, PostgreSQL alert persistence, worker state-transition alert generation, and alert read API
 - Sprint 10 manual positions module, active-position API, worker position-aware analysis wiring, and basic dashboard position recording
 - Sprint 11 WhatsApp API chat layer via Twilio, including inbound webhook handling and outbound alert delivery
+- lightweight threshold checks that poll current price, compare against the latest key levels, and trigger full re-analysis between scheduled deep-analysis runs
 
 ## Workspace Layout
 
@@ -85,8 +86,10 @@ Untuk local development, nilai berikut harus didefinisikan di `.env.development`
 - `COINGECKO_API_KEY`
 - `COINGECKO_API_PLAN` (`demo` untuk Demo/free key, `basic` untuk paid Basic key)
 - `WORKER_ENABLE_SCHEDULER`
+- `WORKER_ENABLE_THRESHOLD_CHECKS`
 - `WORKER_SCHEDULED_ASSETS`
 - `WORKER_SCHEDULED_TIMEFRAMES`
+- `WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES`
 
 Nilai berikut dibutuhkan saat AI analysis live ingin dijalankan:
 
@@ -137,7 +140,7 @@ Endpoint chat layer yang tersedia saat ini:
 
 - `POST /chat-layer/twilio/webhook`
 
-`GET /health` dan `GET /readyz` juga membawa status operasional untuk context providers dan AI daily cost cap.
+`GET /health` dan `GET /readyz` juga membawa status operasional untuk context providers, AI daily cost cap, dan kegagalan AI seperti quota/billing OpenAI.
 
 ## Provider Notes
 
@@ -156,6 +159,15 @@ MVP saat ini diasumsikan private/internal dulu, dengan scope operasional utama `
 
 Dashboard dan API read path saat ini mendukung `1H` dan `4H`.
 `1H` belum menjadi scheduled operational baseline untuk worker loop.
+
+Worker sekarang juga punya lightweight threshold checks yang:
+
+- poll current price via CoinGecko
+- compare price against latest support, resistance, and invalidation levels
+- trigger full re-analysis when price is within the ATR-based threshold window
+
+Default threshold poll interval saat ini adalah `15` menit.
+Cooldown re-analysis internal saat ini adalah `15` menit untuk `1H` dan `60` menit untuk `4H`.
 
 Binance tidak dipakai di repository ini.
 

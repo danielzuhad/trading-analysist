@@ -1,6 +1,7 @@
 import { defaultCryptoWatchlistAssets } from "@trading-analyst/shared-types";
 import { describe, expect, it, vi } from "vitest";
 import {
+  fetchAlerts,
   fetchAssetOverview,
   fetchWatchlistOverview,
   resolveDashboardTimeframe,
@@ -90,5 +91,67 @@ describe("web dashboard data helpers", () => {
       data: null,
       status: "not-found",
     });
+  });
+
+  it("loads recent alerts through fetch with optional timeframe and asset filters", async () => {
+    const fetchMock = vi.fn(async () => ({
+      json: async () => ({
+        alerts: [
+          {
+            id: "alert-btc-1",
+            userId: "system:default",
+            assetId: asset.id,
+            timeframe: "4H",
+            dedupeKey: "btc-4h-watch-actionable",
+            kind: "market",
+            severity: "warning",
+            status: "suggested",
+            channels: ["dashboard"],
+            title: "BTC moved into ACTIONABLE",
+            message: "BTC is approaching a breakout confirmation zone.",
+            summary: "BTC remains constructive with resistance nearby.",
+            previousState: "WATCH",
+            currentState: "ACTIONABLE",
+            suggestion: "ENTRY_ON_CONFIRMATION",
+            createdAt: "2026-04-20T08:05:00.000Z",
+            isStale: false,
+            metadata: {},
+          },
+        ],
+        count: 1,
+      }),
+      ok: true,
+      status: 200,
+    }));
+
+    await expect(
+      fetchAlerts(
+        "http://localhost:3001",
+        {
+          assetId: asset.id,
+          limit: 4,
+          timeframe: "4H",
+        },
+        fetchMock,
+      ),
+    ).resolves.toMatchObject({
+      data: {
+        count: 1,
+        alerts: [
+          {
+            assetId: asset.id,
+            title: "BTC moved into ACTIONABLE",
+          },
+        ],
+      },
+      status: "ready",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `http://localhost:3001/alerts?limit=4&assetId=${encodeURIComponent(asset.id)}&timeframe=4H`,
+      {
+        cache: "no-store",
+      },
+    );
   });
 });

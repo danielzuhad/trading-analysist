@@ -232,7 +232,7 @@ Support manual position recording and position-aware analysis.
 - create, update, close, list, and active-position DB helpers
 - `GET /positions`, `GET /positions/active`, `POST /positions`, `PATCH /positions/:positionId`, and `POST /positions/:positionId/close`
 - worker injects active positions into signal aggregation before AI analysis
-- asset detail dashboard shows active position context and can record a manual position
+- asset detail dashboard shows active position context and can record, update, and close a manual position
 
 ### [x] Sprint 11 — Chat Layer via WhatsApp API
 

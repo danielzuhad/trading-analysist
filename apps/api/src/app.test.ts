@@ -430,6 +430,41 @@ describe("api health routes", () => {
     );
   });
 
+  it("surfaces OpenAI quota failures through operational health", async () => {
+    vi.mocked(listServiceHeartbeats).mockResolvedValueOnce([
+      {
+        checkedAt: "2026-06-08T07:00:00.000Z",
+        payload: {
+          currentState: "quota-exceeded",
+          detail:
+            "OpenAI API credits are exhausted or billing is inactive. Add credits, verify billing, then rerun the worker.",
+          maxDailyAiCostUsd: 2,
+          statusCode: 429,
+        },
+        serviceName: "ai:daily-cost-cap",
+        status: "down",
+      },
+    ]);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/health",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      operational: {
+        ai: {
+          checkedAt: "2026-06-08T07:00:00.000Z",
+          currentState: "quota-exceeded",
+          detail:
+            "OpenAI API credits are exhausted or billing is inactive. Add credits, verify billing, then rerun the worker.",
+          maxDailyAiCostUsd: 2,
+        },
+      },
+    });
+  });
+
   it("returns the latest market snapshot when it exists", async () => {
     vi.mocked(getLatestMarketData).mockResolvedValueOnce({
       series: {

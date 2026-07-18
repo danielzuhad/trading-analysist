@@ -102,8 +102,10 @@ describe("worker environment", () => {
       COINGECKO_API_KEY: "cg-demo-key",
       WORKER_CONCURRENCY: 1,
       WORKER_ENABLE_SCHEDULER: "false",
+      WORKER_ENABLE_THRESHOLD_CHECKS: "false",
       WORKER_SCHEDULED_ASSETS: "crypto:global:BTC-USD,crypto:global:ETH-USD",
       WORKER_SCHEDULED_TIMEFRAMES: "4H,1H",
+      WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES: "10",
     });
 
     expect(result.success).toBe(true);
@@ -115,6 +117,8 @@ describe("worker environment", () => {
     expect(result.data.COINGECKO_API_KEY).toBe("cg-demo-key");
     expect(result.data.COINGECKO_API_PLAN).toBe("demo");
     expect(result.data.WORKER_ENABLE_SCHEDULER).toBe(false);
+    expect(result.data.WORKER_ENABLE_THRESHOLD_CHECKS).toBe(false);
+    expect(result.data.WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES).toBe(10);
   });
 
   it("loads infrastructure URLs from the workspace root when missing", () => {
@@ -141,9 +145,11 @@ describe("worker environment", () => {
         MAX_DAILY_AI_COST_USD: 2,
         WORKER_CONCURRENCY: 1,
         WORKER_ENABLE_SCHEDULER: true,
+        WORKER_ENABLE_THRESHOLD_CHECKS: true,
         WORKER_SCHEDULED_ASSETS:
           "crypto:global:BTC-USD,crypto:global:ETH-USD,crypto:global:SOL-USD",
         WORKER_SCHEDULED_TIMEFRAMES: "4H",
+        WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES: 15,
       });
     } finally {
       rmSync(path.resolve(appDir, "../.."), {

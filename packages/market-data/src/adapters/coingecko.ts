@@ -1,6 +1,7 @@
 import {
   type Asset,
   type MarketCandleSeries,
+  type MarketPricePoint,
   marketCandleSeriesSchema,
 } from "@trading-analyst/shared-types";
 import { z } from "zod";
@@ -39,6 +40,10 @@ const ohlcPayloadSchema = z
 const marketChartPayloadSchema = z.object({
   prices: z.array(z.tuple([timestampSchema, z.number().finite()])).min(1),
   total_volumes: z.array(z.tuple([timestampSchema, numericSchema])).min(1),
+});
+const simplePriceCoinSchema = z.object({
+  usd: z.number().finite().positive(),
+  last_updated_at: timestampSchema.optional(),
 });
 
 type CoinGeckoMarketDataAdapterOptions = {
@@ -209,6 +214,77 @@ export class CoinGeckoMarketDataAdapter implements MarketDataAdapter {
         : {}),
     };
   }
+}
+
+export async function fetchCoinGeckoCurrentPrice({
+  apiKey,
+  apiPlan,
+  asset,
+  baseUrl,
+  fetchFn,
+  requestTimeoutMs,
+}: CoinGeckoMarketDataAdapterOptions & {
+  asset: Asset;
+}): Promise<MarketPricePoint> {
+  if (asset.assetClass !== "crypto") {
+    throw new MarketDataValidationError(
+      providerName,
+      "CoinGecko current price fetch only supports crypto assets in the current MVP",
+      {
+        assetClass: asset.assetClass,
+        assetId: asset.id,
+      },
+    );
+  }
+
+  const coinId = resolveCoinGeckoCoinId(asset);
+  const normalizedApiPlan = resolveCoinGeckoApiPlan(apiPlan);
+  const resolvedBaseUrl = resolveCoinGeckoBaseUrl({
+    apiKey,
+    apiPlan: normalizedApiPlan,
+    baseUrl,
+  });
+  const headers = buildCoinGeckoAuthHeaders({
+    apiKey,
+    apiPlan: normalizedApiPlan,
+  });
+  const payload = z.record(z.string(), simplePriceCoinSchema).parse(
+    await fetchJson(
+      buildCoinGeckoUrl(resolvedBaseUrl, "/simple/price", {
+        ids: coinId,
+        include_last_updated_at: "true",
+        precision: "full",
+        vs_currencies: quoteCurrency.toLowerCase(),
+      }),
+      {
+        ...(fetchFn ? { fetchFn } : {}),
+        ...(headers ? { headers } : {}),
+        provider: providerName,
+        ...(requestTimeoutMs !== undefined
+          ? { timeoutMs: requestTimeoutMs }
+          : {}),
+      },
+    ),
+  );
+  const coinPayload = payload[coinId];
+
+  if (!coinPayload) {
+    throw new MarketDataValidationError(
+      providerName,
+      "CoinGecko current price response did not include the requested asset",
+      {
+        assetId: asset.id,
+        coinId,
+      },
+    );
+  }
+
+  return {
+    price: coinPayload.usd,
+    timestamp: coinPayload.last_updated_at
+      ? new Date(coinPayload.last_updated_at * 1000).toISOString()
+      : new Date().toISOString(),
+  };
 }
 
 function buildCoinGeckoQuery(

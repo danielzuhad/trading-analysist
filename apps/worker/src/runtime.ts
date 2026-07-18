@@ -1,3 +1,4 @@
+import type { AnalysisTrigger } from "@trading-analyst/shared-types";
 import { type Job, Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
 import { loadWorkerEnv, type WorkerEnv } from "./env.js";
@@ -6,7 +7,10 @@ import {
   analysisQueueName,
   type MarketSnapshotJobData,
   marketSnapshotJobName,
+  thresholdCheckJobName,
+  type WorkerJobTrigger,
 } from "./queues.js";
+import { processThresholdCheckJob } from "./thresholds.js";
 
 type Logger = Pick<typeof console, "error" | "log" | "warn">;
 
@@ -41,58 +45,130 @@ async function defaultProcessor(
   env: WorkerEnv,
   logger: Logger,
 ) {
-  if (job.name !== marketSnapshotJobName) {
-    logger.warn(`[worker] skipped unsupported job name "${job.name}"`);
-    return;
-  }
+  if (job.name === marketSnapshotJobName) {
+    const result = await runAnalysisCycle({
+      assetId: job.data.assetId,
+      ...(env.COINGECKO_API_KEY
+        ? { coingeckoApiKey: env.COINGECKO_API_KEY }
+        : {}),
+      coingeckoApiPlan: env.COINGECKO_API_PLAN,
+      connectionString: env.DATABASE_URL,
+      logger,
+      maxDailyAiCostUsd: env.MAX_DAILY_AI_COST_USD,
+      ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
+      requestedAt: job.data.requestedAt,
+      timeframe: job.data.timeframe,
+      triggeredBy: resolveAnalysisTrigger(job.data.trigger),
+      ...(env.TWILIO_ACCOUNT_SID &&
+      env.TWILIO_AUTH_TOKEN &&
+      env.TWILIO_WHATSAPP_FROM &&
+      env.TWILIO_WHATSAPP_TO
+        ? {
+            whatsappAlertDelivery: {
+              accountSid: env.TWILIO_ACCOUNT_SID,
+              authToken: env.TWILIO_AUTH_TOKEN,
+              from: env.TWILIO_WHATSAPP_FROM,
+              ...(env.TWILIO_STATUS_CALLBACK_URL
+                ? { statusCallbackUrl: env.TWILIO_STATUS_CALLBACK_URL }
+                : {}),
+              to: env.TWILIO_WHATSAPP_TO,
+            },
+          }
+        : {}),
+    });
 
-  const result = await runAnalysisCycle({
-    assetId: job.data.assetId,
-    ...(env.COINGECKO_API_KEY
-      ? { coingeckoApiKey: env.COINGECKO_API_KEY }
-      : {}),
-    coingeckoApiPlan: env.COINGECKO_API_PLAN,
-    connectionString: env.DATABASE_URL,
-    logger,
-    maxDailyAiCostUsd: env.MAX_DAILY_AI_COST_USD,
-    ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
-    requestedAt: job.data.requestedAt,
-    timeframe: job.data.timeframe,
-    ...(env.TWILIO_ACCOUNT_SID &&
-    env.TWILIO_AUTH_TOKEN &&
-    env.TWILIO_WHATSAPP_FROM &&
-    env.TWILIO_WHATSAPP_TO
-      ? {
-          whatsappAlertDelivery: {
-            accountSid: env.TWILIO_ACCOUNT_SID,
-            authToken: env.TWILIO_AUTH_TOKEN,
-            from: env.TWILIO_WHATSAPP_FROM,
-            ...(env.TWILIO_STATUS_CALLBACK_URL
-              ? { statusCallbackUrl: env.TWILIO_STATUS_CALLBACK_URL }
-              : {}),
-            to: env.TWILIO_WHATSAPP_TO,
-          },
-        }
-      : {}),
-  });
+    if (result.status === "skipped") {
+      logger.warn(
+        `[worker] analysis cycle skipped for ${result.assetId}: ${result.reason}`,
+      );
+      return;
+    }
 
-  if (result.status === "skipped") {
-    logger.warn(
-      `[worker] analysis cycle skipped for ${result.assetId}: ${result.reason}`,
+    if (result.analysis.status === "skipped") {
+      logger.warn(
+        `[worker] analysis cycle stored market data for ${result.assetId} ${result.timeframe}, but AI analysis was skipped: ${result.analysis.reason}`,
+      );
+      return;
+    }
+
+    logger.log(
+      `[worker] completed full analysis cycle for ${result.assetId} ${result.timeframe} with context ${result.contextPartial ? "partial" : "complete"} and AI state ${result.analysis.state}`,
     );
     return;
   }
 
-  if (result.analysis.status === "skipped") {
-    logger.warn(
-      `[worker] analysis cycle stored market data for ${result.assetId} ${result.timeframe}, but AI analysis was skipped: ${result.analysis.reason}`,
+  if (job.name === thresholdCheckJobName) {
+    const thresholdResult = await processThresholdCheckJob({
+      ...(env.COINGECKO_API_KEY ? { apiKey: env.COINGECKO_API_KEY } : {}),
+      apiPlan: env.COINGECKO_API_PLAN,
+      assetId: job.data.assetId,
+      connectionString: env.DATABASE_URL,
+      requestedAt: job.data.requestedAt,
+      timeframe: job.data.timeframe,
+    });
+
+    if (thresholdResult.status === "skipped") {
+      logger.log(
+        `[worker] threshold check skipped for ${thresholdResult.assetId} ${thresholdResult.timeframe}: ${thresholdResult.reason}`,
+      );
+      return;
+    }
+
+    logger.log(
+      `[worker] threshold check triggered re-analysis for ${thresholdResult.assetId} ${thresholdResult.timeframe}: ${thresholdResult.level.kind} at ${thresholdResult.level.level} is ${thresholdResult.level.distance} away (ATR ${thresholdResult.thresholdDistance})`,
+    );
+
+    const result = await runAnalysisCycle({
+      assetId: job.data.assetId,
+      ...(env.COINGECKO_API_KEY
+        ? { coingeckoApiKey: env.COINGECKO_API_KEY }
+        : {}),
+      coingeckoApiPlan: env.COINGECKO_API_PLAN,
+      connectionString: env.DATABASE_URL,
+      logger,
+      maxDailyAiCostUsd: env.MAX_DAILY_AI_COST_USD,
+      ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
+      requestedAt: job.data.requestedAt,
+      timeframe: job.data.timeframe,
+      triggeredBy: "realtime_event",
+      ...(env.TWILIO_ACCOUNT_SID &&
+      env.TWILIO_AUTH_TOKEN &&
+      env.TWILIO_WHATSAPP_FROM &&
+      env.TWILIO_WHATSAPP_TO
+        ? {
+            whatsappAlertDelivery: {
+              accountSid: env.TWILIO_ACCOUNT_SID,
+              authToken: env.TWILIO_AUTH_TOKEN,
+              from: env.TWILIO_WHATSAPP_FROM,
+              ...(env.TWILIO_STATUS_CALLBACK_URL
+                ? { statusCallbackUrl: env.TWILIO_STATUS_CALLBACK_URL }
+                : {}),
+              to: env.TWILIO_WHATSAPP_TO,
+            },
+          }
+        : {}),
+    });
+
+    if (result.status === "skipped") {
+      logger.warn(
+        `[worker] threshold-triggered analysis skipped for ${result.assetId}: ${result.reason}`,
+      );
+      return;
+    }
+
+    if (result.analysis.status === "skipped") {
+      logger.warn(
+        `[worker] threshold-triggered analysis stored market data for ${result.assetId} ${result.timeframe}, but AI analysis was skipped: ${result.analysis.reason}`,
+      );
+      return;
+    }
+
+    logger.log(
+      `[worker] completed threshold-triggered analysis for ${result.assetId} ${result.timeframe} with context ${result.contextPartial ? "partial" : "complete"} and AI state ${result.analysis.state}`,
     );
     return;
   }
-
-  logger.log(
-    `[worker] completed full analysis cycle for ${result.assetId} ${result.timeframe} with context ${result.contextPartial ? "partial" : "complete"} and AI state ${result.analysis.state}`,
-  );
+  logger.warn(`[worker] skipped unsupported job name "${job.name}"`);
 }
 
 export function createWorkerRuntime({
@@ -192,6 +268,8 @@ export async function startWorkerRuntime(
   const shouldEnableScheduler =
     options.enableScheduler ??
     (runtime.env.NODE_ENV !== "test" && runtime.env.WORKER_ENABLE_SCHEDULER);
+  const shouldEnableThresholdChecks =
+    shouldEnableScheduler && runtime.env.WORKER_ENABLE_THRESHOLD_CHECKS;
   const scheduledAssets = parseCsvList(runtime.env.WORKER_SCHEDULED_ASSETS);
   const scheduledTimeframes = parseTimeframes(
     runtime.env.WORKER_SCHEDULED_TIMEFRAMES,
@@ -203,8 +281,9 @@ export async function startWorkerRuntime(
   );
 
   if (shouldEnqueueBootstrapJob) {
-    await enqueueAnalysisJobs({
+    await enqueueWorkerJobs({
       assetIds: scheduledAssets,
+      jobName: marketSnapshotJobName,
       queue: runtime.analysisQueue,
       timeframes: scheduledTimeframes,
       trigger: "bootstrap",
@@ -216,8 +295,9 @@ export async function startWorkerRuntime(
       const intervalMs =
         timeframe === "1H" ? 60 * 60 * 1000 : 4 * 60 * 60 * 1000;
       const handle = setInterval(() => {
-        void enqueueAnalysisJobs({
+        void enqueueWorkerJobs({
           assetIds: scheduledAssets,
+          jobName: marketSnapshotJobName,
           queue: runtime.analysisQueue,
           timeframes: [timeframe],
           trigger: "scheduled",
@@ -229,6 +309,25 @@ export async function startWorkerRuntime(
         `[worker] scheduled ${scheduledAssets.length} asset(s) on ${timeframe} every ${intervalMs / 60_000} minute(s)`,
       );
     }
+  }
+
+  if (shouldEnableThresholdChecks) {
+    const thresholdIntervalMs =
+      runtime.env.WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES * 60 * 1000;
+    const handle = setInterval(() => {
+      void enqueueWorkerJobs({
+        assetIds: scheduledAssets,
+        jobName: thresholdCheckJobName,
+        queue: runtime.analysisQueue,
+        timeframes: scheduledTimeframes,
+        trigger: "threshold",
+      });
+    }, thresholdIntervalMs);
+
+    schedulerHandles.push(handle);
+    logger.log(
+      `[worker] scheduled lightweight threshold checks for ${scheduledAssets.length} asset(s) on ${scheduledTimeframes.join(", ")} every ${runtime.env.WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES} minute(s)`,
+    );
   }
 
   const originalShutdown = runtime.shutdown;
@@ -243,13 +342,15 @@ export async function startWorkerRuntime(
   return runtime;
 }
 
-async function enqueueAnalysisJobs({
+async function enqueueWorkerJobs({
   assetIds,
+  jobName,
   queue,
   timeframes,
   trigger,
 }: {
   assetIds: string[];
+  jobName: string;
   queue: Queue<MarketSnapshotJobData>;
   timeframes: MarketSnapshotJobData["timeframe"][];
   trigger: MarketSnapshotJobData["trigger"];
@@ -259,7 +360,7 @@ async function enqueueAnalysisJobs({
   await Promise.all(
     assetIds.flatMap((assetId) =>
       timeframes.map((timeframe) =>
-        queue.add(marketSnapshotJobName, {
+        queue.add(jobName, {
           assetId,
           requestedAt,
           timeframe,
@@ -284,4 +385,16 @@ function parseTimeframes(
     (entry): entry is MarketSnapshotJobData["timeframe"] =>
       entry === "1H" || entry === "4H",
   );
+}
+
+function resolveAnalysisTrigger(trigger: WorkerJobTrigger): AnalysisTrigger {
+  switch (trigger) {
+    case "bootstrap":
+    case "scheduled":
+      return "scheduled";
+    case "manual":
+      return "manual_recalculation";
+    case "threshold":
+      return "realtime_event";
+  }
 }

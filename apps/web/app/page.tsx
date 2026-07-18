@@ -1,11 +1,16 @@
 import Link from "next/link";
 
 import {
+  fetchAlerts,
   fetchWatchlistOverview,
   resolveDashboardTimeframe,
 } from "../dashboard";
 import { loadWebEnv } from "../env";
-import { fetchInfrastructureStatus } from "../status";
+import {
+  buildAiOperationalWarning,
+  fetchInfrastructureStatus,
+} from "../status";
+import { AlertFeed } from "./alert-feed";
 import { formatPercent, formatPrice, formatScore } from "./dashboard-format";
 import {
   DashboardTimeframeTabs,
@@ -14,6 +19,7 @@ import {
   StateBadge,
 } from "./dashboard-primitives";
 import { InfrastructureStatusCard } from "./infrastructure-status-card";
+import { OperationalWarningBanner } from "./operational-warning-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -27,11 +33,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const timeframe = resolveDashboardTimeframe(resolvedSearchParams?.timeframe);
   const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
-  const [overviewResult, infrastructureStatus] = await Promise.all([
-    fetchWatchlistOverview(apiBaseUrl, timeframe),
-    fetchInfrastructureStatus(apiBaseUrl),
-  ]);
+  const [overviewResult, infrastructureStatus, alertsResult] =
+    await Promise.all([
+      fetchWatchlistOverview(apiBaseUrl, timeframe),
+      fetchInfrastructureStatus(apiBaseUrl),
+      fetchAlerts(apiBaseUrl, {
+        limit: 6,
+        timeframe,
+      }),
+    ]);
   const items = overviewResult.data?.items ?? [];
+  const alerts = alertsResult.data?.alerts ?? [];
   const counts = items.reduce(
     (summary, item) => {
       summary[item.status] += 1;
@@ -44,6 +56,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     },
   );
   const leadItem = items[0];
+  const aiWarning = buildAiOperationalWarning(infrastructureStatus);
 
   return (
     <main className="shell shell--dashboard">
@@ -77,6 +90,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         </div>
       </section>
+
+      {aiWarning ? <OperationalWarningBanner warning={aiWarning} /> : null}
 
       <section className="dashboard-grid">
         <article className="card card--summary">
@@ -217,6 +232,26 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="watchlist-section">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Alerts</p>
+            <h2>Recent Feed</h2>
+          </div>
+          <p className="section-copy">
+            Latest state-transition alerts for the selected dashboard timeframe.
+          </p>
+        </div>
+
+        <AlertFeed
+          alerts={alerts}
+          emptyMessage="No alerts have been generated for this timeframe yet."
+          issues={alertsResult.issues}
+          message={alertsResult.message}
+          title="Recent Alerts"
+        />
       </section>
     </main>
   );

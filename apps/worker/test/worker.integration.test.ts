@@ -45,9 +45,11 @@ describeInfrastructure("worker bootstrap", () => {
         REDIS_URL: requireRedisUrl(),
         WORKER_CONCURRENCY: 1,
         WORKER_ENABLE_SCHEDULER: false,
+        WORKER_ENABLE_THRESHOLD_CHECKS: false,
         WORKER_SCHEDULED_ASSETS:
           "crypto:global:BTC-USD,crypto:global:ETH-USD,crypto:global:SOL-USD",
         WORKER_SCHEDULED_TIMEFRAMES: "4H",
+        WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES: 15,
       },
       enqueueBootstrapJob: false,
       logger: {

@@ -1,3 +1,4 @@
+import { OpenAiAnalysisError } from "@trading-analyst/ai-analysis";
 import type { LatestMarketData } from "@trading-analyst/db";
 import type {
   IndicatorSnapshot,
@@ -197,19 +198,20 @@ describe("worker analysis pipeline", () => {
       serviceName: heartbeat.serviceName,
       status: heartbeat.status,
     }));
+    const generateAnalysisFromSignalSnapshotFn = vi.fn(async () => ({
+      analysisId: "analysis:latest:crypto:global:BTC-USD:4H",
+      assetId,
+      state: "ACTIONABLE" as const,
+      status: "stored" as const,
+      timeframe: "4H" as const,
+    }));
 
     const result = await runAnalysisCycle({
       assetId,
       contextService: {
         fetchContext: vi.fn(async () => marketContextFixture),
       },
-      generateAnalysisFromSignalSnapshotFn: vi.fn(async () => ({
-        analysisId: "analysis:latest:crypto:global:BTC-USD:4H",
-        assetId,
-        state: "ACTIONABLE" as const,
-        status: "stored" as const,
-        timeframe: "4H" as const,
-      })),
+      generateAnalysisFromSignalSnapshotFn,
       getActivePositionForAssetFn: vi.fn(async () => null),
       ingestLatestMarketDataFn: vi.fn(async () => ({
         indicatorSnapshot: indicatorFixture,
@@ -225,6 +227,7 @@ describe("worker analysis pipeline", () => {
       requestedAt,
       saveHeartbeat,
       timeframe: "4H",
+      triggeredBy: "scheduled",
     });
 
     expect(result).toMatchObject({
@@ -248,6 +251,11 @@ describe("worker analysis pipeline", () => {
         status: "ok",
       }),
       undefined,
+    );
+    expect(generateAnalysisFromSignalSnapshotFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        triggeredBy: "scheduled",
+      }),
     );
   });
 
@@ -301,6 +309,7 @@ describe("worker analysis pipeline", () => {
         status: heartbeat.status,
       })),
       timeframe: "4H",
+      triggeredBy: "scheduled",
     });
 
     expect(generateAnalysisFromSignalSnapshotFn).toHaveBeenCalledWith(
@@ -310,6 +319,7 @@ describe("worker analysis pipeline", () => {
             id: positionFixture.id,
           }),
         }),
+        triggeredBy: "scheduled",
       }),
     );
   });
@@ -339,5 +349,73 @@ describe("worker analysis pipeline", () => {
       timeframe: "4H",
     });
     expect(contextService.fetchContext).not.toHaveBeenCalled();
+  });
+
+  it("persists an AI quota heartbeat before rethrowing provider failures", async () => {
+    const saveHeartbeat = vi.fn(async (heartbeat) => ({
+      checkedAt: heartbeat.checkedAt ?? requestedAt,
+      payload: heartbeat.payload ?? null,
+      serviceName: heartbeat.serviceName,
+      status: heartbeat.status,
+    }));
+    const quotaError = new OpenAiAnalysisError(
+      "OpenAI Responses API request failed with status 429.",
+      {
+        responseBody: JSON.stringify({
+          error: {
+            code: "insufficient_quota",
+            message:
+              "You exceeded your current quota, please check your plan and billing details.",
+            type: "insufficient_quota",
+          },
+        }),
+        statusCode: 429,
+      },
+    );
+
+    await expect(
+      runAnalysisCycle({
+        assetId,
+        contextService: {
+          fetchContext: vi.fn(async () => marketContextFixture),
+        },
+        generateAnalysisFromSignalSnapshotFn: vi.fn(async () => {
+          throw quotaError;
+        }),
+        getActivePositionForAssetFn: vi.fn(async () => null),
+        ingestLatestMarketDataFn: vi.fn(async () => ({
+          indicatorSnapshot: indicatorFixture,
+          marketData: marketDataFixture,
+          signalAggregationSnapshot: signalAggregationFixture,
+        })),
+        logger: {
+          error: vi.fn(),
+          log: vi.fn(),
+          warn: vi.fn(),
+        },
+        coingeckoApiKey: "test-key",
+        requestedAt,
+        saveHeartbeat,
+        timeframe: "4H",
+        triggeredBy: "scheduled",
+      }),
+    ).rejects.toThrow(quotaError);
+
+    expect(saveHeartbeat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payload: expect.objectContaining({
+          assetId,
+          currentState: "quota-exceeded",
+          detail:
+            "OpenAI API credits are exhausted or billing is inactive. Add credits, verify billing, then rerun the worker.",
+          errorCode: "insufficient_quota",
+          statusCode: 429,
+          timeframe: "4H",
+        }),
+        serviceName: "ai:daily-cost-cap",
+        status: "down",
+      }),
+      undefined,
+    );
   });
 });

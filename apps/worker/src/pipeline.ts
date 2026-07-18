@@ -1,4 +1,7 @@
-import type { AiAnalysisProvider } from "@trading-analyst/ai-analysis";
+import {
+  type AiAnalysisProvider,
+  OpenAiAnalysisError,
+} from "@trading-analyst/ai-analysis";
 import {
   getActivePositionForAsset,
   saveServiceHeartbeat,
@@ -10,7 +13,10 @@ import {
   FearAndGreedContextProvider,
   MarketContextService,
 } from "@trading-analyst/market-data";
-import type { SupportedTimeframe } from "@trading-analyst/shared-types";
+import type {
+  AnalysisTrigger,
+  SupportedTimeframe,
+} from "@trading-analyst/shared-types";
 import { buildSignalAggregationSnapshot } from "@trading-analyst/signal-aggregation";
 import {
   type GenerateLatestAssetAnalysisResult,
@@ -41,6 +47,7 @@ type RunAnalysisCycleOptions = {
   requestedAt: string;
   saveHeartbeat?: typeof saveServiceHeartbeat;
   timeframe: SupportedTimeframe;
+  triggeredBy?: AnalysisTrigger;
   whatsappAlertDelivery?: {
     accountSid: string;
     authToken: string;
@@ -83,6 +90,7 @@ export async function runAnalysisCycle({
   requestedAt,
   saveHeartbeat = saveServiceHeartbeat,
   timeframe,
+  triggeredBy = "manual_recalculation",
   whatsappAlertDelivery,
 }: RunAnalysisCycleOptions): Promise<AnalysisCycleResult> {
   const asset = findDefaultCryptoAsset(assetId);
@@ -165,16 +173,43 @@ export async function runAnalysisCycle({
     timeframe,
   });
 
-  const analysis = await generateAnalysisFromSignalSnapshotFn({
-    logger,
-    ...(connectionString ? { connectionString } : {}),
-    ...(maxDailyAiCostUsd !== undefined ? { maxDailyAiCostUsd } : {}),
-    ...(openAiApiKey ? { openAiApiKey } : {}),
-    ...(aiProvider ? { provider: aiProvider } : {}),
-    signalSnapshot: signalAggregationSnapshot,
-    timeframe,
-    ...(whatsappAlertDelivery ? { whatsappAlertDelivery } : {}),
-  });
+  let analysis: GenerateLatestAssetAnalysisResult;
+
+  try {
+    analysis = await generateAnalysisFromSignalSnapshotFn({
+      logger,
+      ...(connectionString ? { connectionString } : {}),
+      ...(maxDailyAiCostUsd !== undefined ? { maxDailyAiCostUsd } : {}),
+      ...(openAiApiKey ? { openAiApiKey } : {}),
+      ...(aiProvider ? { provider: aiProvider } : {}),
+      signalSnapshot: signalAggregationSnapshot,
+      timeframe,
+      triggeredBy,
+      ...(whatsappAlertDelivery ? { whatsappAlertDelivery } : {}),
+    });
+  } catch (error) {
+    try {
+      await persistAiFailureHeartbeat({
+        assetId,
+        error,
+        ...(maxDailyAiCostUsd !== undefined ? { maxDailyAiCostUsd } : {}),
+        requestedAt,
+        saveHeartbeat,
+        timeframe,
+        ...(connectionString ? { connectionString } : {}),
+      });
+    } catch (heartbeatError) {
+      logger.error(
+        `[worker] failed to persist AI heartbeat for ${assetId} ${timeframe}: ${
+          heartbeatError instanceof Error
+            ? heartbeatError.message
+            : "Unknown heartbeat error"
+        }`,
+      );
+    }
+
+    throw error;
+  }
 
   await persistAiHeartbeat({
     analysis,
@@ -273,6 +308,46 @@ async function persistAiHeartbeat({
   );
 }
 
+async function persistAiFailureHeartbeat({
+  assetId,
+  connectionString,
+  error,
+  maxDailyAiCostUsd,
+  requestedAt,
+  saveHeartbeat,
+  timeframe,
+}: {
+  assetId: string;
+  connectionString?: string;
+  error: unknown;
+  maxDailyAiCostUsd?: number;
+  requestedAt: string;
+  saveHeartbeat: typeof saveServiceHeartbeat;
+  timeframe: SupportedTimeframe;
+}) {
+  const failure = classifyAiHeartbeatFailure(error);
+
+  await saveHeartbeat(
+    {
+      checkedAt: requestedAt,
+      payload: {
+        assetId,
+        currentState: failure.currentState,
+        detail: failure.detail,
+        ...(failure.errorCode ? { errorCode: failure.errorCode } : {}),
+        ...(maxDailyAiCostUsd !== undefined ? { maxDailyAiCostUsd } : {}),
+        ...(failure.statusCode !== undefined
+          ? { statusCode: failure.statusCode }
+          : {}),
+        timeframe,
+      },
+      serviceName: "ai:daily-cost-cap",
+      status: failure.status,
+    },
+    connectionString,
+  );
+}
+
 function resolveAiHeartbeatStatus(analysis: GenerateLatestAssetAnalysisResult) {
   if (analysis.status === "stored") {
     return "ok";
@@ -287,4 +362,85 @@ function resolveAiHeartbeatStatus(analysis: GenerateLatestAssetAnalysisResult) {
   }
 
   return "degraded";
+}
+
+function classifyAiHeartbeatFailure(error: unknown) {
+  const responseError = readOpenAiErrorPayload(error);
+
+  if (
+    responseError?.errorCode === "insufficient_quota" ||
+    responseError?.errorType === "insufficient_quota"
+  ) {
+    return {
+      currentState: "quota-exceeded" as const,
+      detail:
+        "OpenAI API credits are exhausted or billing is inactive. Add credits, verify billing, then rerun the worker.",
+      errorCode: responseError.errorCode,
+      status: "down",
+      ...(responseError.statusCode !== undefined
+        ? { statusCode: responseError.statusCode }
+        : {}),
+    };
+  }
+
+  return {
+    currentState: "error" as const,
+    detail:
+      responseError?.message ??
+      (error instanceof Error
+        ? error.message
+        : "The latest AI analysis request failed."),
+    errorCode: responseError?.errorCode,
+    status: "down",
+    ...(responseError?.statusCode !== undefined
+      ? { statusCode: responseError.statusCode }
+      : {}),
+  };
+}
+
+function readOpenAiErrorPayload(error: unknown) {
+  if (!(error instanceof OpenAiAnalysisError)) {
+    return undefined;
+  }
+
+  let parsedBody: {
+    error?: {
+      code?: string | null;
+      message?: string;
+      type?: string | null;
+    };
+  } | null = null;
+
+  if (error.details?.responseBody) {
+    try {
+      parsedBody = JSON.parse(error.details.responseBody) as {
+        error?: {
+          code?: string | null;
+          message?: string;
+          type?: string | null;
+        };
+      };
+    } catch {
+      parsedBody = null;
+    }
+  }
+
+  return {
+    errorCode:
+      typeof parsedBody?.error?.code === "string"
+        ? parsedBody.error.code
+        : undefined,
+    errorType:
+      typeof parsedBody?.error?.type === "string"
+        ? parsedBody.error.type
+        : undefined,
+    message:
+      typeof parsedBody?.error?.message === "string"
+        ? parsedBody.error.message
+        : undefined,
+    statusCode:
+      typeof error.details?.statusCode === "number"
+        ? error.details.statusCode
+        : undefined,
+  };
 }

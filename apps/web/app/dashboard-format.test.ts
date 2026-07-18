@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatAlertStateTransition,
+  formatAlertTimestamp,
   formatMissingDataLabel,
   formatPercent,
+  formatPositionStatusMessage,
   formatPrice,
   formatScore,
+  mapAlertSeverityTone,
   mapAssetStateTone,
   mapOverviewStatusTone,
+  mapPositionStatusTone,
 } from "./dashboard-format";
 
 describe("dashboard presentation helpers", () => {
@@ -20,6 +25,7 @@ describe("dashboard presentation helpers", () => {
     expect(formatPrice(undefined)).toBe("Unavailable");
     expect(formatPercent(undefined)).toBe("Unavailable");
     expect(formatScore(undefined)).toBe("Unavailable");
+    expect(formatAlertTimestamp(undefined)).toBe("Unavailable");
   });
 
   it("maps dashboard statuses and asset states to UI tones", () => {
@@ -32,5 +38,23 @@ describe("dashboard presentation helpers", () => {
     expect(mapOverviewStatusTone("ready")).toBe("active");
     expect(mapOverviewStatusTone("partial")).toBe("degraded");
     expect(mapOverviewStatusTone("pending")).toBe("disabled");
+    expect(
+      formatAlertStateTransition({
+        currentState: "ACTIONABLE",
+        previousState: "WATCH",
+      }),
+    ).toBe("WATCH -> ACTIONABLE");
+    expect(mapAlertSeverityTone({ severity: "critical" })).toBe("down");
+    expect(mapAlertSeverityTone({ severity: "warning" })).toBe("degraded");
+    expect(mapAlertSeverityTone({ severity: "info" })).toBe("active");
+    expect(formatPositionStatusMessage("updated")).toBe(
+      "Position updated successfully.",
+    );
+    expect(formatPositionStatusMessage("close-failed")).toBe(
+      "Failed to close position.",
+    );
+    expect(mapPositionStatusTone("closed")).toBe("success");
+    expect(mapPositionStatusTone("update-failed")).toBe("error");
+    expect(mapPositionStatusTone("api")).toBe("muted");
   });
 });

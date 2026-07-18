@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  buildAiOperationalWarning,
   fetchInfrastructureStatus,
   type InfrastructureStatus,
 } from "../status";
@@ -45,11 +46,14 @@ export function InfrastructureStatusCard({
     );
   }
 
+  const aiWarning = buildAiOperationalWarning(infrastructureStatus);
+
   return (
     <article className="card">
       <h2>Infrastructure Status</h2>
       <p>Status: {infrastructureStatus.status}</p>
       <p>{infrastructureStatus.message}</p>
+      {aiWarning ? <p>AI warning: {aiWarning.title}</p> : null}
       {infrastructureStatus.checks ? (
         <>
           <p>
@@ -84,6 +88,12 @@ export function InfrastructureStatusCard({
               {infrastructureStatus.operational.ai.currentState}
             </span>
           </p>
+          {infrastructureStatus.operational.ai.detail ? (
+            <p>AI note: {infrastructureStatus.operational.ai.detail}</p>
+          ) : null}
+          {infrastructureStatus.operational.ai.checkedAt ? (
+            <p>AI heartbeat: {infrastructureStatus.operational.ai.checkedAt}</p>
+          ) : null}
           {Object.entries(infrastructureStatus.operational.providers).length >
           0 ? (
             <div className="status-provider-list">
@@ -111,7 +121,13 @@ export function InfrastructureStatusCard({
 }
 
 function mapAiStateToTone(
-  state: "cap-reached" | "disabled" | "ok" | "unknown",
+  state:
+    | "cap-reached"
+    | "disabled"
+    | "error"
+    | "ok"
+    | "quota-exceeded"
+    | "unknown",
 ) {
   if (state === "ok") {
     return "active";
@@ -121,7 +137,7 @@ function mapAiStateToTone(
     return "disabled";
   }
 
-  if (state === "unknown") {
+  if (state === "cap-reached" || state === "unknown") {
     return "degraded";
   }
 

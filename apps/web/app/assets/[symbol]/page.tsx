@@ -2,14 +2,22 @@ import { findDefaultCryptoAssetBySymbol } from "@trading-analyst/shared-types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  fetchAlerts,
   fetchAssetOverview,
   resolveDashboardTimeframe,
 } from "../../../dashboard";
 import { loadWebEnv } from "../../../env";
 import {
+  buildAiOperationalWarning,
+  fetchInfrastructureStatus,
+} from "../../../status";
+import { AlertFeed } from "../../alert-feed";
+import {
   formatPercent,
+  formatPositionStatusMessage,
   formatPrice,
   formatScore,
+  mapPositionStatusTone,
 } from "../../dashboard-format";
 import {
   DashboardTimeframeTabs,
@@ -17,7 +25,13 @@ import {
   OverviewStatusBadge,
   StateBadge,
 } from "../../dashboard-primitives";
-import { recordPositionAction } from "./actions";
+import { OperationalWarningBanner } from "../../operational-warning-banner";
+import {
+  closePositionAction,
+  recordPositionAction,
+  updatePositionAction,
+} from "./actions";
+import { manualPositionAnchorId } from "./position-action-payload";
 
 export const dynamic = "force-dynamic";
 
@@ -45,15 +59,24 @@ export default async function AssetDetailPage({
 
   const timeframe = resolveDashboardTimeframe(resolvedSearchParams?.timeframe);
   const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
-  const overviewResult = await fetchAssetOverview(
-    apiBaseUrl,
-    asset.id,
-    timeframe,
-  );
+  const [overviewResult, alertsResult, infrastructureStatus] =
+    await Promise.all([
+      fetchAssetOverview(apiBaseUrl, asset.id, timeframe),
+      fetchAlerts(apiBaseUrl, {
+        assetId: asset.id,
+        limit: 5,
+        timeframe,
+      }),
+      fetchInfrastructureStatus(apiBaseUrl),
+    ]);
   const overview = overviewResult.data;
+  const alerts = alertsResult.data?.alerts ?? [];
+  const aiWarning = buildAiOperationalWarning(infrastructureStatus);
   const positionStatus = Array.isArray(resolvedSearchParams?.positionStatus)
     ? resolvedSearchParams.positionStatus[0]
     : resolvedSearchParams?.positionStatus;
+  const positionStatusMessage = formatPositionStatusMessage(positionStatus);
+  const positionStatusTone = mapPositionStatusTone(positionStatus);
   const activePosition = overview?.activePosition;
 
   return (
@@ -94,6 +117,8 @@ export default async function AssetDetailPage({
           </div>
         </div>
       </section>
+
+      {aiWarning ? <OperationalWarningBanner warning={aiWarning} /> : null}
 
       {overview ? (
         <>
@@ -164,7 +189,7 @@ export default async function AssetDetailPage({
               </div>
             </article>
 
-            <article className="card card--summary">
+            <article className="card card--summary" id={manualPositionAnchorId}>
               <div className="card-heading">
                 <h2>Manual Position</h2>
                 <OverviewStatusBadge
@@ -172,13 +197,153 @@ export default async function AssetDetailPage({
                 />
               </div>
 
+              {positionStatusMessage ? (
+                <p
+                  className={`action-banner action-banner--${positionStatusTone}`}
+                  role="status"
+                >
+                  {positionStatusMessage}
+                </p>
+              ) : null}
+
               {activePosition ? (
-                <div className="detail-list">
-                  <p>Direction: {activePosition.direction}</p>
-                  <p>Status: {activePosition.status}</p>
-                  <p>Entry: {formatPrice(activePosition.averageEntryPrice)}</p>
-                  <p>Quantity: {activePosition.remainingQuantity}</p>
-                  <p>Stop loss: {formatPrice(activePosition.stopLoss)}</p>
+                <div className="position-stack">
+                  <div className="detail-list">
+                    <p>Direction: {activePosition.direction}</p>
+                    <p>Status: {activePosition.status}</p>
+                    <p>
+                      Average entry:{" "}
+                      {formatPrice(activePosition.averageEntryPrice)}
+                    </p>
+                    <p>Initial quantity: {activePosition.quantity}</p>
+                    <p>
+                      Remaining quantity: {activePosition.remainingQuantity}
+                    </p>
+                    <p>Stop loss: {formatPrice(activePosition.stopLoss)}</p>
+                    <p>Opened at: {activePosition.openedAt}</p>
+                    <p>Last updated: {activePosition.lastUpdatedAt}</p>
+                  </div>
+
+                  <form className="position-form" action={updatePositionAction}>
+                    <input
+                      type="hidden"
+                      name="positionId"
+                      value={activePosition.id}
+                    />
+                    <input
+                      type="hidden"
+                      name="symbol"
+                      value={asset.symbol.toLowerCase()}
+                    />
+                    <input type="hidden" name="timeframe" value={timeframe} />
+                    <label>
+                      Average Entry
+                      <input
+                        name="averageEntryPrice"
+                        type="number"
+                        step="any"
+                        min="0"
+                        defaultValue={activePosition.averageEntryPrice}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Remaining Quantity
+                      <input
+                        name="remainingQuantity"
+                        type="number"
+                        step="any"
+                        min="0"
+                        defaultValue={activePosition.remainingQuantity}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Status
+                      <select
+                        name="status"
+                        defaultValue={activePosition.status}
+                      >
+                        <option value="open">Open</option>
+                        <option value="partially_closed">
+                          Partially Closed
+                        </option>
+                      </select>
+                    </label>
+                    <label>
+                      Stop
+                      <input
+                        name="stopLoss"
+                        type="number"
+                        step="any"
+                        min="0"
+                        defaultValue={activePosition.stopLoss ?? ""}
+                      />
+                    </label>
+                    <label className="position-form__wide">
+                      Thesis
+                      <input
+                        name="thesis"
+                        type="text"
+                        defaultValue={activePosition.thesis ?? ""}
+                      />
+                    </label>
+                    <label className="position-form__wide">
+                      Notes
+                      <textarea
+                        name="notes"
+                        rows={3}
+                        defaultValue={activePosition.notes ?? ""}
+                      />
+                    </label>
+                    <button type="submit">Save Position Update</button>
+                  </form>
+
+                  <form
+                    className="position-form position-form--close"
+                    action={closePositionAction}
+                  >
+                    <input
+                      type="hidden"
+                      name="positionId"
+                      value={activePosition.id}
+                    />
+                    <input
+                      type="hidden"
+                      name="symbol"
+                      value={asset.symbol.toLowerCase()}
+                    />
+                    <input type="hidden" name="timeframe" value={timeframe} />
+                    <label>
+                      Realized PnL
+                      <input
+                        name="realizedPnl"
+                        type="number"
+                        step="any"
+                        defaultValue={activePosition.realizedPnl ?? ""}
+                      />
+                    </label>
+                    <label>
+                      Realized PnL %
+                      <input
+                        name="realizedPnlPercent"
+                        type="number"
+                        step="any"
+                        defaultValue={activePosition.realizedPnlPercent ?? ""}
+                      />
+                    </label>
+                    <label className="position-form__wide">
+                      Close Notes
+                      <textarea
+                        name="notes"
+                        rows={3}
+                        defaultValue={activePosition.notes ?? ""}
+                      />
+                    </label>
+                    <button className="button--danger" type="submit">
+                      Close Position
+                    </button>
+                  </form>
                 </div>
               ) : (
                 <form className="position-form" action={recordPositionAction}>
@@ -228,10 +393,6 @@ export default async function AssetDetailPage({
                   <button type="submit">Record Position</button>
                 </form>
               )}
-
-              {positionStatus ? (
-                <p className="issue-text">Position status: {positionStatus}</p>
-              ) : null}
             </article>
           </section>
 
@@ -360,6 +521,14 @@ export default async function AssetDetailPage({
                 </ul>
               ) : null}
             </article>
+
+            <AlertFeed
+              alerts={alerts}
+              emptyMessage="No alerts have been generated for this asset yet."
+              issues={alertsResult.issues}
+              message={alertsResult.message}
+              title="Asset Alerts"
+            />
           </section>
         </>
       ) : (

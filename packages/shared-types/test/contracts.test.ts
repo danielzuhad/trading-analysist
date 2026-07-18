@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   aiAnalysisEngineOutputSchema,
   alertSchema,
+  alertsResponseSchema,
   apiAuthContextSchema,
   assetAnalysisSchema,
   assetOverviewResponseSchema,
@@ -529,6 +530,14 @@ describe("shared contracts", () => {
 
     expect(alert.positionId).toBe(transition.positionId);
     expect(alert.currentState).toBe("IN_POSITION");
+
+    const alertFeed = alertsResponseSchema.parse({
+      alerts: [alert],
+      count: 1,
+    });
+
+    expect(alertFeed.count).toBe(1);
+    expect(alertFeed.alerts[0]?.id).toBe("alert-sol");
   });
 
   it("parses a typed signal aggregation snapshot for the future AI input boundary", () => {

@@ -6,6 +6,7 @@ coverage
 *.tsbuildinfo
 *.log
 .DS_Store
+.idea
 .env
 .env.development
 .env.*

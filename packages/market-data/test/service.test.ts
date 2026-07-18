@@ -1,6 +1,9 @@
 import type { Asset } from "@trading-analyst/shared-types";
 import { describe, expect, it } from "vitest";
-import { CoinGeckoMarketDataAdapter } from "../src/adapters/coingecko.js";
+import {
+  CoinGeckoMarketDataAdapter,
+  fetchCoinGeckoCurrentPrice,
+} from "../src/adapters/coingecko.js";
 import {
   MarketDataConfigurationError,
   MarketDataValidationError,
@@ -344,6 +347,51 @@ describe("MarketFetchService", () => {
         timeframe: "4H",
       }),
     ).rejects.toBeInstanceOf(MarketDataValidationError);
+  });
+
+  it("fetches a current CoinGecko price through the lightweight simple price endpoint", async () => {
+    const requests: Array<{
+      headers: unknown;
+      url: URL;
+    }> = [];
+
+    const pricePoint = await fetchCoinGeckoCurrentPrice({
+      apiKey: "cg-demo-key",
+      apiPlan: "demo",
+      asset: cryptoAssetWithoutCoinId,
+      fetchFn: async (input, init) => {
+        const url = new URL(String(input));
+        requests.push({
+          headers: init?.headers,
+          url,
+        });
+
+        expect(url.pathname).toBe("/api/v3/simple/price");
+        expect(url.searchParams.get("ids")).toBe("bitcoin");
+        expect(url.searchParams.get("vs_currencies")).toBe("usd");
+        expect(url.searchParams.get("include_last_updated_at")).toBe("true");
+
+        return jsonResponse({
+          bitcoin: {
+            last_updated_at: 1_712_036_300,
+            usd: 67_187.3358936566,
+          },
+        });
+      },
+    });
+
+    expect(requests.map((request) => request.url.origin)).toEqual([
+      "https://api.coingecko.com",
+    ]);
+    expect(
+      requests.map((request) =>
+        readHeader(request.headers, "x-cg-demo-api-key"),
+      ),
+    ).toEqual(["cg-demo-key"]);
+    expect(pricePoint).toEqual({
+      price: 67_187.3358936566,
+      timestamp: "2024-04-02T05:38:20.000Z",
+    });
   });
 });
 

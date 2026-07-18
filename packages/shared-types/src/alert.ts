@@ -43,4 +43,10 @@ export const alertSchema = z.object({
   metadata: metadataSchema,
 });
 
+export const alertsResponseSchema = z.object({
+  alerts: z.array(alertSchema),
+  count: z.number().int().min(0),
+});
+
 export type Alert = z.infer<typeof alertSchema>;
+export type AlertsResponse = z.infer<typeof alertsResponseSchema>;

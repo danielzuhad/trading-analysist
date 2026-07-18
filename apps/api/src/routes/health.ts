@@ -18,7 +18,13 @@ export type OperationalProviderStatus = {
 
 export type AiOperationalStatus = {
   checkedAt?: string;
-  currentState: "cap-reached" | "disabled" | "ok" | "unknown";
+  currentState:
+    | "cap-reached"
+    | "disabled"
+    | "error"
+    | "ok"
+    | "quota-exceeded"
+    | "unknown";
   detail?: string;
   maxDailyAiCostUsd?: number;
 };
@@ -226,6 +232,23 @@ function mapAiHeartbeat(heartbeat: {
   payload: Record<string, unknown> | null;
   status: string;
 }): AiOperationalStatus {
+  const currentState = readAiCurrentStateField(heartbeat.payload);
+  const detail = readStringField(heartbeat.payload, "detail");
+
+  if (currentState) {
+    const maxDailyAiCostUsd = readNumberField(
+      heartbeat.payload,
+      "maxDailyAiCostUsd",
+    );
+
+    return {
+      checkedAt: heartbeat.checkedAt,
+      currentState,
+      ...(detail ? { detail } : {}),
+      ...(maxDailyAiCostUsd !== undefined ? { maxDailyAiCostUsd } : {}),
+    };
+  }
+
   if (heartbeat.status === "degraded") {
     const maxDailyAiCostUsd = readNumberField(
       heartbeat.payload,
@@ -314,4 +337,23 @@ function readStringField(
 ) {
   const value = payload?.[field];
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function readAiCurrentStateField(
+  payload: Record<string, unknown> | null,
+): AiOperationalStatus["currentState"] | undefined {
+  const value = payload?.currentState;
+
+  if (
+    value === "cap-reached" ||
+    value === "disabled" ||
+    value === "error" ||
+    value === "ok" ||
+    value === "quota-exceeded" ||
+    value === "unknown"
+  ) {
+    return value;
+  }
+
+  return undefined;
 }

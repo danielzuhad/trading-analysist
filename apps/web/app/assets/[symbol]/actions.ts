@@ -2,30 +2,24 @@
 
 import { redirect } from "next/navigation";
 import { loadWebEnv } from "../../../env";
+import {
+  buildClosePositionPayload,
+  buildCreatePositionPayload,
+  buildPositionRedirectPath,
+  buildUpdatePositionPayload,
+} from "./position-action-payload";
 
 export async function recordPositionAction(formData: FormData) {
-  const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
   const symbol = readRequiredString(formData, "symbol");
   const timeframe = readRequiredString(formData, "timeframe");
+  const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
 
   if (!apiBaseUrl) {
-    redirect(`/assets/${symbol}?timeframe=${timeframe}&positionStatus=api`);
+    redirect(buildPositionRedirectPath({ symbol, timeframe, status: "api" }));
   }
 
-  const payload = {
-    assetId: readRequiredString(formData, "assetId"),
-    direction: readRequiredString(formData, "direction"),
-    entryPrice: readRequiredNumber(formData, "entryPrice"),
-    quantity: readRequiredNumber(formData, "quantity"),
-    ...(readOptionalNumber(formData, "stopLoss") !== undefined
-      ? { stopLoss: readOptionalNumber(formData, "stopLoss") }
-      : {}),
-    ...(readOptionalString(formData, "thesis")
-      ? { thesis: readOptionalString(formData, "thesis") }
-      : {}),
-  };
-
-  const response = await fetch(`${apiBaseUrl}/positions`, {
+  const payload = buildCreatePositionPayload(formData);
+  const response = await submitPositionRequest(`${apiBaseUrl}/positions`, {
     body: JSON.stringify(payload),
     headers: {
       "Content-Type": "application/json",
@@ -34,10 +28,84 @@ export async function recordPositionAction(formData: FormData) {
   });
 
   redirect(
-    `/assets/${symbol}?timeframe=${timeframe}&positionStatus=${
-      response.ok ? "recorded" : "failed"
-    }`,
+    buildPositionRedirectPath({
+      symbol,
+      timeframe,
+      status: response.ok ? "recorded" : "record-failed",
+    }),
   );
+}
+
+export async function updatePositionAction(formData: FormData) {
+  const symbol = readRequiredString(formData, "symbol");
+  const timeframe = readRequiredString(formData, "timeframe");
+  const positionId = readRequiredString(formData, "positionId");
+  const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
+
+  if (!apiBaseUrl) {
+    redirect(buildPositionRedirectPath({ symbol, timeframe, status: "api" }));
+  }
+
+  const payload = buildUpdatePositionPayload(formData);
+  const response = await submitPositionRequest(
+    `${apiBaseUrl}/positions/${positionId}`,
+    {
+      body: JSON.stringify(payload),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "PATCH",
+    },
+  );
+
+  redirect(
+    buildPositionRedirectPath({
+      symbol,
+      timeframe,
+      status: response.ok ? "updated" : "update-failed",
+    }),
+  );
+}
+
+export async function closePositionAction(formData: FormData) {
+  const symbol = readRequiredString(formData, "symbol");
+  const timeframe = readRequiredString(formData, "timeframe");
+  const positionId = readRequiredString(formData, "positionId");
+  const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
+
+  if (!apiBaseUrl) {
+    redirect(buildPositionRedirectPath({ symbol, timeframe, status: "api" }));
+  }
+
+  const payload = buildClosePositionPayload(formData);
+  const response = await submitPositionRequest(
+    `${apiBaseUrl}/positions/${positionId}/close`,
+    {
+      body: JSON.stringify(payload),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    },
+  );
+
+  redirect(
+    buildPositionRedirectPath({
+      symbol,
+      timeframe,
+      status: response.ok ? "closed" : "close-failed",
+    }),
+  );
+}
+
+async function submitPositionRequest(input: string, init: RequestInit) {
+  try {
+    return await fetch(input, init);
+  } catch {
+    return {
+      ok: false,
+    };
+  }
 }
 
 function readRequiredString(formData: FormData, field: string) {
@@ -55,30 +123,4 @@ function readOptionalString(formData: FormData, field: string) {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : undefined;
-}
-
-function readRequiredNumber(formData: FormData, field: string) {
-  const value = readOptionalNumber(formData, field);
-
-  if (value === undefined) {
-    throw new Error(`Missing required numeric form field: ${field}`);
-  }
-
-  return value;
-}
-
-function readOptionalNumber(formData: FormData, field: string) {
-  const value = readOptionalString(formData, field);
-
-  if (value === undefined) {
-    return undefined;
-  }
-
-  const parsed = Number(value);
-
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`Invalid numeric form field: ${field}`);
-  }
-
-  return parsed;
 }

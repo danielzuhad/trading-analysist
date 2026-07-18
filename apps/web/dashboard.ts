@@ -1,5 +1,7 @@
 import {
+  type AlertsResponse,
   type AssetOverviewResponse,
+  alertsResponseSchema,
   assetOverviewResponseSchema,
   type SupportedTimeframe,
   supportedTimeframeSchema,
@@ -172,6 +174,82 @@ export async function fetchAssetOverview(
         error instanceof Error
           ? `Asset overview request failed: ${error.message}`
           : "Asset overview request failed.",
+      status: "api-unreachable",
+    };
+  }
+}
+
+export async function fetchAlerts(
+  apiBaseUrl: string | undefined,
+  {
+    assetId,
+    limit = 6,
+    timeframe,
+  }: {
+    assetId?: string;
+    limit?: number;
+    timeframe?: SupportedTimeframe;
+  } = {},
+  fetchImpl: FetchLike = fetch,
+): Promise<DashboardDataResult<AlertsResponse>> {
+  if (!apiBaseUrl) {
+    return {
+      data: null,
+      issues: ["Set NEXT_PUBLIC_API_BASE_URL to load the dashboard data."],
+      message: "API base URL is not configured.",
+      status: "api-unconfigured",
+    };
+  }
+
+  try {
+    const searchParams = new URLSearchParams({
+      limit: limit.toString(),
+      ...(assetId ? { assetId } : {}),
+      ...(timeframe ? { timeframe } : {}),
+    });
+    const response = await fetchImpl(`${apiBaseUrl}/alerts?${searchParams}`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return {
+        data: null,
+        issues: ["The alerts endpoint returned an unexpected error."],
+        message: `Alert request failed with status ${response.status}.`,
+        status: "api-unreachable",
+      };
+    }
+
+    const payload = alertsResponseSchema.safeParse(await response.json());
+
+    if (!payload.success) {
+      return {
+        data: null,
+        issues: [
+          "The API returned an alert payload that did not match the expected schema.",
+        ],
+        message: "Alert payload is invalid.",
+        status: "invalid-response",
+      };
+    }
+
+    return {
+      data: payload.data,
+      issues: [],
+      message:
+        payload.data.count > 0
+          ? "Recent alerts loaded."
+          : "No alerts have been generated yet.",
+      status: "ready",
+    };
+  } catch (error) {
+    return {
+      data: null,
+      issues: ["The web app could not reach the alerts endpoint."],
+      message:
+        error instanceof Error
+          ? `Alert request failed: ${error.message}`
+          : "Alert request failed.",
       status: "api-unreachable",
     };
   }

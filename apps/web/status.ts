@@ -14,9 +14,24 @@ export type ProviderOperationalStatus = {
 
 export type AiOperationalStatus = {
   checkedAt?: string;
-  currentState: "cap-reached" | "disabled" | "ok" | "unknown";
+  currentState:
+    | "cap-reached"
+    | "disabled"
+    | "error"
+    | "ok"
+    | "quota-exceeded"
+    | "unknown";
   detail?: string;
   maxDailyAiCostUsd?: number;
+};
+
+export type AiOperationalWarning = {
+  checkedAt?: string;
+  detail?: string;
+  message: string;
+  statusLabel: string;
+  title: string;
+  tone: "critical" | "warning";
 };
 
 export type ReadyzPayload = {
@@ -121,4 +136,66 @@ export async function fetchInfrastructureStatus(
       error instanceof Error ? error.message : "Unknown readiness error",
     );
   }
+}
+
+export function buildAiOperationalWarning(
+  infrastructureStatus: Pick<InfrastructureStatus, "operational">,
+): AiOperationalWarning | null {
+  const ai = infrastructureStatus.operational?.ai;
+
+  if (!ai) {
+    return null;
+  }
+
+  if (ai.currentState === "quota-exceeded") {
+    return {
+      message:
+        "New AI analyses are blocked until the OpenAI project has available credits or active billing again.",
+      statusLabel: "Quota exceeded",
+      title: "OpenAI credits need attention",
+      tone: "critical",
+      ...(ai.checkedAt ? { checkedAt: ai.checkedAt } : {}),
+      ...(ai.detail ? { detail: ai.detail } : {}),
+    };
+  }
+
+  if (ai.currentState === "error") {
+    return {
+      message:
+        "The latest AI analysis request failed. Check worker logs and the OpenAI project status before rerunning the loop.",
+      statusLabel: "AI error",
+      title: "AI analysis is failing",
+      tone: "critical",
+      ...(ai.checkedAt ? { checkedAt: ai.checkedAt } : {}),
+      ...(ai.detail ? { detail: ai.detail } : {}),
+    };
+  }
+
+  if (ai.currentState === "cap-reached") {
+    return {
+      message:
+        ai.maxDailyAiCostUsd !== undefined
+          ? `The configured daily AI cap of $${ai.maxDailyAiCostUsd.toFixed(2)} is blocking non-critical re-analysis.`
+          : "The configured daily AI cap is blocking non-critical re-analysis.",
+      statusLabel: "Daily cap reached",
+      title: "AI cost cap is active",
+      tone: "warning",
+      ...(ai.checkedAt ? { checkedAt: ai.checkedAt } : {}),
+      ...(ai.detail ? { detail: ai.detail } : {}),
+    };
+  }
+
+  if (ai.currentState === "disabled") {
+    return {
+      message:
+        "AI analysis is turned off for the worker environment until OPENAI_API_KEY is configured again.",
+      statusLabel: "AI disabled",
+      title: "AI analysis is disabled",
+      tone: "warning",
+      ...(ai.checkedAt ? { checkedAt: ai.checkedAt } : {}),
+      ...(ai.detail ? { detail: ai.detail } : {}),
+    };
+  }
+
+  return null;
 }

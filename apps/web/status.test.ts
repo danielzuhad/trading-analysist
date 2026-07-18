@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  buildAiOperationalWarning,
   buildInfrastructureStatus,
   fetchInfrastructureStatus,
   type ReadyzPayload,
@@ -128,6 +129,51 @@ describe("web infrastructure status", () => {
       message: "API readiness request failed: Failed to fetch",
       operational: null,
       status: "api-unreachable",
+    });
+  });
+
+  it("builds a critical warning when OpenAI quota is exhausted", () => {
+    const payload: ReadyzPayload = {
+      checks: {
+        database: {
+          ok: true,
+          target: "127.0.0.1:5432",
+        },
+        redis: {
+          ok: true,
+          target: "127.0.0.1:6379",
+        },
+      },
+      issues: [],
+      operational: {
+        ai: {
+          checkedAt: "2026-06-08T07:00:00.000Z",
+          currentState: "quota-exceeded",
+          detail:
+            "OpenAI API credits are exhausted or billing is inactive. Add credits, verify billing, then rerun the worker.",
+          maxDailyAiCostUsd: 2,
+        },
+        providers: {},
+      },
+      service: "api",
+      status: "ready",
+      timestamp: "2026-06-08T07:00:01.000Z",
+    };
+
+    const infrastructureStatus = buildInfrastructureStatus(
+      "http://localhost:3001",
+      payload,
+    );
+
+    expect(buildAiOperationalWarning(infrastructureStatus)).toEqual({
+      checkedAt: "2026-06-08T07:00:00.000Z",
+      detail:
+        "OpenAI API credits are exhausted or billing is inactive. Add credits, verify billing, then rerun the worker.",
+      message:
+        "New AI analyses are blocked until the OpenAI project has available credits or active billing again.",
+      statusLabel: "Quota exceeded",
+      title: "OpenAI credits need attention",
+      tone: "critical",
     });
   });
 });
