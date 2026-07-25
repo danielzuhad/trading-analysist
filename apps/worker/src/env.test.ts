@@ -145,6 +145,7 @@ describe("worker environment", () => {
         MAX_DAILY_AI_COST_USD: 2,
         WORKER_CONCURRENCY: 1,
         WORKER_ENABLE_OUTCOME_EVALUATION: true,
+        WORKER_MAX_AI_ASSETS: 10,
         WORKER_ENABLE_SCHEDULER: true,
         WORKER_ENABLE_THRESHOLD_CHECKS: true,
         WORKER_SCHEDULED_ASSETS:

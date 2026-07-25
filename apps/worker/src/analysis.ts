@@ -90,7 +90,8 @@ export type GenerateLatestAssetAnalysisResult =
       reason:
         | "daily_cost_cap_reached"
         | "missing_openai_api_key"
-        | "signal_snapshot_not_found";
+        | "signal_snapshot_not_found"
+        | "snapshot_unchanged";
       status: "skipped";
       timeframe: SupportedTimeframe;
     };
@@ -158,6 +159,24 @@ export async function generateLatestAssetAnalysis({
     timeframe,
     connectionString,
   );
+
+  if (
+    triggeredBy === "scheduled" &&
+    previousAnalysis &&
+    isAnalysisInputUnchanged(previousAnalysis, signalSnapshot)
+  ) {
+    logger.log(
+      `[worker] skipped AI analysis for ${assetId} ${timeframe} because market conditions are unchanged since the last analysis`,
+    );
+
+    return {
+      assetId,
+      reason: "snapshot_unchanged",
+      status: "skipped",
+      timeframe,
+    };
+  }
+
   let providerToUse = provider;
 
   if (!providerToUse) {
@@ -278,6 +297,24 @@ export async function generateAssetAnalysisFromSignalSnapshot({
     timeframe,
     connectionString,
   );
+
+  if (
+    triggeredBy === "scheduled" &&
+    previousAnalysis &&
+    isAnalysisInputUnchanged(previousAnalysis, signalSnapshot)
+  ) {
+    logger.log(
+      `[worker] skipped AI analysis for ${signalSnapshot.asset.id} ${timeframe} because market conditions are unchanged since the last analysis`,
+    );
+
+    return {
+      assetId: signalSnapshot.asset.id,
+      reason: "snapshot_unchanged",
+      status: "skipped",
+      timeframe,
+    };
+  }
+
   let providerToUse = provider;
 
   if (!providerToUse) {
@@ -478,6 +515,46 @@ async function generateAndPersistAlert({
       `[worker] failed WhatsApp delivery for alert ${alertResult.alert.id}: ${formatDeliveryError(error)}`,
     );
   }
+}
+
+const unchangedPriceTolerancePercent = 0.5;
+
+export function isAnalysisInputUnchanged(
+  previous: LatestAssetAnalysis,
+  snapshot: SignalAggregationSnapshot,
+): boolean {
+  if (previous.signalStrengthScore !== snapshot.signalStrengthScore) {
+    return false;
+  }
+
+  if (previous.bias !== snapshot.bias || previous.regime !== snapshot.regime) {
+    return false;
+  }
+
+  if (
+    previous.keyLevels.nearestSupport !== snapshot.keyLevels.nearestSupport ||
+    previous.keyLevels.nearestResistance !==
+      snapshot.keyLevels.nearestResistance ||
+    previous.keyLevels.invalidation !== snapshot.keyLevels.invalidation
+  ) {
+    return false;
+  }
+
+  if ((previous.position?.id ?? null) !== (snapshot.position?.id ?? null)) {
+    return false;
+  }
+
+  const previousPrice = previous.marketSnapshot.lastPrice;
+
+  if (previousPrice <= 0) {
+    return false;
+  }
+
+  const priceChangePercent = Math.abs(
+    ((snapshot.marketSnapshot.lastPrice - previousPrice) / previousPrice) * 100,
+  );
+
+  return priceChangePercent < unchangedPriceTolerancePercent;
 }
 
 function toSupportedTimeframe(

@@ -1,3 +1,7 @@
+import {
+  ensureDefaultWatchlistAssets,
+  listWatchlistAssets,
+} from "@trading-analyst/db";
 import type { AnalysisTrigger } from "@trading-analyst/shared-types";
 import { type Job, Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
@@ -314,19 +318,32 @@ export async function startWorkerRuntime(
     shouldEnableScheduler && runtime.env.WORKER_ENABLE_THRESHOLD_CHECKS;
   const shouldEnableOutcomeEvaluation =
     shouldEnableScheduler && runtime.env.WORKER_ENABLE_OUTCOME_EVALUATION;
-  const scheduledAssets = parseCsvList(runtime.env.WORKER_SCHEDULED_ASSETS);
   const scheduledTimeframes = parseTimeframes(
     runtime.env.WORKER_SCHEDULED_TIMEFRAMES,
   );
   const schedulerHandles: NodeJS.Timeout[] = [];
+  const resolveScheduledAssets = () =>
+    resolveScheduledAssetIds(runtime.env, logger);
 
   logger.log(
     `[worker] online with queue "${runtime.queueName}" and concurrency ${runtime.env.WORKER_CONCURRENCY}`,
   );
 
+  if (shouldEnqueueBootstrapJob || shouldEnableScheduler) {
+    try {
+      await ensureDefaultWatchlistAssets(runtime.env.DATABASE_URL);
+    } catch (error) {
+      logger.warn(
+        `[worker] could not seed default watchlist assets: ${formatWorkerError(
+          error instanceof Error ? error : new Error(String(error)),
+        )}`,
+      );
+    }
+  }
+
   if (shouldEnqueueBootstrapJob) {
     await enqueueWorkerJobs({
-      assetIds: scheduledAssets,
+      assetIds: await resolveScheduledAssets(),
       jobName: marketSnapshotJobName,
       queue: runtime.analysisQueue,
       timeframes: scheduledTimeframes,
@@ -339,18 +356,20 @@ export async function startWorkerRuntime(
       const intervalMs =
         timeframe === "1H" ? 60 * 60 * 1000 : 4 * 60 * 60 * 1000;
       const handle = setInterval(() => {
-        void enqueueWorkerJobs({
-          assetIds: scheduledAssets,
-          jobName: marketSnapshotJobName,
-          queue: runtime.analysisQueue,
-          timeframes: [timeframe],
-          trigger: "scheduled",
-        });
+        void resolveScheduledAssets().then((assetIds) =>
+          enqueueWorkerJobs({
+            assetIds,
+            jobName: marketSnapshotJobName,
+            queue: runtime.analysisQueue,
+            timeframes: [timeframe],
+            trigger: "scheduled",
+          }),
+        );
       }, intervalMs);
 
       schedulerHandles.push(handle);
       logger.log(
-        `[worker] scheduled ${scheduledAssets.length} asset(s) on ${timeframe} every ${intervalMs / 60_000} minute(s)`,
+        `[worker] scheduled watchlist analysis on ${timeframe} every ${intervalMs / 60_000} minute(s)`,
       );
     }
   }
@@ -359,36 +378,40 @@ export async function startWorkerRuntime(
     const thresholdIntervalMs =
       runtime.env.WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES * 60 * 1000;
     const handle = setInterval(() => {
-      void enqueueWorkerJobs({
-        assetIds: scheduledAssets,
-        jobName: thresholdCheckJobName,
-        queue: runtime.analysisQueue,
-        timeframes: scheduledTimeframes,
-        trigger: "threshold",
-      });
+      void resolveScheduledAssets().then((assetIds) =>
+        enqueueWorkerJobs({
+          assetIds,
+          jobName: thresholdCheckJobName,
+          queue: runtime.analysisQueue,
+          timeframes: scheduledTimeframes,
+          trigger: "threshold",
+        }),
+      );
     }, thresholdIntervalMs);
 
     schedulerHandles.push(handle);
     logger.log(
-      `[worker] scheduled lightweight threshold checks for ${scheduledAssets.length} asset(s) on ${scheduledTimeframes.join(", ")} every ${runtime.env.WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES} minute(s)`,
+      `[worker] scheduled lightweight threshold checks on ${scheduledTimeframes.join(", ")} every ${runtime.env.WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES} minute(s)`,
     );
   }
 
   if (shouldEnableOutcomeEvaluation) {
     const outcomeIntervalMs = 60 * 60 * 1000;
     const handle = setInterval(() => {
-      void enqueueWorkerJobs({
-        assetIds: scheduledAssets,
-        jobName: outcomeEvaluationJobName,
-        queue: runtime.analysisQueue,
-        timeframes: scheduledTimeframes,
-        trigger: "scheduled",
-      });
+      void resolveScheduledAssets().then((assetIds) =>
+        enqueueWorkerJobs({
+          assetIds,
+          jobName: outcomeEvaluationJobName,
+          queue: runtime.analysisQueue,
+          timeframes: scheduledTimeframes,
+          trigger: "scheduled",
+        }),
+      );
     }, outcomeIntervalMs);
 
     schedulerHandles.push(handle);
     logger.log(
-      `[worker] scheduled analysis outcome evaluation for ${scheduledAssets.length} asset(s) on ${scheduledTimeframes.join(", ")} every 60 minute(s)`,
+      `[worker] scheduled analysis outcome evaluation on ${scheduledTimeframes.join(", ")} every 60 minute(s)`,
     );
   }
 
@@ -402,6 +425,49 @@ export async function startWorkerRuntime(
   };
 
   return runtime;
+}
+
+async function resolveScheduledAssetIds(
+  env: WorkerEnv,
+  logger: Logger,
+): Promise<string[]> {
+  try {
+    const entries = await listWatchlistAssets(env.DATABASE_URL);
+    const aiEnabled = entries
+      .filter((entry) => entry.aiEnabled)
+      .sort((left, right) => {
+        if (left.source === "position" && right.source !== "position") {
+          return -1;
+        }
+
+        if (left.source !== "position" && right.source === "position") {
+          return 1;
+        }
+
+        return 0;
+      })
+      .map((entry) => entry.asset.id);
+
+    if (aiEnabled.length === 0) {
+      return parseCsvList(env.WORKER_SCHEDULED_ASSETS);
+    }
+
+    if (aiEnabled.length > env.WORKER_MAX_AI_ASSETS) {
+      logger.warn(
+        `[worker] watchlist has ${aiEnabled.length} AI-enabled asset(s); scheduling only the first ${env.WORKER_MAX_AI_ASSETS} to control AI cost`,
+      );
+    }
+
+    return aiEnabled.slice(0, env.WORKER_MAX_AI_ASSETS);
+  } catch (error) {
+    logger.warn(
+      `[worker] could not read the watchlist from the database, falling back to WORKER_SCHEDULED_ASSETS: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+
+    return parseCsvList(env.WORKER_SCHEDULED_ASSETS);
+  }
 }
 
 async function enqueueWorkerJobs({

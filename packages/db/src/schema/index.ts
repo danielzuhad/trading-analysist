@@ -1,6 +1,7 @@
 import type {
   Alert,
   AnalysisOutcome,
+  Asset,
   IndicatorSnapshot,
   LatestAssetAnalysis,
   MarketCandle,
@@ -355,9 +356,37 @@ export const analysisOutcomes = pgTable(
   ],
 );
 
+export const watchlistAssets = pgTable(
+  "watchlist_assets",
+  {
+    assetId: text("asset_id").primaryKey(),
+    symbol: text("symbol").notNull(),
+    coingeckoCoinId: text("coingecko_coin_id").notNull(),
+    asset: jsonb("asset").$type<Asset>().notNull(),
+    aiEnabled: boolean("ai_enabled").notNull().default(true),
+    source: text("source").notNull(),
+    addedAt: timestamp("added_at", {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [uniqueIndex("watchlist_assets_symbol_unique").on(table.symbol)],
+);
+
 export const schema = {
   alerts,
   analysisOutcomes,
+  watchlistAssets,
   assetAnalysisLatestSnapshots,
   indicatorLatestSnapshots,
   marketLatestSnapshots,

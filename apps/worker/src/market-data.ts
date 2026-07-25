@@ -1,4 +1,5 @@
 import {
+  getWatchlistAsset,
   type LatestMarketData,
   saveLatestIndicatorSnapshot,
   saveLatestMarketData,
@@ -112,6 +113,24 @@ export function createMarketFetchService(
 
 export function findDefaultCryptoAsset(assetId: string) {
   return defaultCryptoWatchlistAssets.find((asset) => asset.id === assetId);
+}
+
+export async function resolveWatchlistAsset(
+  assetId: string,
+  connectionString?: string,
+): Promise<Asset | null> {
+  const seeded = findDefaultCryptoAsset(assetId);
+
+  if (seeded) {
+    return seeded;
+  }
+
+  try {
+    const entry = await getWatchlistAsset(assetId, connectionString);
+    return entry?.asset ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export async function ingestLatestMarketData({

@@ -11,6 +11,8 @@ export const apiEnvSchema = z.object({
   API_AUTH_TOKEN: z.string().trim().min(16).optional(),
   API_HOST: z.string().default("0.0.0.0"),
   API_PORT: z.coerce.number().int().positive().default(3001),
+  COINGECKO_API_KEY: z.string().trim().min(1).optional(),
+  COINGECKO_API_PLAN: z.enum(["demo", "basic"]).default("demo"),
   DATABASE_URL: z.string().url(),
   REDIS_URL: z.string().url(),
   TELEGRAM_BOT_TOKEN: z.string().trim().min(1).optional(),

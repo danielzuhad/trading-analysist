@@ -37,6 +37,7 @@ describeInfrastructure("api snapshot routes", () => {
       NODE_ENV: "test",
       API_HOST: "api.invalid",
       API_PORT: 3001,
+      COINGECKO_API_PLAN: "demo",
       DATABASE_URL: databaseUrl,
       REDIS_URL: requireEnv("REDIS_URL"),
     });

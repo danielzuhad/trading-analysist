@@ -39,6 +39,7 @@ export const workerEnvSchema = z.object({
   TWILIO_WHATSAPP_TO: z.string().trim().min(1).optional(),
   WORKER_CONCURRENCY: z.coerce.number().int().positive().default(1),
   WORKER_ENABLE_OUTCOME_EVALUATION: booleanishSchema.default(true),
+  WORKER_MAX_AI_ASSETS: z.coerce.number().int().positive().default(10),
   WORKER_ENABLE_SCHEDULER: booleanishSchema.default(true),
   WORKER_ENABLE_THRESHOLD_CHECKS: booleanishSchema.default(true),
   WORKER_SCHEDULED_ASSETS: z

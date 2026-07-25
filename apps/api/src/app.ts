@@ -1,19 +1,27 @@
 import {
+  addWatchlistAsset,
   closeDatabase,
   closePosition,
   createPosition,
+  ensureDefaultWatchlistAssets,
   getActivePositionForAsset,
   getAnalysisQualitySummary,
   getLatestAssetAnalysis,
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
+  getWatchlistAsset,
+  getWatchlistAssetBySymbol,
   listAlerts,
   listPositions,
   listServiceHeartbeats,
+  listWatchlistAssets,
   pingDatabase,
+  removeWatchlistAsset,
+  setWatchlistAssetAiEnabled,
   updatePosition,
 } from "@trading-analyst/db";
+import { searchCoinGeckoCoins } from "@trading-analyst/market-data";
 import Fastify from "fastify";
 import { Redis } from "ioredis";
 import { registerAuthGuard } from "./auth.js";
@@ -26,6 +34,7 @@ import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerMarketDataRoutes } from "./routes/market-data.js";
 import { registerPositionRoutes } from "./routes/positions.js";
+import { registerWatchlistRoutes } from "./routes/watchlist.js";
 
 export async function buildApp(env: ApiEnv = loadApiEnv()) {
   const app = Fastify({
@@ -79,6 +88,9 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
         assetId,
         connectionString: env.DATABASE_URL,
       }),
+    getWatchlistAsset: (assetId) =>
+      getWatchlistAsset(assetId, env.DATABASE_URL),
+    listWatchlistAssets: () => listWatchlistAssets(env.DATABASE_URL),
   });
   await registerAlertRoutes(app, {
     listAlerts: (filters) => listAlerts(filters, env.DATABASE_URL),
@@ -86,6 +98,29 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
   await registerAnalysisQualityRoutes(app, {
     getAnalysisQualitySummary: (filters) =>
       getAnalysisQualitySummary(filters, env.DATABASE_URL),
+  });
+  await registerWatchlistRoutes(app, {
+    addAsset: (input) => addWatchlistAsset(input, env.DATABASE_URL),
+    ensureDefaults: () => ensureDefaultWatchlistAssets(env.DATABASE_URL),
+    getActivePositionForAsset: ({ assetId }) =>
+      getActivePositionForAsset({
+        assetId,
+        connectionString: env.DATABASE_URL,
+      }),
+    listAssets: () => listWatchlistAssets(env.DATABASE_URL),
+    removeAsset: (assetId) => removeWatchlistAsset(assetId, env.DATABASE_URL),
+    setAssetAiEnabled: (assetId, aiEnabled) =>
+      setWatchlistAssetAiEnabled(assetId, aiEnabled, env.DATABASE_URL),
+    ...(env.COINGECKO_API_KEY
+      ? {
+          searchCoins: (query: string) =>
+            searchCoinGeckoCoins({
+              apiKey: env.COINGECKO_API_KEY as string,
+              apiPlan: env.COINGECKO_API_PLAN,
+              query,
+            }),
+        }
+      : {}),
   });
   await registerPositionRoutes(app, {
     closePosition: (positionId, input) =>
@@ -120,6 +155,9 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
       getLatestMarketData(assetId, timeframe, env.DATABASE_URL),
     getLatestSignalAggregationSnapshot: (assetId, timeframe) =>
       getLatestSignalAggregationSnapshot(assetId, timeframe, env.DATABASE_URL),
+    getWatchlistAssetBySymbol: (symbol) =>
+      getWatchlistAssetBySymbol(symbol, env.DATABASE_URL),
+    listWatchlistAssets: () => listWatchlistAssets(env.DATABASE_URL),
     ...(env.TWILIO_WEBHOOK_URL ? { webhookUrl: env.TWILIO_WEBHOOK_URL } : {}),
     ...(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET
       ? {

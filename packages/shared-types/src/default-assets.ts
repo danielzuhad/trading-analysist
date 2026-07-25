@@ -16,6 +16,7 @@ export const defaultCryptoWatchlistAssets: Asset[] = [
     isActive: true,
     metadata: {
       coingeckoCoinId: "bitcoin",
+      imageUrl: "https://assets.coingecko.com/coins/images/1/small/bitcoin.png",
     },
   }),
   assetSchema.parse({
@@ -33,6 +34,8 @@ export const defaultCryptoWatchlistAssets: Asset[] = [
     isActive: true,
     metadata: {
       coingeckoCoinId: "ethereum",
+      imageUrl:
+        "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
     },
   }),
   assetSchema.parse({
@@ -50,6 +53,8 @@ export const defaultCryptoWatchlistAssets: Asset[] = [
     isActive: true,
     metadata: {
       coingeckoCoinId: "solana",
+      imageUrl:
+        "https://assets.coingecko.com/coins/images/4128/small/solana.png",
     },
   }),
 ];

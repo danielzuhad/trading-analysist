@@ -61,6 +61,7 @@ describe("api environment", () => {
         NODE_ENV: "development",
         API_HOST: "0.0.0.0",
         API_PORT: 3001,
+        COINGECKO_API_PLAN: "demo",
         DATABASE_URL: validTestUrl("database"),
         REDIS_URL: validTestUrl("redis"),
       });

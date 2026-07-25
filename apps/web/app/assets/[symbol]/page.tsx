@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   fetchAlerts,
   fetchAssetOverview,
+  fetchWatchlist,
   resolveDashboardTimeframe,
 } from "../../../dashboard";
 import { loadWebEnv } from "../../../env";
@@ -12,6 +13,7 @@ import {
   fetchInfrastructureStatus,
 } from "../../../status";
 import { AlertFeed } from "../../alert-feed";
+import { CoinLogo } from "../../coin-logo";
 import {
   formatPercent,
   formatPositionStatusMessage,
@@ -19,6 +21,7 @@ import {
   formatRelativeTime,
   mapDeltaClass,
   mapPositionStatusTone,
+  readAssetImageUrl,
 } from "../../dashboard-format";
 import {
   DashboardTimeframeTabs,
@@ -28,6 +31,7 @@ import {
   StateBadge,
 } from "../../dashboard-primitives";
 import { OperationalWarningBanner } from "../../operational-warning-banner";
+import { removeFromWatchlistAndRedirectAction } from "../../watchlist-actions";
 import {
   closePositionAction,
   recordPositionAction,
@@ -171,14 +175,22 @@ export default async function AssetDetailPage({
 }: AssetDetailPageProps) {
   const resolvedParams = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
-  const asset = findDefaultCryptoAssetBySymbol(resolvedParams.symbol);
+  const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
+  let asset = findDefaultCryptoAssetBySymbol(resolvedParams.symbol);
+
+  if (!asset) {
+    const watchlist = await fetchWatchlist(apiBaseUrl);
+    const normalizedSymbol = resolvedParams.symbol.trim().toUpperCase();
+    asset = watchlist.data?.entries.find(
+      (entry) => entry.asset.symbol.toUpperCase() === normalizedSymbol,
+    )?.asset;
+  }
 
   if (!asset) {
     notFound();
   }
 
   const timeframe = resolveDashboardTimeframe(resolvedSearchParams?.timeframe);
-  const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
   const [overviewResult, alertsResult, infrastructureStatus] =
     await Promise.all([
       fetchAssetOverview(apiBaseUrl, asset.id, timeframe),
@@ -209,6 +221,11 @@ export default async function AssetDetailPage({
         </Link>
         <div className="detail-header__row">
           <div className="detail-header__identity">
+            <CoinLogo
+              imageUrl={readAssetImageUrl(asset.metadata)}
+              size={40}
+              symbol={asset.symbol}
+            />
             <h1>{asset.symbol}</h1>
             <p className="asset-card__name">{asset.name}</p>
             <StateBadge state={analysis?.state} />
@@ -230,6 +247,17 @@ export default async function AssetDetailPage({
             <span className="inline-chip">
               {overview?.marketSnapshot?.provider ?? "no provider"}
             </span>
+            {!activePosition ? (
+              <form
+                className="remove-watchlist-form"
+                action={removeFromWatchlistAndRedirectAction.bind(
+                  null,
+                  asset.id,
+                )}
+              >
+                <button type="submit">Remove from watchlist</button>
+              </form>
+            ) : null}
           </div>
         </div>
       </div>

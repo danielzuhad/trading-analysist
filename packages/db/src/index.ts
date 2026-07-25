@@ -7,3 +7,4 @@ export * from "./market-data.js";
 export * from "./positions.js";
 export * from "./service-heartbeats.js";
 export * from "./signal-aggregation.js";
+export * from "./watchlist-assets.js";

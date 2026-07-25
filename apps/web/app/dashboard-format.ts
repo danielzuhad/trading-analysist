@@ -92,6 +92,11 @@ export function formatMissingDataLabel(value: string) {
     .join(" ");
 }
 
+export function readAssetImageUrl(metadata: Record<string, unknown>) {
+  const value = metadata.imageUrl;
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
 export function formatRelativeTime(value?: string, nowMs = Date.now()) {
   if (value === undefined) {
     return "Unavailable";

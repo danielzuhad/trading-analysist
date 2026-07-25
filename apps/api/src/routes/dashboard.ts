@@ -67,7 +67,47 @@ type Dependencies = {
   getActivePositionForAsset: (filters: {
     assetId: string;
   }) => Promise<Position | null>;
+  listWatchlistAssets?: () => Promise<Array<{ asset: Asset }>>;
+  getWatchlistAsset?: (assetId: string) => Promise<{ asset: Asset } | null>;
 };
+
+async function resolveWatchlistOverviewAssets(dependencies: Dependencies) {
+  if (dependencies.listWatchlistAssets) {
+    try {
+      const entries = await dependencies.listWatchlistAssets();
+
+      if (entries.length > 0) {
+        return entries.map((entry) => entry.asset);
+      }
+    } catch {
+      // fall through to the seeded defaults below
+    }
+  }
+
+  return defaultCryptoWatchlistAssets;
+}
+
+async function resolveDashboardAsset(
+  assetId: string,
+  dependencies: Dependencies,
+): Promise<Asset | undefined> {
+  const seeded = findDefaultCryptoAsset(assetId);
+
+  if (seeded) {
+    return seeded;
+  }
+
+  if (!dependencies.getWatchlistAsset) {
+    return undefined;
+  }
+
+  try {
+    const entry = await dependencies.getWatchlistAsset(assetId);
+    return entry?.asset;
+  } catch {
+    return undefined;
+  }
+}
 
 type LatestAssetSnapshots = {
   analysisSnapshot: LatestAssetAnalysis | null;
@@ -111,7 +151,10 @@ export async function registerDashboardRoutes(
       });
     }
 
-    const asset = findDefaultCryptoAsset(paramsResult.data.assetId);
+    const asset = await resolveDashboardAsset(
+      paramsResult.data.assetId,
+      dependencies,
+    );
 
     if (!asset) {
       return reply.code(404).send({
@@ -133,8 +176,9 @@ export async function buildWatchlistOverviewResponse(
   dependencies: Dependencies,
 ) {
   const generatedAt = new Date().toISOString();
+  const overviewAssets = await resolveWatchlistOverviewAssets(dependencies);
   const items = await Promise.all(
-    defaultCryptoWatchlistAssets.map(async (asset) =>
+    overviewAssets.map(async (asset) =>
       buildWatchlistOverviewItem(asset, timeframe, dependencies),
     ),
   );

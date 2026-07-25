@@ -23,6 +23,7 @@ describeInfrastructure("api readiness route", () => {
       NODE_ENV: "test",
       API_HOST: "api.invalid",
       API_PORT: 3001,
+      COINGECKO_API_PLAN: "demo",
       DATABASE_URL: requireEnv("DATABASE_URL"),
       REDIS_URL: requireEnv("REDIS_URL"),
     });

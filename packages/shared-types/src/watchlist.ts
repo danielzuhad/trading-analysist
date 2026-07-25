@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assetSchema } from "./asset.js";
 import {
   idSchema,
   isoDatetimeSchema,
@@ -32,3 +33,84 @@ export const userWatchlistSchema = z.object({
 });
 
 export type UserWatchlist = z.infer<typeof userWatchlistSchema>;
+
+export const watchlistAssetSourceValues = [
+  "seed",
+  "manual",
+  "position",
+] as const;
+export const watchlistAssetSourceSchema = z.enum(watchlistAssetSourceValues);
+export type WatchlistAssetSource = z.infer<typeof watchlistAssetSourceSchema>;
+
+/**
+ * Hard cap on watchlist size. Each watched asset costs AI analysis calls
+ * every 4H cycle plus threshold-triggered re-analysis, and CoinGecko demo
+ * rate limits are shared across all assets. Keep aligned with the worker's
+ * WORKER_MAX_AI_ASSETS default so every watched asset actually gets analyzed.
+ */
+export const MAX_WATCHLIST_ASSETS = 10;
+
+export const watchlistAssetEntrySchema = z.object({
+  asset: assetSchema,
+  aiEnabled: z.boolean(),
+  source: watchlistAssetSourceSchema,
+  addedAt: isoDatetimeSchema,
+  metadata: metadataSchema,
+});
+export type WatchlistAssetEntry = z.infer<typeof watchlistAssetEntrySchema>;
+
+export const watchlistResponseSchema = z.object({
+  count: z.number().int().min(0),
+  limit: z.number().int().positive(),
+  entries: z.array(watchlistAssetEntrySchema),
+});
+export type WatchlistResponse = z.infer<typeof watchlistResponseSchema>;
+
+export const cryptoSearchResultSchema = z.object({
+  coingeckoCoinId: nonEmptyStringSchema,
+  symbol: nonEmptyStringSchema,
+  name: nonEmptyStringSchema,
+  marketCapRank: z.number().int().positive().nullable(),
+  thumb: z.string().optional(),
+  inWatchlist: z.boolean(),
+});
+export type CryptoSearchResult = z.infer<typeof cryptoSearchResultSchema>;
+
+export const cryptoSearchResponseSchema = z.object({
+  count: z.number().int().min(0),
+  results: z.array(cryptoSearchResultSchema),
+});
+export type CryptoSearchResponse = z.infer<typeof cryptoSearchResponseSchema>;
+
+export function buildCryptoAssetFromCoingecko({
+  coingeckoCoinId,
+  imageUrl,
+  name,
+  symbol,
+}: {
+  coingeckoCoinId: string;
+  imageUrl?: string | undefined;
+  name: string;
+  symbol: string;
+}) {
+  const normalizedSymbol = symbol.trim().toUpperCase();
+
+  return assetSchema.parse({
+    id: `crypto:global:${normalizedSymbol}-USD`,
+    symbol: normalizedSymbol,
+    displaySymbol: `${normalizedSymbol}/USD`,
+    name: name.trim(),
+    assetClass: "crypto",
+    market: "global",
+    exchange: "global",
+    instrumentType: "spot",
+    baseCurrency: normalizedSymbol,
+    quoteCurrency: "USD",
+    providerSymbol: `${normalizedSymbol}/USD`,
+    isActive: true,
+    metadata: {
+      coingeckoCoinId,
+      ...(imageUrl ? { imageUrl } : {}),
+    },
+  });
+}

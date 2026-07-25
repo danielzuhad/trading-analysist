@@ -11,7 +11,7 @@ import type {
   SignalAggregationSnapshot,
   SupportedTimeframe,
 } from "@trading-analyst/shared-types";
-import { findDefaultCryptoAsset } from "./market-data.js";
+import { resolveWatchlistAsset } from "./market-data.js";
 
 type ThresholdReferenceSnapshot =
   | {
@@ -168,7 +168,7 @@ export async function processThresholdCheckJob({
   requestedAt,
   timeframe,
 }: ProcessThresholdCheckJobOptions): Promise<ProcessThresholdCheckJobResult> {
-  const asset = findDefaultCryptoAsset(assetId);
+  const asset = await resolveWatchlistAsset(assetId, connectionString);
 
   if (!asset) {
     return {

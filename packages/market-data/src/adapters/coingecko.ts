@@ -287,6 +287,73 @@ export async function fetchCoinGeckoCurrentPrice({
   };
 }
 
+const coinSearchResultSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  symbol: z.string(),
+  market_cap_rank: z.number().int().positive().nullable(),
+  thumb: z.string().optional(),
+});
+
+const coinSearchResponseSchema = z.object({
+  coins: z.array(coinSearchResultSchema),
+});
+
+export type CoinGeckoSearchResult = {
+  coingeckoCoinId: string;
+  marketCapRank: number | null;
+  name: string;
+  symbol: string;
+  thumb?: string;
+};
+
+export async function searchCoinGeckoCoins({
+  apiKey,
+  apiPlan,
+  baseUrl,
+  fetchFn,
+  limit = 10,
+  query,
+  requestTimeoutMs,
+}: CoinGeckoMarketDataAdapterOptions & {
+  limit?: number;
+  query: string;
+}): Promise<CoinGeckoSearchResult[]> {
+  const normalizedApiPlan = resolveCoinGeckoApiPlan(apiPlan);
+  const resolvedBaseUrl = resolveCoinGeckoBaseUrl({
+    apiKey,
+    apiPlan: normalizedApiPlan,
+    baseUrl,
+  });
+  const headers = buildCoinGeckoAuthHeaders({
+    apiKey,
+    apiPlan: normalizedApiPlan,
+  });
+  const payload = coinSearchResponseSchema.parse(
+    await fetchJson(
+      buildCoinGeckoUrl(resolvedBaseUrl, "/search", {
+        query,
+      }),
+      {
+        ...(fetchFn ? { fetchFn } : {}),
+        ...(headers ? { headers } : {}),
+        provider: providerName,
+        ...(requestTimeoutMs !== undefined
+          ? { timeoutMs: requestTimeoutMs }
+          : {}),
+      },
+    ),
+  );
+
+  return payload.coins.slice(0, limit).map((coin) => ({
+    coingeckoCoinId: coin.id,
+    marketCapRank: coin.market_cap_rank,
+    name: coin.name,
+    symbol: coin.symbol.toUpperCase(),
+    ...(coin.thumb ? { thumb: coin.thumb } : {}),
+  }));
+}
+
 function buildCoinGeckoQuery(
   requestConfig: CoinGeckoSeriesRequestConfig,
   endpoint: "market_chart" | "ohlc",

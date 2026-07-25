@@ -21,6 +21,7 @@ Repository ini saat ini mencakup:
 - API bearer-token authentication (`API_AUTH_TOKEN`) untuk semua route kecuali health dan webhook chat-layer
 - analysis outcome tracking: prediksi setiap analisis di-snapshot lalu dievaluasi deterministik setelah 24 jam, agregatnya tersedia di `GET /analysis-quality`
 - Telegram chat layer (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET`): outbound alert delivery dari worker dan inbound command via `POST /chat-layer/telegram/webhook` (diverifikasi dengan header `X-Telegram-Bot-Api-Secret-Token`). Twilio WhatsApp tetap ada sebagai legacy path.
+- watchlist management: add/remove asset via CoinGecko search, per-asset AI toggle (`aiEnabled`), dan hard cap `MAX_WATCHLIST_ASSETS` (10) — selaras dengan `WORKER_MAX_AI_ASSETS` agar semua asset yang di-watch benar-benar dianalisis dan biaya AI serta rate limit CoinGecko tetap terkendali
 
 ## Workspace Layout
 
@@ -131,6 +132,11 @@ Endpoint read yang tersedia saat ini:
 - `GET /signal-snapshots/latest?assetId=...&timeframe=...`
 - `GET /asset-analyses/latest?assetId=...&timeframe=...`
 - `GET /watchlist/overview?timeframe=...`
+- `GET /watchlist`
+- `POST /watchlist`
+- `PATCH /watchlist/:assetId` (body `{ "aiEnabled": boolean }`)
+- `DELETE /watchlist/:assetId`
+- `GET /crypto-search?q=...` (butuh `COINGECKO_API_KEY` di API)
 - `GET /assets/:assetId/overview?timeframe=...`
 - `GET /alerts?assetId=...&timeframe=...&status=...&limit=...`
 - `GET /positions?assetId=...&status=...&activeOnly=...&limit=...`

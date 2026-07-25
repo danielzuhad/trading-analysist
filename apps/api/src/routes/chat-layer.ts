@@ -21,9 +21,9 @@ import type {
   LatestMarketData,
 } from "@trading-analyst/db";
 import {
+  type Asset,
   type ClosePositionInput,
   type CreatePositionInput,
-  findDefaultCryptoAsset,
   findDefaultCryptoAssetBySymbol,
   type IndicatorSnapshot,
   type Position,
@@ -81,8 +81,34 @@ type Dependencies = {
     assetId: string,
     timeframe: SupportedTimeframe,
   ) => Promise<SignalAggregationSnapshot | null>;
+  getWatchlistAssetBySymbol?: (
+    symbol: string,
+  ) => Promise<{ asset: Asset } | null>;
+  listWatchlistAssets?: () => Promise<Array<{ asset: Asset }>>;
   webhookUrl?: string;
 };
+
+async function resolveChatAsset(
+  symbol: string,
+  dependencies: Dependencies,
+): Promise<Asset | undefined> {
+  const seeded = findDefaultCryptoAssetBySymbol(symbol);
+
+  if (seeded) {
+    return seeded;
+  }
+
+  if (!dependencies.getWatchlistAssetBySymbol) {
+    return undefined;
+  }
+
+  try {
+    const entry = await dependencies.getWatchlistAssetBySymbol(symbol);
+    return entry?.asset;
+  } catch {
+    return undefined;
+  }
+}
 
 export async function registerChatLayerRoutes(
   app: FastifyInstance,
@@ -219,10 +245,10 @@ async function buildChatReply(
       return formatWatchlistMessage(watchlist);
     }
     case "asset": {
-      const asset = findDefaultCryptoAssetBySymbol(command.symbol);
+      const asset = await resolveChatAsset(command.symbol, dependencies);
 
       if (!asset) {
-        return `Aset ${command.symbol} belum ada di MVP watchlist.`;
+        return `Aset ${command.symbol} belum ada di watchlist. Tambahkan dulu lewat dashboard.`;
       }
 
       const overview = await buildAssetOverviewResponse(
@@ -234,10 +260,10 @@ async function buildChatReply(
       return formatAssetOverviewMessage(overview);
     }
     case "position_open": {
-      const asset = findDefaultCryptoAssetBySymbol(command.symbol);
+      const asset = await resolveChatAsset(command.symbol, dependencies);
 
       if (!asset) {
-        return `Aset ${command.symbol} belum ada di MVP watchlist.`;
+        return `Aset ${command.symbol} belum ada di watchlist. Tambahkan dulu lewat dashboard.`;
       }
 
       const activePosition = await dependencies.getActivePositionForAsset({
@@ -253,7 +279,7 @@ async function buildChatReply(
         direction: command.direction,
         entryPrice: command.entryPrice,
         latestState: await readLatestState(
-          asset.id,
+          asset,
           command.timeframe,
           dependencies,
         ),
@@ -277,10 +303,10 @@ async function buildChatReply(
       return formatPositionRecordedMessage(position);
     }
     case "position_close": {
-      const asset = findDefaultCryptoAssetBySymbol(command.symbol);
+      const asset = await resolveChatAsset(command.symbol, dependencies);
 
       if (!asset) {
-        return `Aset ${command.symbol} belum ada di MVP watchlist.`;
+        return `Aset ${command.symbol} belum ada di watchlist. Tambahkan dulu lewat dashboard.`;
       }
 
       const activePosition = await dependencies.getActivePositionForAsset({
@@ -315,16 +341,10 @@ async function buildChatReply(
 }
 
 async function readLatestState(
-  assetId: string,
+  asset: Asset,
   timeframe: SupportedTimeframe,
   dependencies: Dependencies,
 ) {
-  const asset = findDefaultCryptoAsset(assetId);
-
-  if (!asset) {
-    return undefined;
-  }
-
   const overview = await buildAssetOverviewResponse(
     asset,
     timeframe,

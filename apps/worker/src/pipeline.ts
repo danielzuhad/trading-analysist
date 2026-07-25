@@ -24,8 +24,8 @@ import {
 } from "./analysis.js";
 import {
   createMarketFetchService,
-  findDefaultCryptoAsset,
   ingestLatestMarketData,
+  resolveWatchlistAsset,
 } from "./market-data.js";
 
 type Logger = Pick<typeof console, "error" | "log" | "warn">;
@@ -98,7 +98,7 @@ export async function runAnalysisCycle({
   triggeredBy = "manual_recalculation",
   whatsappAlertDelivery,
 }: RunAnalysisCycleOptions): Promise<AnalysisCycleResult> {
-  const asset = findDefaultCryptoAsset(assetId);
+  const asset = await resolveWatchlistAsset(assetId, connectionString);
 
   if (!asset) {
     logger.warn(

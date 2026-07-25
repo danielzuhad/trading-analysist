@@ -57,6 +57,13 @@
       "when": 1784352565770,
       "tag": "0007_whole_excalibur",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1784376193774,
+      "tag": "0008_same_black_queen",
+      "breakpoints": true
     }
   ]
 }

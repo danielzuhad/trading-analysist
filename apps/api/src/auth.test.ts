@@ -3,9 +3,15 @@ import { buildApp } from "./app.js";
 import { isAuthorizedBearerHeader, isPublicApiPath } from "./auth.js";
 
 vi.mock("@trading-analyst/db", () => ({
+  addWatchlistAsset: vi.fn(async () => ({ status: "created" })),
   closePosition: vi.fn(async () => null),
   closeDatabase: vi.fn(async () => undefined),
   createPosition: vi.fn(async () => null),
+  ensureDefaultWatchlistAssets: vi.fn(async () => undefined),
+  getWatchlistAsset: vi.fn(async () => null),
+  getWatchlistAssetBySymbol: vi.fn(async () => null),
+  listWatchlistAssets: vi.fn(async () => []),
+  removeWatchlistAsset: vi.fn(async () => ({ status: "not_found" })),
   getActivePositionForAsset: vi.fn(async () => null),
   getAnalysisQualitySummary: vi.fn(async () => ({
     buckets: [],
@@ -41,6 +47,7 @@ const app = await buildApp({
   API_AUTH_TOKEN: authToken,
   API_HOST: "api.invalid",
   API_PORT: 3001,
+  COINGECKO_API_PLAN: "demo",
   DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
   REDIS_URL: "redis://127.0.0.1:6379",
 });
