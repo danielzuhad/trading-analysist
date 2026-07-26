@@ -6,8 +6,8 @@ import {
 } from "@trading-analyst/shared-types";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { buildApiAuthHeaders } from "../api-auth";
-import { loadWebEnv } from "../env";
+import { buildApiAuthHeaders } from "./api-auth";
+import { loadWebEnv } from "./env";
 
 export type SearchCryptoActionResult =
   | { results: CryptoSearchResult[]; status: "ok" }

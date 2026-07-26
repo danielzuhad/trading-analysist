@@ -3,8 +3,11 @@
 import type { CryptoSearchResult } from "@trading-analyst/shared-types";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CoinLogo } from "./coin-logo";
-import { addToWatchlistAction, searchCryptoAction } from "./watchlist-actions";
+import { CoinLogo } from "@/components/dashboard/coin-logo";
+import {
+  addToWatchlistAction,
+  searchCryptoAction,
+} from "@/lib/watchlist-actions";
 
 type WatchlistSearchProps = {
   watchlistCount: number;

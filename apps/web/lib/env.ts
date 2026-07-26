@@ -15,7 +15,10 @@ type WorkspaceEnvOptions = {
   env?: MutableEnv;
 };
 
-const webAppDir = path.dirname(fileURLToPath(import.meta.url));
+const webAppDir = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 
 function getEnvFiles(nodeEnv: string | undefined): string[] {
   const mode =

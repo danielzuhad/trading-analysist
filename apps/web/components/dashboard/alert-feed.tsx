@@ -1,5 +1,5 @@
 import type { Alert } from "@trading-analyst/shared-types";
-import { formatRelativeTime } from "./dashboard-format";
+import { formatRelativeTime } from "@/lib/dashboard-format";
 
 type AlertFeedProps = {
   alerts: Alert[];

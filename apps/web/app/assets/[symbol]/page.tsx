@@ -1,19 +1,22 @@
 import { findDefaultCryptoAssetBySymbol } from "@trading-analyst/shared-types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AlertFeed } from "@/components/dashboard/alert-feed";
+import { CoinLogo } from "@/components/dashboard/coin-logo";
+import {
+  DashboardTimeframeTabs,
+  DeltaText,
+  MissingDataList,
+  ScoreBar,
+  StateBadge,
+} from "@/components/dashboard/dashboard-primitives";
+import { OperationalWarningBanner } from "@/components/dashboard/operational-warning-banner";
 import {
   fetchAlerts,
   fetchAssetOverview,
   fetchWatchlist,
   resolveDashboardTimeframe,
-} from "../../../dashboard";
-import { loadWebEnv } from "../../../env";
-import {
-  buildAiOperationalWarning,
-  fetchInfrastructureStatus,
-} from "../../../status";
-import { AlertFeed } from "../../alert-feed";
-import { CoinLogo } from "../../coin-logo";
+} from "@/lib/dashboard";
 import {
   formatPercent,
   formatPositionStatusMessage,
@@ -22,22 +25,19 @@ import {
   mapDeltaClass,
   mapPositionStatusTone,
   readAssetImageUrl,
-} from "../../dashboard-format";
+} from "@/lib/dashboard-format";
+import { loadWebEnv } from "@/lib/env";
+import { manualPositionAnchorId } from "@/lib/position-action-payload";
 import {
-  DashboardTimeframeTabs,
-  DeltaText,
-  MissingDataList,
-  ScoreBar,
-  StateBadge,
-} from "../../dashboard-primitives";
-import { OperationalWarningBanner } from "../../operational-warning-banner";
-import { removeFromWatchlistAndRedirectAction } from "../../watchlist-actions";
+  buildAiOperationalWarning,
+  fetchInfrastructureStatus,
+} from "@/lib/status";
+import { removeFromWatchlistAndRedirectAction } from "@/lib/watchlist-actions";
 import {
   closePositionAction,
   recordPositionAction,
   updatePositionAction,
 } from "./actions";
-import { manualPositionAnchorId } from "./position-action-payload";
 
 export const dynamic = "force-dynamic";
 

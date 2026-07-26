@@ -33,6 +33,7 @@ import { registerChatLayerRoutes } from "./routes/chat-layer.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerMarketDataRoutes } from "./routes/market-data.js";
+import { registerPortfolioRoutes } from "./routes/portfolio.js";
 import { registerPositionRoutes } from "./routes/positions.js";
 import { registerWatchlistRoutes } from "./routes/watchlist.js";
 
@@ -135,6 +136,11 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
     listPositions: (filters) => listPositions(filters, env.DATABASE_URL),
     updatePosition: (positionId, input) =>
       updatePosition(positionId, input, env.DATABASE_URL),
+  });
+  await registerPortfolioRoutes(app, {
+    getWatchlistAsset: (assetId) =>
+      getWatchlistAsset(assetId, env.DATABASE_URL),
+    listPositions: (filters) => listPositions(filters, env.DATABASE_URL),
   });
   await registerChatLayerRoutes(app, {
     ...(env.TWILIO_AUTH_TOKEN ? { authToken: env.TWILIO_AUTH_TOKEN } : {}),

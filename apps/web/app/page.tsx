@@ -1,30 +1,32 @@
 import Link from "next/link";
 
-import {
-  fetchAlerts,
-  fetchWatchlist,
-  fetchWatchlistOverview,
-  resolveDashboardTimeframe,
-} from "../dashboard";
-import { loadWebEnv } from "../env";
-import {
-  buildAiOperationalWarning,
-  fetchInfrastructureStatus,
-} from "../status";
-import { AlertFeed } from "./alert-feed";
-import { CoinLogo } from "./coin-logo";
-import { formatPrice, readAssetImageUrl } from "./dashboard-format";
+import { AlertFeed } from "@/components/dashboard/alert-feed";
+import { CoinLogo } from "@/components/dashboard/coin-logo";
 import {
   DashboardTimeframeTabs,
   DeltaText,
   MissingDataList,
   ScoreBar,
   StateBadge,
-} from "./dashboard-primitives";
-import { InfrastructureStatusCard } from "./infrastructure-status-card";
-import { OperationalWarningBanner } from "./operational-warning-banner";
-import { WatchlistCardActions } from "./watchlist-card-actions";
-import { WatchlistSearch } from "./watchlist-search";
+} from "@/components/dashboard/dashboard-primitives";
+import { OperationalWarningBanner } from "@/components/dashboard/operational-warning-banner";
+import { PortfolioOverviewCard } from "@/components/dashboard/portfolio-overview-card";
+import { SystemStatusButton } from "@/components/dashboard/system-status-button";
+import { WatchlistCardActions } from "@/components/dashboard/watchlist-card-actions";
+import { WatchlistSearch } from "@/components/dashboard/watchlist-search";
+import {
+  fetchAlerts,
+  fetchPortfolioOverview,
+  fetchWatchlist,
+  fetchWatchlistOverview,
+  resolveDashboardTimeframe,
+} from "@/lib/dashboard";
+import { formatPrice, readAssetImageUrl } from "@/lib/dashboard-format";
+import { loadWebEnv } from "@/lib/env";
+import {
+  buildAiOperationalWarning,
+  fetchInfrastructureStatus,
+} from "@/lib/status";
 
 export const dynamic = "force-dynamic";
 
@@ -38,16 +40,22 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const timeframe = resolveDashboardTimeframe(resolvedSearchParams?.timeframe);
   const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
-  const [overviewResult, watchlistResult, infrastructureStatus, alertsResult] =
-    await Promise.all([
-      fetchWatchlistOverview(apiBaseUrl, timeframe),
-      fetchWatchlist(apiBaseUrl),
-      fetchInfrastructureStatus(apiBaseUrl),
-      fetchAlerts(apiBaseUrl, {
-        limit: 6,
-        timeframe,
-      }),
-    ]);
+  const [
+    overviewResult,
+    watchlistResult,
+    infrastructureStatus,
+    alertsResult,
+    portfolioResult,
+  ] = await Promise.all([
+    fetchWatchlistOverview(apiBaseUrl, timeframe),
+    fetchWatchlist(apiBaseUrl),
+    fetchInfrastructureStatus(apiBaseUrl),
+    fetchAlerts(apiBaseUrl, {
+      limit: 6,
+      timeframe,
+    }),
+    fetchPortfolioOverview(apiBaseUrl),
+  ]);
   const items = overviewResult.data?.items ?? [];
   const alerts = alertsResult.data?.alerts ?? [];
   const watchlistEntries = watchlistResult.data?.entries ?? [];
@@ -60,12 +68,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     (entry) => !analyzedAssetIds.has(entry.asset.id),
   );
   const aiWarning = buildAiOperationalWarning(infrastructureStatus);
-  const systemTone =
-    infrastructureStatus.status === "ready"
-      ? "ok"
-      : infrastructureStatus.status === "degraded"
-        ? "warn"
-        : "down";
 
   return (
     <main className="shell">
@@ -80,14 +82,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               {watchlistEntries.length}/{watchlistLimit} slots
             </span>
           ) : null}
-          <span className="inline-chip">
-            <span className={`status-dot status-dot--${systemTone}`} />
-            {systemTone === "ok"
-              ? "All systems running"
-              : systemTone === "warn"
-                ? "System degraded"
-                : "System issue"}
-          </span>
+          <SystemStatusButton apiBaseUrl={apiBaseUrl} />
           <DashboardTimeframeTabs basePath="/" timeframe={timeframe} />
         </div>
       </div>
@@ -229,6 +224,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </section>
 
         <section aria-label="Alerts and system status">
+          <PortfolioOverviewCard
+            data={portfolioResult.data}
+            issues={portfolioResult.issues}
+            message={portfolioResult.message}
+          />
           <AlertFeed
             alerts={alerts}
             emptyMessage="No alerts for this timeframe yet. Alerts appear when an asset changes state."
@@ -236,7 +236,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             message={alertsResult.message}
             title="Recent Alerts"
           />
-          <InfrastructureStatusCard apiBaseUrl={apiBaseUrl} />
         </section>
       </div>
     </main>

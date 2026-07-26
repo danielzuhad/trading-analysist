@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import {
   removeFromWatchlistAction,
   setWatchlistAiEnabledAction,
-} from "./watchlist-actions";
+} from "@/lib/watchlist-actions";
 
 type WatchlistCardActionsProps = {
   aiEnabled: boolean;

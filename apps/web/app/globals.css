@@ -1,3 +1,6 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
 :root {
   color-scheme: dark;
 
@@ -33,6 +36,34 @@
   --radius-sm: 10px;
   --font-ui:
     system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+  /* shadcn/ui tokens: aliased to this project's own tokens above so both
+     the hand-written CSS classes and Tailwind/shadcn utilities read from a
+     single source of truth. This app is dark-only (no light/.dark toggle). */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--accent);
+  --primary-foreground: var(--ink);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--ink);
+  --muted-foreground: var(--muted);
+  --accent-foreground: var(--ink);
+  --destructive: var(--down);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--accent);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: var(--ink);
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--accent);
 }
 
 * {
@@ -421,6 +452,16 @@ a {
   background: transparent;
 }
 
+.inline-chip--button {
+  cursor: pointer;
+  font: inherit;
+}
+
+.inline-chip--button:hover {
+  border-color: var(--line-strong);
+  color: var(--ink-2);
+}
+
 .state-badge--ignore,
 .state-badge--none {
   background: rgba(137, 135, 129, 0.16);
@@ -481,6 +522,102 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* ---------- portfolio overview ---------- */
+
+.portfolio-overview {
+  display: grid;
+  gap: 14px;
+}
+
+.portfolio-overview__totals {
+  display: flex;
+  gap: 24px;
+}
+
+.portfolio-overview__stat {
+  display: grid;
+  gap: 2px;
+}
+
+.portfolio-overview__stat-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.portfolio-overview__exposure-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--line);
+}
+
+.portfolio-overview__exposure-bar-fill--long {
+  background: var(--up);
+}
+
+.portfolio-overview__exposure-bar-fill--short {
+  background: var(--down);
+}
+
+.portfolio-overview__exposure-legend {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.portfolio-overview__warnings {
+  display: grid;
+  gap: 6px;
+}
+
+.portfolio-overview__warning {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  color: #e8a93a;
+  font-size: 0.85rem;
+}
+
+.portfolio-overview__positions {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.portfolio-overview__positions li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.85rem;
+}
+
+.portfolio-overview__position-symbol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.portfolio-overview__position-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.portfolio-overview__direction--long {
+  color: var(--up);
+}
+
+.portfolio-overview__direction--short {
+  color: var(--down);
 }
 
 /* ---------- timeframe tabs ---------- */
@@ -933,42 +1070,7 @@ a {
   font-size: 0.8rem;
 }
 
-/* ---------- system status strip ---------- */
-
-.status-strip {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.status-strip summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  cursor: pointer;
-  list-style: none;
-  font-size: 0.88rem;
-  color: var(--ink-2);
-}
-
-.status-strip summary::-webkit-details-marker {
-  display: none;
-}
-
-.status-strip__body {
-  display: grid;
-  gap: 8px;
-  padding: 4px 16px 16px;
-  border-top: 1px solid var(--line);
-  color: var(--ink-2);
-  font-size: 0.88rem;
-}
-
-.status-strip__body p {
-  margin: 0;
-}
+/* ---------- system status ---------- */
 
 .status-dot {
   width: 9px;
@@ -1379,5 +1481,51 @@ a {
   .detail-header__row {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+
+@theme inline {
+  --font-sans: var(--font-ui);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }

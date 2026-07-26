@@ -3,6 +3,8 @@ import {
   type AssetOverviewResponse,
   alertsResponseSchema,
   assetOverviewResponseSchema,
+  type PortfolioOverviewResponse,
+  portfolioOverviewResponseSchema,
   type SupportedTimeframe,
   supportedTimeframeSchema,
   type WatchlistOverviewResponse,
@@ -239,6 +241,73 @@ export async function fetchWatchlist(
         error instanceof Error
           ? `Watchlist request failed: ${error.message}`
           : "Watchlist request failed.",
+      status: "api-unreachable",
+    };
+  }
+}
+
+export async function fetchPortfolioOverview(
+  apiBaseUrl: string | undefined,
+  fetchImpl: FetchLike = fetch,
+): Promise<DashboardDataResult<PortfolioOverviewResponse>> {
+  if (!apiBaseUrl) {
+    return {
+      data: null,
+      issues: ["Set NEXT_PUBLIC_API_BASE_URL to load the dashboard data."],
+      message: "API base URL is not configured.",
+      status: "api-unconfigured",
+    };
+  }
+
+  try {
+    const response = await fetchImpl(`${apiBaseUrl}/portfolio/overview`, {
+      cache: "no-store",
+      headers: buildApiAuthHeaders(),
+    });
+
+    if (!response.ok) {
+      return {
+        data: null,
+        issues: [
+          "The portfolio overview endpoint returned an unexpected error.",
+        ],
+        message: `Portfolio overview request failed with status ${response.status}.`,
+        status: "api-unreachable",
+      };
+    }
+
+    const payload = portfolioOverviewResponseSchema.safeParse(
+      await response.json(),
+    );
+
+    if (!payload.success) {
+      return {
+        data: null,
+        issues: [
+          "The API returned a portfolio overview payload that did not match the expected schema.",
+        ],
+        message: "Portfolio overview payload is invalid.",
+        status: "invalid-response",
+      };
+    }
+
+    return {
+      data: payload.data,
+      issues: [],
+      message:
+        payload.data.openPositionCount > 0
+          ? "Portfolio overview loaded."
+          : "No open positions yet.",
+      status: "ready",
+    };
+  } catch (error) {
+    return {
+      data: null,
+      issues: ["The web app could not reach the portfolio overview endpoint."],
+      message:
+        error instanceof Error
+          ? `Portfolio overview request failed: ${error.message}`
+          : "Portfolio overview request failed.",
       status: "api-unreachable",
     };
   }

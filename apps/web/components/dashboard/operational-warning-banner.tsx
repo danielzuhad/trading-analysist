@@ -1,5 +1,5 @@
-import type { AiOperationalWarning } from "../status";
-import { formatRelativeTime } from "./dashboard-format";
+import { formatRelativeTime } from "@/lib/dashboard-format";
+import type { AiOperationalWarning } from "@/lib/status";
 
 export function OperationalWarningBanner({
   warning,

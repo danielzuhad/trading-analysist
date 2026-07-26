@@ -13,7 +13,7 @@ import {
   mapDeltaClass,
   mapOverviewStatusTone,
   mapScoreClass,
-} from "./dashboard-format";
+} from "@/lib/dashboard-format";
 
 type DashboardTimeframeTabsProps = {
   basePath: string;

@@ -1,14 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { buildApiAuthHeaders } from "../../../api-auth";
-import { loadWebEnv } from "../../../env";
+import { buildApiAuthHeaders } from "@/lib/api-auth";
+import { loadWebEnv } from "@/lib/env";
 import {
   buildClosePositionPayload,
   buildCreatePositionPayload,
   buildPositionRedirectPath,
   buildUpdatePositionPayload,
-} from "./position-action-payload";
+} from "@/lib/position-action-payload";
 
 export async function recordPositionAction(formData: FormData) {
   const symbol = readRequiredString(formData, "symbol");
