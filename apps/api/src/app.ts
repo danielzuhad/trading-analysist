@@ -2,7 +2,9 @@ import {
   addWatchlistAsset,
   closeDatabase,
   closePosition,
+  createApiToken,
   createPosition,
+  createUser,
   ensureDefaultWatchlistAssets,
   getActivePositionForAsset,
   getAnalysisQualitySummary,
@@ -15,11 +17,14 @@ import {
   listAlerts,
   listPositions,
   listServiceHeartbeats,
+  listUsers,
   listWatchlistAssets,
   pingDatabase,
   removeWatchlistAsset,
+  resolveApiToken,
   setWatchlistAssetAiEnabled,
   updatePosition,
+  verifyUserPassword,
 } from "@trading-analyst/db";
 import { searchCoinGeckoCoins } from "@trading-analyst/market-data";
 import Fastify from "fastify";
@@ -29,6 +34,7 @@ import { registerCors } from "./cors.js";
 import { type ApiEnv, loadApiEnv } from "./env.js";
 import { registerAlertRoutes } from "./routes/alerts.js";
 import { registerAnalysisQualityRoutes } from "./routes/analysis-quality.js";
+import { registerAuthRoutes } from "./routes/auth.js";
 import { registerChatLayerRoutes } from "./routes/chat-layer.js";
 import { registerDashboardRoutes } from "./routes/dashboard.js";
 import { registerHealthRoutes } from "./routes/health.js";
@@ -58,7 +64,21 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
   );
 
   await registerCors(app);
-  registerAuthGuard(app, { token: env.API_AUTH_TOKEN });
+  registerAuthGuard(app, {
+    ...(env.API_AUTH_TOKEN ? { bootstrapToken: env.API_AUTH_TOKEN } : {}),
+    ...(env.BOOTSTRAP_ADMIN_USER_ID
+      ? { bootstrapUserId: env.BOOTSTRAP_ADMIN_USER_ID }
+      : {}),
+    enabled: Boolean(env.API_AUTH_TOKEN),
+    resolveApiToken: (token) => resolveApiToken(token, env.DATABASE_URL),
+  });
+  await registerAuthRoutes(app, {
+    createApiToken: (userId) => createApiToken(userId, env.DATABASE_URL),
+    createUser: (input) => createUser(input, env.DATABASE_URL),
+    listUsers: () => listUsers(env.DATABASE_URL),
+    verifyUserPassword: (email, password) =>
+      verifyUserPassword(email, password, env.DATABASE_URL),
+  });
   await registerHealthRoutes(app, {
     env,
     checkDatabase: () => pingDatabase(env.DATABASE_URL),
@@ -84,14 +104,16 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
       getLatestMarketData(assetId, timeframe, env.DATABASE_URL),
     getLatestSignalAggregationSnapshot: (assetId, timeframe) =>
       getLatestSignalAggregationSnapshot(assetId, timeframe, env.DATABASE_URL),
-    getActivePositionForAsset: ({ assetId }) =>
+    getActivePositionForAsset: ({ assetId, userId }) =>
       getActivePositionForAsset({
         assetId,
         connectionString: env.DATABASE_URL,
+        userId,
       }),
-    getWatchlistAsset: (assetId) =>
-      getWatchlistAsset(assetId, env.DATABASE_URL),
-    listWatchlistAssets: () => listWatchlistAssets(env.DATABASE_URL),
+    getWatchlistAsset: ({ assetId, userId }) =>
+      getWatchlistAsset({ assetId, userId }, env.DATABASE_URL),
+    listWatchlistAssets: (userId) =>
+      listWatchlistAssets(userId, env.DATABASE_URL),
   });
   await registerAlertRoutes(app, {
     listAlerts: (filters) => listAlerts(filters, env.DATABASE_URL),
@@ -102,16 +124,18 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
   });
   await registerWatchlistRoutes(app, {
     addAsset: (input) => addWatchlistAsset(input, env.DATABASE_URL),
-    ensureDefaults: () => ensureDefaultWatchlistAssets(env.DATABASE_URL),
-    getActivePositionForAsset: ({ assetId }) =>
+    ensureDefaults: (userId) =>
+      ensureDefaultWatchlistAssets(userId, env.DATABASE_URL),
+    getActivePositionForAsset: ({ assetId, userId }) =>
       getActivePositionForAsset({
         assetId,
         connectionString: env.DATABASE_URL,
+        userId,
       }),
-    listAssets: () => listWatchlistAssets(env.DATABASE_URL),
-    removeAsset: (assetId) => removeWatchlistAsset(assetId, env.DATABASE_URL),
-    setAssetAiEnabled: (assetId, aiEnabled) =>
-      setWatchlistAssetAiEnabled(assetId, aiEnabled, env.DATABASE_URL),
+    listAssets: (userId) => listWatchlistAssets(userId, env.DATABASE_URL),
+    removeAsset: (filters) => removeWatchlistAsset(filters, env.DATABASE_URL),
+    setAssetAiEnabled: (filters, aiEnabled) =>
+      setWatchlistAssetAiEnabled(filters, aiEnabled, env.DATABASE_URL),
     ...(env.COINGECKO_API_KEY
       ? {
           searchCoins: (query: string) =>
@@ -131,19 +155,20 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
       getActivePositionForAsset({
         assetId,
         connectionString: env.DATABASE_URL,
-        ...(userId ? { userId } : {}),
+        userId,
       }),
     listPositions: (filters) => listPositions(filters, env.DATABASE_URL),
     updatePosition: (positionId, input) =>
       updatePosition(positionId, input, env.DATABASE_URL),
   });
   await registerPortfolioRoutes(app, {
-    getWatchlistAsset: (assetId) =>
-      getWatchlistAsset(assetId, env.DATABASE_URL),
+    getWatchlistAsset: ({ assetId, userId }) =>
+      getWatchlistAsset({ assetId, userId }, env.DATABASE_URL),
     listPositions: (filters) => listPositions(filters, env.DATABASE_URL),
   });
   await registerChatLayerRoutes(app, {
     ...(env.TWILIO_AUTH_TOKEN ? { authToken: env.TWILIO_AUTH_TOKEN } : {}),
+    chatUserId: env.CHAT_LAYER_USER_ID ?? env.BOOTSTRAP_ADMIN_USER_ID ?? "",
     closePosition: (positionId, input) =>
       closePosition(positionId, input, env.DATABASE_URL),
     createPosition: (input) => createPosition(input, env.DATABASE_URL),
@@ -151,7 +176,7 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
       getActivePositionForAsset({
         assetId,
         connectionString: env.DATABASE_URL,
-        ...(userId ? { userId } : {}),
+        userId,
       }),
     getLatestAssetAnalysis: (assetId, timeframe) =>
       getLatestAssetAnalysis(assetId, timeframe, env.DATABASE_URL),
@@ -161,9 +186,10 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
       getLatestMarketData(assetId, timeframe, env.DATABASE_URL),
     getLatestSignalAggregationSnapshot: (assetId, timeframe) =>
       getLatestSignalAggregationSnapshot(assetId, timeframe, env.DATABASE_URL),
-    getWatchlistAssetBySymbol: (symbol) =>
-      getWatchlistAssetBySymbol(symbol, env.DATABASE_URL),
-    listWatchlistAssets: () => listWatchlistAssets(env.DATABASE_URL),
+    getWatchlistAssetBySymbol: ({ symbol, userId }) =>
+      getWatchlistAssetBySymbol({ symbol, userId }, env.DATABASE_URL),
+    listWatchlistAssets: (userId) =>
+      listWatchlistAssets(userId, env.DATABASE_URL),
     ...(env.TWILIO_WEBHOOK_URL ? { webhookUrl: env.TWILIO_WEBHOOK_URL } : {}),
     ...(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_WEBHOOK_SECRET
       ? {

@@ -345,6 +345,7 @@ describe("shared contracts", () => {
       direction: "long",
       entryPrice: 84250.5,
       quantity: 0.25,
+      userId: "user-123",
     });
     const updateInput = updatePositionInputSchema.parse({
       stopLoss: 83200,
@@ -357,7 +358,7 @@ describe("shared contracts", () => {
     expect(createInput).toMatchObject({
       status: "open",
       takeProfitLevels: [],
-      userId: "system:default",
+      userId: "user-123",
     });
     expect(updateInput.stopLoss).toBe(83200);
     expect(closeInput.remainingQuantity).toBe(0);

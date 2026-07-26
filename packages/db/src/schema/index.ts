@@ -22,6 +22,54 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    role: text("role").notNull(),
+    telegramChatId: text("telegram_chat_id"),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [uniqueIndex("users_email_unique").on(table.email)],
+);
+
+export const apiTokens = pgTable(
+  "api_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+    })
+      .notNull()
+      .defaultNow(),
+    lastUsedAt: timestamp("last_used_at", {
+      withTimezone: true,
+    }),
+    revokedAt: timestamp("revoked_at", {
+      withTimezone: true,
+    }),
+  },
+  (table) => [
+    uniqueIndex("api_tokens_token_hash_unique").on(table.tokenHash),
+    index("api_tokens_user_id_idx").on(table.userId),
+  ],
+);
+
 export const serviceHeartbeats = pgTable("service_heartbeats", {
   id: uuid("id").defaultRandom().primaryKey(),
   serviceName: text("service_name").notNull().unique(),
@@ -188,6 +236,29 @@ export const assetAnalysisLatestSnapshots = pgTable(
       .notNull()
       .defaultNow(),
   },
+);
+
+export const aiCostLedger = pgTable(
+  "ai_cost_ledger",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assetId: text("asset_id").notNull(),
+    timeframe: text("timeframe").notNull(),
+    analysisId: text("analysis_id").notNull(),
+    costEstimateUsd: text("cost_estimate_usd").notNull(),
+    generatedAt: timestamp("generated_at", {
+      withTimezone: true,
+    }).notNull(),
+  },
+  (table) => [
+    index("ai_cost_ledger_user_generated_at_idx").on(
+      table.userId,
+      table.generatedAt,
+    ),
+  ],
 );
 
 export const positions = pgTable(
@@ -359,7 +430,11 @@ export const analysisOutcomes = pgTable(
 export const watchlistAssets = pgTable(
   "watchlist_assets",
   {
-    assetId: text("asset_id").primaryKey(),
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    assetId: text("asset_id").notNull(),
     symbol: text("symbol").notNull(),
     coingeckoCoinId: text("coingecko_coin_id").notNull(),
     asset: jsonb("asset").$type<Asset>().notNull(),
@@ -380,12 +455,24 @@ export const watchlistAssets = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [uniqueIndex("watchlist_assets_symbol_unique").on(table.symbol)],
+  (table) => [
+    uniqueIndex("watchlist_assets_user_symbol_unique").on(
+      table.userId,
+      table.symbol,
+    ),
+    uniqueIndex("watchlist_assets_user_asset_unique").on(
+      table.userId,
+      table.assetId,
+    ),
+    index("watchlist_assets_user_id_idx").on(table.userId),
+  ],
 );
 
 export const schema = {
+  aiCostLedger,
   alerts,
   analysisOutcomes,
+  apiTokens,
   watchlistAssets,
   assetAnalysisLatestSnapshots,
   indicatorLatestSnapshots,
@@ -393,4 +480,5 @@ export const schema = {
   positions,
   signalAggregationLatestSnapshots,
   serviceHeartbeats,
+  users,
 };

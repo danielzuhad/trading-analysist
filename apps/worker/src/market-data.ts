@@ -117,6 +117,7 @@ export function findDefaultCryptoAsset(assetId: string) {
 
 export async function resolveWatchlistAsset(
   assetId: string,
+  userId: string,
   connectionString?: string,
 ): Promise<Asset | null> {
   const seeded = findDefaultCryptoAsset(assetId);
@@ -126,7 +127,10 @@ export async function resolveWatchlistAsset(
   }
 
   try {
-    const entry = await getWatchlistAsset(assetId, connectionString);
+    const entry = await getWatchlistAsset(
+      { assetId, userId },
+      connectionString,
+    );
     return entry?.asset ?? null;
   } catch {
     return null;

@@ -18,7 +18,7 @@ import {
   type WatchlistOverviewItem,
   watchlistOverviewResponseSchema,
 } from "@trading-analyst/shared-types";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 const overviewQuerySchema = z.object({
@@ -66,15 +66,32 @@ type Dependencies = {
   ) => Promise<SignalAggregationSnapshot | null>;
   getActivePositionForAsset: (filters: {
     assetId: string;
+    userId: string;
   }) => Promise<Position | null>;
-  listWatchlistAssets?: () => Promise<Array<{ asset: Asset }>>;
-  getWatchlistAsset?: (assetId: string) => Promise<{ asset: Asset } | null>;
+  listWatchlistAssets?: (userId: string) => Promise<Array<{ asset: Asset }>>;
+  getWatchlistAsset?: (filters: {
+    assetId: string;
+    userId: string;
+  }) => Promise<{ asset: Asset } | null>;
 };
 
-async function resolveWatchlistOverviewAssets(dependencies: Dependencies) {
+function requireUserId(request: FastifyRequest): string {
+  const userId = request.user?.userId;
+
+  if (!userId) {
+    throw new Error("Route registered without an authenticated request.");
+  }
+
+  return userId;
+}
+
+async function resolveWatchlistOverviewAssets(
+  userId: string,
+  dependencies: Dependencies,
+) {
   if (dependencies.listWatchlistAssets) {
     try {
-      const entries = await dependencies.listWatchlistAssets();
+      const entries = await dependencies.listWatchlistAssets(userId);
 
       if (entries.length > 0) {
         return entries.map((entry) => entry.asset);
@@ -89,6 +106,7 @@ async function resolveWatchlistOverviewAssets(dependencies: Dependencies) {
 
 async function resolveDashboardAsset(
   assetId: string,
+  userId: string,
   dependencies: Dependencies,
 ): Promise<Asset | undefined> {
   const seeded = findDefaultCryptoAsset(assetId);
@@ -102,7 +120,7 @@ async function resolveDashboardAsset(
   }
 
   try {
-    const entry = await dependencies.getWatchlistAsset(assetId);
+    const entry = await dependencies.getWatchlistAsset({ assetId, userId });
     return entry?.asset;
   } catch {
     return undefined;
@@ -122,6 +140,7 @@ export async function registerDashboardRoutes(
   dependencies: Dependencies,
 ) {
   app.get("/watchlist/overview", async (request, reply) => {
+    const userId = requireUserId(request);
     const queryResult = overviewQuerySchema.safeParse(request.query);
 
     if (!queryResult.success) {
@@ -132,12 +151,14 @@ export async function registerDashboardRoutes(
     }
 
     return buildWatchlistOverviewResponse(
+      userId,
       queryResult.data.timeframe,
       dependencies,
     );
   });
 
   app.get("/assets/:assetId/overview", async (request, reply) => {
+    const userId = requireUserId(request);
     const paramsResult = assetOverviewParamsSchema.safeParse(request.params);
     const queryResult = overviewQuerySchema.safeParse(request.query);
 
@@ -153,6 +174,7 @@ export async function registerDashboardRoutes(
 
     const asset = await resolveDashboardAsset(
       paramsResult.data.assetId,
+      userId,
       dependencies,
     );
 
@@ -165,6 +187,7 @@ export async function registerDashboardRoutes(
 
     return buildAssetOverviewResponse(
       asset,
+      userId,
       queryResult.data.timeframe,
       dependencies,
     );
@@ -172,14 +195,18 @@ export async function registerDashboardRoutes(
 }
 
 export async function buildWatchlistOverviewResponse(
+  userId: string,
   timeframe: SupportedTimeframe,
   dependencies: Dependencies,
 ) {
   const generatedAt = new Date().toISOString();
-  const overviewAssets = await resolveWatchlistOverviewAssets(dependencies);
+  const overviewAssets = await resolveWatchlistOverviewAssets(
+    userId,
+    dependencies,
+  );
   const items = await Promise.all(
     overviewAssets.map(async (asset) =>
-      buildWatchlistOverviewItem(asset, timeframe, dependencies),
+      buildWatchlistOverviewItem(asset, userId, timeframe, dependencies),
     ),
   );
 
@@ -194,11 +221,13 @@ export async function buildWatchlistOverviewResponse(
 
 export async function buildAssetOverviewResponse(
   asset: Asset,
+  userId: string,
   timeframe: SupportedTimeframe,
   dependencies: Dependencies,
 ): Promise<AssetOverviewResponse> {
   const snapshots = await loadLatestAssetSnapshots(
     asset.id,
+    userId,
     timeframe,
     dependencies,
   );
@@ -230,11 +259,13 @@ export async function buildAssetOverviewResponse(
 
 async function buildWatchlistOverviewItem(
   asset: Asset,
+  userId: string,
   timeframe: SupportedTimeframe,
   dependencies: Dependencies,
 ): Promise<WatchlistOverviewItem> {
   const snapshots = await loadLatestAssetSnapshots(
     asset.id,
+    userId,
     timeframe,
     dependencies,
   );
@@ -294,6 +325,7 @@ async function buildWatchlistOverviewItem(
 
 async function loadLatestAssetSnapshots(
   assetId: string,
+  userId: string,
   timeframe: SupportedTimeframe,
   dependencies: Dependencies,
 ): Promise<LatestAssetSnapshots> {
@@ -308,7 +340,7 @@ async function loadLatestAssetSnapshots(
     dependencies.getLatestIndicatorSnapshot(assetId, timeframe),
     dependencies.getLatestSignalAggregationSnapshot(assetId, timeframe),
     dependencies.getLatestAssetAnalysis(assetId, timeframe),
-    dependencies.getActivePositionForAsset({ assetId }),
+    dependencies.getActivePositionForAsset({ assetId, userId }),
   ]);
 
   return {

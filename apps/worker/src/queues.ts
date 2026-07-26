@@ -16,4 +16,5 @@ export type MarketSnapshotJobData = {
   requestedAt: string;
   timeframe: SupportedTimeframe;
   trigger: WorkerJobTrigger;
+  userId: string;
 };

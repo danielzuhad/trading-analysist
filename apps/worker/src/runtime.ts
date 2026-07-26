@@ -1,5 +1,6 @@
 import {
   ensureDefaultWatchlistAssets,
+  listAllWatchlistUserIds,
   listWatchlistAssets,
 } from "@trading-analyst/db";
 import type { AnalysisTrigger } from "@trading-analyst/shared-types";
@@ -73,6 +74,7 @@ async function defaultProcessor(
         : {}),
       timeframe: job.data.timeframe,
       triggeredBy: resolveAnalysisTrigger(job.data.trigger),
+      userId: job.data.userId,
       ...(env.TWILIO_ACCOUNT_SID &&
       env.TWILIO_AUTH_TOKEN &&
       env.TWILIO_WHATSAPP_FROM &&
@@ -143,6 +145,7 @@ async function defaultProcessor(
       connectionString: env.DATABASE_URL,
       requestedAt: job.data.requestedAt,
       timeframe: job.data.timeframe,
+      userId: job.data.userId,
     });
 
     if (thresholdResult.status === "skipped") {
@@ -177,6 +180,7 @@ async function defaultProcessor(
         : {}),
       timeframe: job.data.timeframe,
       triggeredBy: "realtime_event",
+      userId: job.data.userId,
       ...(env.TWILIO_ACCOUNT_SID &&
       env.TWILIO_AUTH_TOKEN &&
       env.TWILIO_WHATSAPP_FROM &&
@@ -323,15 +327,21 @@ export async function startWorkerRuntime(
   );
   const schedulerHandles: NodeJS.Timeout[] = [];
   const resolveScheduledAssets = () =>
-    resolveScheduledAssetIds(runtime.env, logger);
+    resolveScheduledAssetsByUser(runtime.env, logger);
 
   logger.log(
     `[worker] online with queue "${runtime.queueName}" and concurrency ${runtime.env.WORKER_CONCURRENCY}`,
   );
 
-  if (shouldEnqueueBootstrapJob || shouldEnableScheduler) {
+  if (
+    (shouldEnqueueBootstrapJob || shouldEnableScheduler) &&
+    runtime.env.WORKER_FALLBACK_USER_ID
+  ) {
     try {
-      await ensureDefaultWatchlistAssets(runtime.env.DATABASE_URL);
+      await ensureDefaultWatchlistAssets(
+        runtime.env.WORKER_FALLBACK_USER_ID,
+        runtime.env.DATABASE_URL,
+      );
     } catch (error) {
       logger.warn(
         `[worker] could not seed default watchlist assets: ${formatWorkerError(
@@ -343,7 +353,7 @@ export async function startWorkerRuntime(
 
   if (shouldEnqueueBootstrapJob) {
     await enqueueWorkerJobs({
-      assetIds: await resolveScheduledAssets(),
+      assetsByUser: await resolveScheduledAssets(),
       jobName: marketSnapshotJobName,
       queue: runtime.analysisQueue,
       timeframes: scheduledTimeframes,
@@ -356,9 +366,9 @@ export async function startWorkerRuntime(
       const intervalMs =
         timeframe === "1H" ? 60 * 60 * 1000 : 4 * 60 * 60 * 1000;
       const handle = setInterval(() => {
-        void resolveScheduledAssets().then((assetIds) =>
+        void resolveScheduledAssets().then((assetsByUser) =>
           enqueueWorkerJobs({
-            assetIds,
+            assetsByUser,
             jobName: marketSnapshotJobName,
             queue: runtime.analysisQueue,
             timeframes: [timeframe],
@@ -378,9 +388,9 @@ export async function startWorkerRuntime(
     const thresholdIntervalMs =
       runtime.env.WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES * 60 * 1000;
     const handle = setInterval(() => {
-      void resolveScheduledAssets().then((assetIds) =>
+      void resolveScheduledAssets().then((assetsByUser) =>
         enqueueWorkerJobs({
-          assetIds,
+          assetsByUser,
           jobName: thresholdCheckJobName,
           queue: runtime.analysisQueue,
           timeframes: scheduledTimeframes,
@@ -398,9 +408,9 @@ export async function startWorkerRuntime(
   if (shouldEnableOutcomeEvaluation) {
     const outcomeIntervalMs = 60 * 60 * 1000;
     const handle = setInterval(() => {
-      void resolveScheduledAssets().then((assetIds) =>
+      void resolveScheduledAssets().then((assetsByUser) =>
         enqueueWorkerJobs({
-          assetIds,
+          assetsByUser,
           jobName: outcomeEvaluationJobName,
           queue: runtime.analysisQueue,
           timeframes: scheduledTimeframes,
@@ -427,57 +437,91 @@ export async function startWorkerRuntime(
   return runtime;
 }
 
-async function resolveScheduledAssetIds(
+export type ScheduledUserAssets = {
+  assetIds: string[];
+  userId: string;
+};
+
+async function resolveScheduledAssetsForUser(
+  userId: string,
   env: WorkerEnv,
   logger: Logger,
 ): Promise<string[]> {
+  const entries = await listWatchlistAssets(userId, env.DATABASE_URL);
+  const aiEnabled = entries
+    .filter((entry) => entry.aiEnabled)
+    .sort((left, right) => {
+      if (left.source === "position" && right.source !== "position") {
+        return -1;
+      }
+
+      if (left.source !== "position" && right.source === "position") {
+        return 1;
+      }
+
+      return 0;
+    })
+    .map((entry) => entry.asset.id);
+
+  if (aiEnabled.length > env.WORKER_MAX_AI_ASSETS) {
+    logger.warn(
+      `[worker] user ${userId} has ${aiEnabled.length} AI-enabled asset(s); scheduling only the first ${env.WORKER_MAX_AI_ASSETS} to control AI cost`,
+    );
+  }
+
+  return aiEnabled.slice(0, env.WORKER_MAX_AI_ASSETS);
+}
+
+async function resolveScheduledAssetsByUser(
+  env: WorkerEnv,
+  logger: Logger,
+): Promise<ScheduledUserAssets[]> {
   try {
-    const entries = await listWatchlistAssets(env.DATABASE_URL);
-    const aiEnabled = entries
-      .filter((entry) => entry.aiEnabled)
-      .sort((left, right) => {
-        if (left.source === "position" && right.source !== "position") {
-          return -1;
-        }
+    const userIds = await listAllWatchlistUserIds(env.DATABASE_URL);
 
-        if (left.source !== "position" && right.source === "position") {
-          return 1;
-        }
-
-        return 0;
-      })
-      .map((entry) => entry.asset.id);
-
-    if (aiEnabled.length === 0) {
-      return parseCsvList(env.WORKER_SCHEDULED_ASSETS);
+    if (userIds.length === 0) {
+      throw new Error("No users have a watchlist yet.");
     }
 
-    if (aiEnabled.length > env.WORKER_MAX_AI_ASSETS) {
-      logger.warn(
-        `[worker] watchlist has ${aiEnabled.length} AI-enabled asset(s); scheduling only the first ${env.WORKER_MAX_AI_ASSETS} to control AI cost`,
-      );
-    }
+    const assetsByUser = await Promise.all(
+      userIds.map(async (userId) => ({
+        assetIds: await resolveScheduledAssetsForUser(userId, env, logger),
+        userId,
+      })),
+    );
 
-    return aiEnabled.slice(0, env.WORKER_MAX_AI_ASSETS);
+    return assetsByUser.filter((entry) => entry.assetIds.length > 0);
   } catch (error) {
     logger.warn(
-      `[worker] could not read the watchlist from the database, falling back to WORKER_SCHEDULED_ASSETS: ${
+      `[worker] could not read watchlists from the database, falling back to WORKER_SCHEDULED_ASSETS: ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
 
-    return parseCsvList(env.WORKER_SCHEDULED_ASSETS);
+    if (!env.WORKER_FALLBACK_USER_ID) {
+      logger.warn(
+        "[worker] WORKER_FALLBACK_USER_ID is not configured; skipping the fallback schedule.",
+      );
+      return [];
+    }
+
+    return [
+      {
+        assetIds: parseCsvList(env.WORKER_SCHEDULED_ASSETS),
+        userId: env.WORKER_FALLBACK_USER_ID,
+      },
+    ];
   }
 }
 
 async function enqueueWorkerJobs({
-  assetIds,
+  assetsByUser,
   jobName,
   queue,
   timeframes,
   trigger,
 }: {
-  assetIds: string[];
+  assetsByUser: ScheduledUserAssets[];
   jobName: string;
   queue: Queue<MarketSnapshotJobData>;
   timeframes: MarketSnapshotJobData["timeframe"][];
@@ -486,14 +530,17 @@ async function enqueueWorkerJobs({
   const requestedAt = new Date().toISOString();
 
   await Promise.all(
-    assetIds.flatMap((assetId) =>
-      timeframes.map((timeframe) =>
-        queue.add(jobName, {
-          assetId,
-          requestedAt,
-          timeframe,
-          trigger,
-        }),
+    assetsByUser.flatMap(({ assetIds, userId }) =>
+      assetIds.flatMap((assetId) =>
+        timeframes.map((timeframe) =>
+          queue.add(jobName, {
+            assetId,
+            requestedAt,
+            timeframe,
+            trigger,
+            userId,
+          }),
+        ),
       ),
     ),
   );

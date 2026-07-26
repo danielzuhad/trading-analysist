@@ -52,6 +52,7 @@ type RunAnalysisCycleOptions = {
   };
   timeframe: SupportedTimeframe;
   triggeredBy?: AnalysisTrigger;
+  userId: string;
   whatsappAlertDelivery?: {
     accountSid: string;
     authToken: string;
@@ -96,9 +97,10 @@ export async function runAnalysisCycle({
   telegramAlertDelivery,
   timeframe,
   triggeredBy = "manual_recalculation",
+  userId,
   whatsappAlertDelivery,
 }: RunAnalysisCycleOptions): Promise<AnalysisCycleResult> {
-  const asset = await resolveWatchlistAsset(assetId, connectionString);
+  const asset = await resolveWatchlistAsset(assetId, userId, connectionString);
 
   if (!asset) {
     logger.warn(
@@ -146,6 +148,7 @@ export async function runAnalysisCycle({
 
   const activePosition = await getActivePositionForAssetFn({
     assetId: asset.id,
+    userId,
     ...(connectionString ? { connectionString } : {}),
   });
 
@@ -191,6 +194,7 @@ export async function runAnalysisCycle({
       ...(telegramAlertDelivery ? { telegramAlertDelivery } : {}),
       timeframe,
       triggeredBy,
+      userId,
       ...(whatsappAlertDelivery ? { whatsappAlertDelivery } : {}),
     });
   } catch (error) {

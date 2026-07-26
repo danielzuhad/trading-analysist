@@ -27,6 +27,9 @@ function buildPosition(overrides: Partial<Position> = {}): Position {
 async function buildTestApp(positions: Position[]) {
   const listPositions = vi.fn().mockResolvedValue(positions);
   const app = Fastify();
+  app.addHook("onRequest", async (request) => {
+    request.user = { role: "member", userId: "user-1" };
+  });
 
   await registerPortfolioRoutes(app, {
     listPositions,

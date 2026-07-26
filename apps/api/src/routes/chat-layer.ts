@@ -36,8 +36,6 @@ import {
   buildWatchlistOverviewResponse,
 } from "./dashboard.js";
 
-const defaultChatUserId = "system:default";
-
 type ChatInboundMessage = {
   channel: "telegram" | "whatsapp";
   from: string;
@@ -55,6 +53,7 @@ type TelegramDependencies = {
 
 type Dependencies = {
   authToken?: string;
+  chatUserId: string;
   telegram?: TelegramDependencies;
   closePosition: (
     positionId: string,
@@ -63,7 +62,7 @@ type Dependencies = {
   createPosition: (input: CreatePositionInput) => Promise<Position>;
   getActivePositionForAsset: (filters: {
     assetId: string;
-    userId?: string;
+    userId: string;
   }) => Promise<Position | null>;
   getLatestAssetAnalysis: (
     assetId: string,
@@ -81,10 +80,11 @@ type Dependencies = {
     assetId: string,
     timeframe: SupportedTimeframe,
   ) => Promise<SignalAggregationSnapshot | null>;
-  getWatchlistAssetBySymbol?: (
-    symbol: string,
-  ) => Promise<{ asset: Asset } | null>;
-  listWatchlistAssets?: () => Promise<Array<{ asset: Asset }>>;
+  getWatchlistAssetBySymbol?: (filters: {
+    symbol: string;
+    userId: string;
+  }) => Promise<{ asset: Asset } | null>;
+  listWatchlistAssets?: (userId: string) => Promise<Array<{ asset: Asset }>>;
   webhookUrl?: string;
 };
 
@@ -103,7 +103,10 @@ async function resolveChatAsset(
   }
 
   try {
-    const entry = await dependencies.getWatchlistAssetBySymbol(symbol);
+    const entry = await dependencies.getWatchlistAssetBySymbol({
+      symbol,
+      userId: dependencies.chatUserId,
+    });
     return entry?.asset;
   } catch {
     return undefined;
@@ -238,6 +241,7 @@ async function buildChatReply(
       return formatUnknownCommandMessage();
     case "watchlist": {
       const watchlist = await buildWatchlistOverviewResponse(
+        dependencies.chatUserId,
         command.timeframe,
         dependencies,
       );
@@ -253,6 +257,7 @@ async function buildChatReply(
 
       const overview = await buildAssetOverviewResponse(
         asset,
+        dependencies.chatUserId,
         command.timeframe,
         dependencies,
       );
@@ -268,6 +273,7 @@ async function buildChatReply(
 
       const activePosition = await dependencies.getActivePositionForAsset({
         assetId: asset.id,
+        userId: dependencies.chatUserId,
       });
 
       if (activePosition) {
@@ -297,7 +303,7 @@ async function buildChatReply(
         status: "open",
         ...(command.thesis ? { thesis: command.thesis } : {}),
         takeProfitLevels: [],
-        userId: defaultChatUserId,
+        userId: dependencies.chatUserId,
       });
 
       return formatPositionRecordedMessage(position);
@@ -311,6 +317,7 @@ async function buildChatReply(
 
       const activePosition = await dependencies.getActivePositionForAsset({
         assetId: asset.id,
+        userId: dependencies.chatUserId,
       });
 
       if (!activePosition) {
@@ -347,6 +354,7 @@ async function readLatestState(
 ) {
   const overview = await buildAssetOverviewResponse(
     asset,
+    dependencies.chatUserId,
     timeframe,
     dependencies,
   );

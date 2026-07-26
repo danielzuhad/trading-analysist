@@ -199,6 +199,7 @@ describe("worker threshold checks", () => {
       getLatestSignalSnapshot: vi.fn(async () => latestSignalFixture),
       requestedAt,
       timeframe: "4H",
+      userId: "test-user",
     });
 
     expect(fetchCurrentPrice).toHaveBeenCalledOnce();
@@ -226,6 +227,7 @@ describe("worker threshold checks", () => {
       getLatestSignalSnapshot: vi.fn(async () => null),
       requestedAt,
       timeframe: "4H",
+      userId: "test-user",
     });
 
     expect(result).toEqual({

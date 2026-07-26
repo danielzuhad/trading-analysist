@@ -80,6 +80,7 @@ describeInfrastructure("worker bootstrap", () => {
       requestedAt: new Date().toISOString(),
       timeframe: "1H",
       trigger: "manual",
+      userId: "test-user",
     });
 
     await processedJobPromise;

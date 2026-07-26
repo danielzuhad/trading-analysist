@@ -42,6 +42,7 @@ export const workerEnvSchema = z.object({
   WORKER_MAX_AI_ASSETS: z.coerce.number().int().positive().default(10),
   WORKER_ENABLE_SCHEDULER: booleanishSchema.default(true),
   WORKER_ENABLE_THRESHOLD_CHECKS: booleanishSchema.default(true),
+  WORKER_FALLBACK_USER_ID: z.string().trim().min(1).optional(),
   WORKER_SCHEDULED_ASSETS: z
     .string()
     .trim()

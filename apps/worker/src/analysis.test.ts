@@ -112,6 +112,7 @@ describe("worker AI analysis helper", () => {
       assetId: "crypto:global:BTC-USD",
       getLatestSignalSnapshot: vi.fn(async () => null),
       timeframe: "1H",
+      userId: "test-user",
     });
 
     expect(result).toEqual({
@@ -151,6 +152,7 @@ describe("worker AI analysis helper", () => {
     } satisfies AiAnalysisProviderResult;
 
     const result = await generateLatestAssetAnalysis({
+      recordAiCostFn: vi.fn(async () => undefined),
       recordOutcome: vi.fn(async () => undefined),
       assetId: "crypto:global:BTC-USD",
       getCurrentDailyAiCostUsd: vi.fn(async () => 0),
@@ -159,6 +161,7 @@ describe("worker AI analysis helper", () => {
       provider: vi.fn(async () => providerResult),
       saveAnalysis,
       timeframe: "1H",
+      userId: "test-user",
     });
 
     expect(result).toEqual({
@@ -180,6 +183,7 @@ describe("worker AI analysis helper", () => {
       recordOutcome: vi.fn(async () => undefined),
       assetId: "crypto:global:BTC-USD",
       currentDailyCostUsd: 2.5,
+      userId: "test-user",
       getLatestAnalysis: vi.fn(
         async () =>
           ({
@@ -262,11 +266,13 @@ describe("worker AI analysis helper", () => {
     } satisfies AiAnalysisProviderResult;
 
     const result = await generateAssetAnalysisFromSignalSnapshot({
+      recordAiCostFn: vi.fn(async () => undefined),
       recordOutcome: vi.fn(async () => undefined),
       getCurrentDailyAiCostUsd: vi.fn(async () => 0),
       getLatestAnalysis: vi.fn(async () => null),
       provider: vi.fn(async () => providerResult),
       saveAnalysis,
+      userId: "test-user",
       signalSnapshot: {
         ...signalSnapshotFixture,
         marketContext: {
@@ -350,6 +356,7 @@ describe("worker AI analysis helper", () => {
     } satisfies AiAnalysisProviderResult;
 
     const result = await generateAssetAnalysisFromSignalSnapshot({
+      recordAiCostFn: vi.fn(async () => undefined),
       recordOutcome: vi.fn(async () => undefined),
       getCurrentDailyAiCostUsd: vi.fn(async () => 0),
       getLatestAnalysis: vi.fn(async () => createAnalysisFixture("WATCH")),
@@ -358,6 +365,7 @@ describe("worker AI analysis helper", () => {
       saveGeneratedAlert,
       signalSnapshot: signalSnapshotFixture,
       timeframe: "1H",
+      userId: "test-user",
     });
 
     expect(result).toEqual({
@@ -419,6 +427,7 @@ describe("worker AI analysis helper", () => {
     } satisfies AiAnalysisProviderResult;
 
     await generateAssetAnalysisFromSignalSnapshot({
+      recordAiCostFn: vi.fn(async () => undefined),
       recordOutcome: vi.fn(async () => undefined),
       getCurrentDailyAiCostUsd: vi.fn(async () => 0),
       getLatestAnalysis: vi.fn(async () => createAnalysisFixture("WATCH")),
@@ -430,6 +439,7 @@ describe("worker AI analysis helper", () => {
       sendWhatsappMessage,
       signalSnapshot: signalSnapshotFixture,
       timeframe: "1H",
+      userId: "test-user",
       whatsappAlertDelivery: {
         accountSid: "AC123",
         authToken: "auth",

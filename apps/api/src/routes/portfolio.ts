@@ -6,36 +6,55 @@ import {
   type Position,
   portfolioOverviewResponseSchema,
 } from "@trading-analyst/shared-types";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 
 const DIRECTION_CONCENTRATION_THRESHOLD_PERCENT = 80;
 const SINGLE_ASSET_CONCENTRATION_THRESHOLD_PERCENT = 50;
 
 type Dependencies = {
-  listPositions: (filters: { activeOnly: boolean }) => Promise<Position[]>;
-  getWatchlistAsset?: (assetId: string) => Promise<{ asset: Asset } | null>;
+  listPositions: (filters: {
+    activeOnly: boolean;
+    userId: string;
+  }) => Promise<Position[]>;
+  getWatchlistAsset?: (filters: {
+    assetId: string;
+    userId: string;
+  }) => Promise<{ asset: Asset } | null>;
 };
+
+function requireUserId(request: FastifyRequest): string {
+  const userId = request.user?.userId;
+
+  if (!userId) {
+    throw new Error("Route registered without an authenticated request.");
+  }
+
+  return userId;
+}
 
 export async function registerPortfolioRoutes(
   app: FastifyInstance,
   dependencies: Dependencies,
 ) {
-  app.get("/portfolio/overview", async () => {
-    return buildPortfolioOverviewResponse(dependencies);
+  app.get("/portfolio/overview", async (request) => {
+    const userId = requireUserId(request);
+    return buildPortfolioOverviewResponse(userId, dependencies);
   });
 }
 
 export async function buildPortfolioOverviewResponse(
+  userId: string,
   dependencies: Dependencies,
 ) {
   const activePositions = await dependencies.listPositions({
     activeOnly: true,
+    userId,
   });
 
   const positionsWithAssets = await Promise.all(
     activePositions.map(async (position) => ({
       position,
-      asset: await resolvePositionAsset(position.assetId, dependencies),
+      asset: await resolvePositionAsset(position.assetId, userId, dependencies),
     })),
   );
 
@@ -107,6 +126,7 @@ export async function buildPortfolioOverviewResponse(
 
 async function resolvePositionAsset(
   assetId: string,
+  userId: string,
   dependencies: Dependencies,
 ): Promise<Asset | undefined> {
   const seeded = findDefaultCryptoAsset(assetId);
@@ -120,7 +140,7 @@ async function resolvePositionAsset(
   }
 
   try {
-    const entry = await dependencies.getWatchlistAsset(assetId);
+    const entry = await dependencies.getWatchlistAsset({ assetId, userId });
     return entry?.asset;
   } catch {
     return undefined;

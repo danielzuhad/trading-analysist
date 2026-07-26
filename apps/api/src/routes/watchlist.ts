@@ -8,7 +8,7 @@ import {
   buildCryptoAssetFromCoingecko,
   MAX_WATCHLIST_ASSETS,
 } from "@trading-analyst/shared-types";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 
 const addWatchlistBodySchema = z.object({
@@ -35,29 +35,43 @@ type Dependencies = {
   addAsset: (input: {
     asset: ReturnType<typeof buildCryptoAssetFromCoingecko>;
     source: WatchlistAssetSource;
+    userId: string;
   }) => Promise<{ status: "created" | "duplicate" }>;
-  ensureDefaults: () => Promise<void>;
+  ensureDefaults: (userId: string) => Promise<void>;
   getActivePositionForAsset: (filters: {
     assetId: string;
+    userId: string;
   }) => Promise<Position | null>;
-  listAssets: () => Promise<WatchlistAssetEntry[]>;
-  removeAsset: (
-    assetId: string,
-  ) => Promise<{ status: "removed" | "not_found" }>;
+  listAssets: (userId: string) => Promise<WatchlistAssetEntry[]>;
+  removeAsset: (filters: {
+    assetId: string;
+    userId: string;
+  }) => Promise<{ status: "removed" | "not_found" }>;
   searchCoins?: (query: string) => Promise<CoinGeckoSearchResult[]>;
   setAssetAiEnabled: (
-    assetId: string,
+    filters: { assetId: string; userId: string },
     aiEnabled: boolean,
   ) => Promise<{ status: "updated" | "not_found" }>;
 };
+
+function requireUserId(request: FastifyRequest): string {
+  const userId = request.user?.userId;
+
+  if (!userId) {
+    throw new Error("Route registered without an authenticated request.");
+  }
+
+  return userId;
+}
 
 export async function registerWatchlistRoutes(
   app: FastifyInstance,
   dependencies: Dependencies,
 ) {
-  app.get("/watchlist", async () => {
-    await dependencies.ensureDefaults();
-    const entries = await dependencies.listAssets();
+  app.get("/watchlist", async (request) => {
+    const userId = requireUserId(request);
+    await dependencies.ensureDefaults(userId);
+    const entries = await dependencies.listAssets(userId);
 
     return {
       count: entries.length,
@@ -67,6 +81,7 @@ export async function registerWatchlistRoutes(
   });
 
   app.post("/watchlist", async (request, reply) => {
+    const userId = requireUserId(request);
     const bodyResult = addWatchlistBodySchema.safeParse(request.body);
 
     if (!bodyResult.success) {
@@ -77,7 +92,7 @@ export async function registerWatchlistRoutes(
     }
 
     const asset = buildCryptoAssetFromCoingecko(bodyResult.data);
-    const entries = await dependencies.listAssets();
+    const entries = await dependencies.listAssets(userId);
     const alreadyWatched = entries.some((entry) => entry.asset.id === asset.id);
 
     if (!alreadyWatched && entries.length >= MAX_WATCHLIST_ASSETS) {
@@ -91,6 +106,7 @@ export async function registerWatchlistRoutes(
     const result = await dependencies.addAsset({
       asset,
       source: "manual",
+      userId,
     });
 
     return reply.code(result.status === "created" ? 201 : 200).send({
@@ -100,6 +116,7 @@ export async function registerWatchlistRoutes(
   });
 
   app.patch("/watchlist/:assetId", async (request, reply) => {
+    const userId = requireUserId(request);
     const { assetId } = request.params as { assetId: string };
     const bodyResult = setAiEnabledBodySchema.safeParse(request.body);
 
@@ -111,7 +128,7 @@ export async function registerWatchlistRoutes(
     }
 
     const result = await dependencies.setAssetAiEnabled(
-      assetId,
+      { assetId, userId },
       bodyResult.data.aiEnabled,
     );
 
@@ -126,9 +143,11 @@ export async function registerWatchlistRoutes(
   });
 
   app.delete("/watchlist/:assetId", async (request, reply) => {
+    const userId = requireUserId(request);
     const { assetId } = request.params as { assetId: string };
     const activePosition = await dependencies.getActivePositionForAsset({
       assetId,
+      userId,
     });
 
     if (activePosition) {
@@ -139,7 +158,7 @@ export async function registerWatchlistRoutes(
       });
     }
 
-    const result = await dependencies.removeAsset(assetId);
+    const result = await dependencies.removeAsset({ assetId, userId });
 
     if (result.status === "not_found") {
       return reply.code(404).send({
@@ -152,6 +171,8 @@ export async function registerWatchlistRoutes(
   });
 
   app.get("/crypto-search", async (request, reply) => {
+    const userId = requireUserId(request);
+
     if (!dependencies.searchCoins) {
       return reply.code(503).send({
         error: "CRYPTO_SEARCH_DISABLED",
@@ -170,7 +191,7 @@ export async function registerWatchlistRoutes(
 
     const [coins, entries] = await Promise.all([
       dependencies.searchCoins(queryResult.data.q),
-      dependencies.listAssets(),
+      dependencies.listAssets(userId),
     ]);
     const watchedCoinIds = new Set(
       entries.map((entry) => entry.asset.metadata.coingeckoCoinId),

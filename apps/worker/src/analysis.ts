@@ -12,10 +12,11 @@ import {
   sendTwilioMessage,
 } from "@trading-analyst/chat-layer";
 import {
-  getDailyAiCostTotalUsd,
+  getDailyAiCostTotalUsdForUser,
   getLatestAssetAnalysis,
   getLatestSignalAggregationSnapshot,
   markAlertDelivered,
+  recordAiCost,
   saveAlert,
   saveLatestAssetAnalysis,
 } from "@trading-analyst/db";
@@ -48,7 +49,7 @@ type GenerateLatestAssetAnalysisOptions = {
   connectionString?: string;
   currentDailyCostUsd?: number;
   day?: Date;
-  getCurrentDailyAiCostUsd?: typeof getDailyAiCostTotalUsd;
+  getCurrentDailyAiCostUsd?: typeof getDailyAiCostTotalUsdForUser;
   getLatestAnalysis?: typeof getLatestAssetAnalysis;
   getLatestSignalSnapshot?: typeof getLatestSignalAggregationSnapshot;
   generateAlert?: typeof generateStateTransitionAlert;
@@ -59,6 +60,7 @@ type GenerateLatestAssetAnalysisOptions = {
   promptVersion?: string;
   provider?: AiAnalysisProvider;
   markDeliveredAlert?: typeof markAlertDelivered;
+  recordAiCostFn?: typeof recordAiCost;
   recordOutcome?: typeof recordPendingAnalysisOutcome;
   saveGeneratedAlert?: typeof saveAlert;
   saveAnalysis?: typeof saveLatestAssetAnalysis;
@@ -67,6 +69,7 @@ type GenerateLatestAssetAnalysisOptions = {
   telegramAlertDelivery?: TelegramAlertDelivery;
   timeframe: SupportedTimeframe;
   triggeredBy?: AnalysisTrigger;
+  userId: string;
   whatsappAlertDelivery?: WhatsappAlertDelivery;
 };
 
@@ -101,7 +104,7 @@ export async function generateLatestAssetAnalysis({
   connectionString,
   currentDailyCostUsd,
   day = new Date(),
-  getCurrentDailyAiCostUsd = getDailyAiCostTotalUsd,
+  getCurrentDailyAiCostUsd = getDailyAiCostTotalUsdForUser,
   getLatestAnalysis = getLatestAssetAnalysis,
   getLatestSignalSnapshot = getLatestSignalAggregationSnapshot,
   generateAlert = generateStateTransitionAlert,
@@ -112,6 +115,7 @@ export async function generateLatestAssetAnalysis({
   promptVersion = defaultAiAnalysisPromptVersion,
   provider,
   markDeliveredAlert = markAlertDelivered,
+  recordAiCostFn = recordAiCost,
   recordOutcome = recordPendingAnalysisOutcome,
   saveGeneratedAlert = saveAlert,
   saveAnalysis = saveLatestAssetAnalysis,
@@ -120,6 +124,7 @@ export async function generateLatestAssetAnalysis({
   telegramAlertDelivery,
   timeframe,
   triggeredBy = "manual_recalculation",
+  userId,
   whatsappAlertDelivery,
 }: GenerateLatestAssetAnalysisOptions): Promise<GenerateLatestAssetAnalysisResult> {
   const signalSnapshot = await getLatestSignalSnapshot(
@@ -190,7 +195,7 @@ export async function generateLatestAssetAnalysis({
   }
   const dailyCostTotal =
     currentDailyCostUsd ??
-    (await getCurrentDailyAiCostUsd(day, connectionString));
+    (await getCurrentDailyAiCostUsd(userId, day, connectionString));
   const result = await analyzeSignalSnapshot({
     currentDailyCostUsd: dailyCostTotal,
     ...(maxDailyAiCostUsd !== undefined
@@ -220,6 +225,17 @@ export async function generateLatestAssetAnalysis({
   }
 
   await saveAnalysis(result.analysis, connectionString);
+  await recordAiCostFn(
+    {
+      analysisId: result.analysis.id,
+      assetId,
+      costEstimateUsd: result.analysis.costEstimateUsd,
+      generatedAt: result.analysis.generatedAt,
+      timeframe,
+      userId,
+    },
+    connectionString,
+  );
   await recordOutcome({
     analysis: result.analysis,
     ...(connectionString ? { connectionString } : {}),
@@ -255,7 +271,7 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   connectionString,
   currentDailyCostUsd,
   day = new Date(),
-  getCurrentDailyAiCostUsd = getDailyAiCostTotalUsd,
+  getCurrentDailyAiCostUsd = getDailyAiCostTotalUsdForUser,
   getLatestAnalysis = getLatestAssetAnalysis,
   generateAlert = generateStateTransitionAlert,
   logger = console,
@@ -265,6 +281,7 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   promptVersion = defaultAiAnalysisPromptVersion,
   provider,
   markDeliveredAlert = markAlertDelivered,
+  recordAiCostFn = recordAiCost,
   recordOutcome = recordPendingAnalysisOutcome,
   saveGeneratedAlert = saveAlert,
   saveAnalysis = saveLatestAssetAnalysis,
@@ -273,6 +290,7 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   signalSnapshot,
   telegramAlertDelivery,
   triggeredBy = "manual_recalculation",
+  userId,
   whatsappAlertDelivery,
 }: GenerateAssetAnalysisFromSignalSnapshotOptions): Promise<GenerateLatestAssetAnalysisResult> {
   const timeframe = toSupportedTimeframe(
@@ -329,7 +347,7 @@ export async function generateAssetAnalysisFromSignalSnapshot({
 
   const dailyCostTotal =
     currentDailyCostUsd ??
-    (await getCurrentDailyAiCostUsd(day, connectionString));
+    (await getCurrentDailyAiCostUsd(userId, day, connectionString));
   const result = await analyzeSignalSnapshot({
     currentDailyCostUsd: dailyCostTotal,
     ...(maxDailyAiCostUsd !== undefined
@@ -359,6 +377,17 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   }
 
   await saveAnalysis(result.analysis, connectionString);
+  await recordAiCostFn(
+    {
+      analysisId: result.analysis.id,
+      assetId: signalSnapshot.asset.id,
+      costEstimateUsd: result.analysis.costEstimateUsd,
+      generatedAt: result.analysis.generatedAt,
+      timeframe,
+      userId,
+    },
+    connectionString,
+  );
   await recordOutcome({
     analysis: result.analysis,
     ...(connectionString ? { connectionString } : {}),

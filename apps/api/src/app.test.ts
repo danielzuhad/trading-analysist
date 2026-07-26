@@ -21,12 +21,16 @@ vi.mock("@trading-analyst/db", () => ({
   addWatchlistAsset: vi.fn(async () => ({ status: "created" })),
   closePosition: vi.fn(async () => null),
   closeDatabase: vi.fn(async () => undefined),
+  createApiToken: vi.fn(async () => ({ token: "token", tokenId: "token-1" })),
   createPosition: vi.fn(),
+  createUser: vi.fn(async () => null),
   ensureDefaultWatchlistAssets: vi.fn(async () => undefined),
   getWatchlistAsset: vi.fn(async () => null),
   getWatchlistAssetBySymbol: vi.fn(async () => null),
+  listUsers: vi.fn(async () => []),
   listWatchlistAssets: vi.fn(async () => []),
   removeWatchlistAsset: vi.fn(async () => ({ status: "not_found" })),
+  resolveApiToken: vi.fn(async () => null),
   getActivePositionForAsset: vi.fn(async () => null),
   getAnalysisQualitySummary: vi.fn(async () => ({
     buckets: [],
@@ -42,6 +46,7 @@ vi.mock("@trading-analyst/db", () => ({
   listServiceHeartbeats: vi.fn(async () => []),
   pingDatabase: vi.fn(async () => undefined),
   updatePosition: vi.fn(async () => null),
+  verifyUserPassword: vi.fn(async () => null),
 }));
 
 const pingRedisMock = vi.fn(async () => "PONG");
@@ -68,10 +73,12 @@ const app = await buildApp({
 });
 const twilioAuthToken = "twilio-auth-token";
 const twilioWebhookUrl = "http://api.invalid/chat-layer/twilio/webhook";
+const twilioChatUserId = "chat-user-twilio";
 const twilioApp = await buildApp({
   NODE_ENV: "test",
   API_HOST: "api.invalid",
   API_PORT: 3001,
+  CHAT_LAYER_USER_ID: twilioChatUserId,
   COINGECKO_API_PLAN: "demo",
   DATABASE_URL: "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
   REDIS_URL: "redis://127.0.0.1:6379",
@@ -981,7 +988,7 @@ describe("api health routes", () => {
         entryPrice: 84250.5,
         quantity: 0.25,
         status: "open",
-        userId: "system:default",
+        userId: "auth-disabled:local",
       }),
       "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
     );
@@ -1008,6 +1015,7 @@ describe("api health routes", () => {
         activeOnly: true,
         assetId: "crypto:global:BTC-USD",
         limit: 10,
+        userId: "auth-disabled:local",
       },
       "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
     );
@@ -1037,6 +1045,7 @@ describe("api health routes", () => {
       assetId: "crypto:global:BTC-USD",
       connectionString:
         "postgresql://postgres:postgres@127.0.0.1:5432/trading_analyst",
+      userId: "auth-disabled:local",
     });
     expect(response.json()).toMatchObject({
       position: {
@@ -1385,7 +1394,7 @@ describe("api chat layer routes", () => {
       entryPrice: 84000,
       quantity: 0.1,
       stopLoss: 82000,
-      userId: "system:default",
+      userId: twilioChatUserId,
       metadata: {
         channel: "whatsapp",
         provider: "twilio",

@@ -16,4 +16,5 @@ export * from "./position.js";
 export * from "./preferences.js";
 export * from "./primitives.js";
 export * from "./signal.js";
+export * from "./user.js";
 export * from "./watchlist.js";

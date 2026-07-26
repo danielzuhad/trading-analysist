@@ -54,7 +54,7 @@ export const positionSchema = z.object({
 });
 
 export const createPositionInputSchema = z.object({
-  userId: idSchema.default("system:default"),
+  userId: idSchema,
   assetId: idSchema,
   watchlistId: idSchema.optional(),
   sourceAccount: nonEmptyStringSchema.optional(),

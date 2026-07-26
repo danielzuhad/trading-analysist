@@ -9,20 +9,22 @@ import {
   type UpdatePositionInput,
   updatePositionInputSchema,
 } from "@trading-analyst/shared-types";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
+
+const createPositionBodySchema = createPositionInputSchema.omit({
+  userId: true,
+});
 
 const positionsQuerySchema = z.object({
   activeOnly: z.coerce.boolean().optional(),
   assetId: z.string().trim().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   status: positionStatusSchema.optional(),
-  userId: z.string().trim().min(1).optional(),
 });
 
 const activePositionQuerySchema = z.object({
   assetId: z.string().trim().min(1),
-  userId: z.string().trim().min(1).optional(),
 });
 
 const positionParamsSchema = z.object({
@@ -37,14 +39,14 @@ type Dependencies = {
   createPosition: (input: CreatePositionInput) => Promise<Position>;
   getActivePositionForAsset: (filters: {
     assetId: string;
-    userId?: string;
+    userId: string;
   }) => Promise<Position | null>;
   listPositions: (filters: {
     activeOnly?: boolean;
     assetId?: string;
     limit?: number;
     status?: PositionStatus;
-    userId?: string;
+    userId: string;
   }) => Promise<Position[]>;
   updatePosition: (
     positionId: string,
@@ -52,11 +54,22 @@ type Dependencies = {
   ) => Promise<Position | null>;
 };
 
+function requireUserId(request: FastifyRequest): string {
+  const userId = request.user?.userId;
+
+  if (!userId) {
+    throw new Error("Route registered without an authenticated request.");
+  }
+
+  return userId;
+}
+
 export async function registerPositionRoutes(
   app: FastifyInstance,
   dependencies: Dependencies,
 ) {
   app.get("/positions", async (request, reply) => {
+    const userId = requireUserId(request);
     const queryResult = positionsQuerySchema.safeParse(request.query);
 
     if (!queryResult.success) {
@@ -66,13 +79,13 @@ export async function registerPositionRoutes(
       });
     }
 
-    const { activeOnly, assetId, limit, status, userId } = queryResult.data;
+    const { activeOnly, assetId, limit, status } = queryResult.data;
     const positions = await dependencies.listPositions({
       limit,
+      userId,
       ...(activeOnly !== undefined ? { activeOnly } : {}),
       ...(assetId ? { assetId } : {}),
       ...(status ? { status } : {}),
-      ...(userId ? { userId } : {}),
     });
 
     return {
@@ -82,6 +95,7 @@ export async function registerPositionRoutes(
   });
 
   app.get("/positions/active", async (request, reply) => {
+    const userId = requireUserId(request);
     const queryResult = activePositionQuerySchema.safeParse(request.query);
 
     if (!queryResult.success) {
@@ -93,7 +107,7 @@ export async function registerPositionRoutes(
 
     const position = await dependencies.getActivePositionForAsset({
       assetId: queryResult.data.assetId,
-      ...(queryResult.data.userId ? { userId: queryResult.data.userId } : {}),
+      userId,
     });
 
     if (!position) {
@@ -109,7 +123,8 @@ export async function registerPositionRoutes(
   });
 
   app.post("/positions", async (request, reply) => {
-    const bodyResult = createPositionInputSchema.safeParse(request.body);
+    const userId = requireUserId(request);
+    const bodyResult = createPositionBodySchema.safeParse(request.body);
 
     if (!bodyResult.success) {
       return reply.code(400).send({
@@ -118,7 +133,10 @@ export async function registerPositionRoutes(
       });
     }
 
-    const position = await dependencies.createPosition(bodyResult.data);
+    const position = await dependencies.createPosition({
+      ...bodyResult.data,
+      userId,
+    });
 
     return reply.code(201).send({
       position,

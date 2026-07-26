@@ -228,6 +228,7 @@ describe("worker analysis pipeline", () => {
       saveHeartbeat,
       timeframe: "4H",
       triggeredBy: "scheduled",
+      userId: "test-user",
     });
 
     expect(result).toMatchObject({
@@ -310,6 +311,7 @@ describe("worker analysis pipeline", () => {
       })),
       timeframe: "4H",
       triggeredBy: "scheduled",
+      userId: "test-user",
     });
 
     expect(generateAnalysisFromSignalSnapshotFn).toHaveBeenCalledWith(
@@ -340,6 +342,7 @@ describe("worker analysis pipeline", () => {
       coingeckoApiKey: "test-key",
       requestedAt,
       timeframe: "4H",
+      userId: "test-user",
     });
 
     expect(result).toEqual({
@@ -398,6 +401,7 @@ describe("worker analysis pipeline", () => {
         saveHeartbeat,
         timeframe: "4H",
         triggeredBy: "scheduled",
+        userId: "test-user",
       }),
     ).rejects.toThrow(quotaError);
 

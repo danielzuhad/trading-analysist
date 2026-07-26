@@ -44,6 +44,7 @@ describe("position persistence", () => {
         direction: "long",
         entryPrice: 84250.5,
         quantity: 0.25,
+        userId: positionFixture.userId,
       }),
       "2026-04-21T08:00:00.000Z",
     );
@@ -54,7 +55,7 @@ describe("position persistence", () => {
       isBackfilled: false,
       remainingQuantity: 0.25,
       status: "open",
-      userId: "system:default",
+      userId: positionFixture.userId,
     });
     expect(position.id).toMatch(/^position:/);
   });

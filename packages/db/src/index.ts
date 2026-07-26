@@ -1,3 +1,4 @@
+export * from "./ai-cost-ledger.js";
 export * from "./alerts.js";
 export * from "./analysis-outcomes.js";
 export * from "./asset-analysis.js";
@@ -7,4 +8,5 @@ export * from "./market-data.js";
 export * from "./positions.js";
 export * from "./service-heartbeats.js";
 export * from "./signal-aggregation.js";
+export * from "./users.js";
 export * from "./watchlist-assets.js";

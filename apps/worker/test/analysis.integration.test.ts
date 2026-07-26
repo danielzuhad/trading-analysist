@@ -4,7 +4,7 @@ import {
   getLatestAssetAnalysis,
   saveLatestSignalAggregationSnapshot,
 } from "@trading-analyst/db";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { generateLatestAssetAnalysis } from "../src/analysis.js";
 
 const runInfrastructureTests = process.env.RUN_INFRA_TESTS === "true";
@@ -136,6 +136,8 @@ describeInfrastructure("worker AI analysis persistence", () => {
     const result = await generateLatestAssetAnalysis({
       assetId,
       connectionString: databaseUrl,
+      recordAiCostFn: vi.fn(async () => undefined),
+      userId: "test-user",
       provider: async () => ({
         aiLatencyMs: 840,
         modelUsed: "gpt-4o-mini",

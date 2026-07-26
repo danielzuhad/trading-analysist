@@ -92,6 +92,7 @@ type ProcessThresholdCheckJobOptions = {
   getLatestSignalSnapshot?: typeof getLatestSignalAggregationSnapshot;
   requestedAt: string;
   timeframe: SupportedTimeframe;
+  userId: string;
 };
 
 export function evaluateThresholdApproach({
@@ -167,8 +168,9 @@ export async function processThresholdCheckJob({
   getLatestSignalSnapshot = getLatestSignalAggregationSnapshot,
   requestedAt,
   timeframe,
+  userId,
 }: ProcessThresholdCheckJobOptions): Promise<ProcessThresholdCheckJobResult> {
-  const asset = await resolveWatchlistAsset(assetId, connectionString);
+  const asset = await resolveWatchlistAsset(assetId, userId, connectionString);
 
   if (!asset) {
     return {

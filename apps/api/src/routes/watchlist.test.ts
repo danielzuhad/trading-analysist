@@ -29,6 +29,8 @@ function buildEntries(count: number): WatchlistAssetEntry[] {
   );
 }
 
+const testUserId = "user-1";
+
 async function buildTestApp(
   overrides: {
     activePosition?: Position | null;
@@ -43,6 +45,9 @@ async function buildTestApp(
   });
 
   const app = Fastify();
+  app.addHook("onRequest", async (request) => {
+    request.user = { role: "member", userId: testUserId };
+  });
   await registerWatchlistRoutes(app, {
     addAsset,
     ensureDefaults: vi.fn().mockResolvedValue(undefined),
@@ -134,7 +139,7 @@ describe("watchlist routes", () => {
       status: "updated",
     });
     expect(setAssetAiEnabled).toHaveBeenCalledWith(
-      "crypto:global:BTC-USD",
+      { assetId: "crypto:global:BTC-USD", userId: testUserId },
       false,
     );
   });

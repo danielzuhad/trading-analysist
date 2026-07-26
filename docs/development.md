@@ -18,10 +18,12 @@ Repository ini saat ini mencakup:
 - Sprint 10 manual positions module, active-position API, worker position-aware analysis wiring, and basic dashboard position recording
 - Sprint 11 WhatsApp API chat layer via Twilio, including inbound webhook handling and outbound alert delivery
 - lightweight threshold checks that poll current price, compare against the latest key levels, and trigger full re-analysis between scheduled deep-analysis runs
-- API bearer-token authentication (`API_AUTH_TOKEN`) untuk semua route kecuali health dan webhook chat-layer
+- API bearer-token authentication: token per-user disimpan hash-nya di `api_tokens` (lihat `POST /auth/login`, `POST /auth/users`), dengan `API_AUTH_TOKEN`/`BOOTSTRAP_ADMIN_USER_ID` sebagai bootstrap escape hatch admin. Semua route kecuali health dan webhook chat-layer butuh token valid.
 - analysis outcome tracking: prediksi setiap analisis di-snapshot lalu dievaluasi deterministik setelah 24 jam, agregatnya tersedia di `GET /analysis-quality`
 - Telegram chat layer (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET`): outbound alert delivery dari worker dan inbound command via `POST /chat-layer/telegram/webhook` (diverifikasi dengan header `X-Telegram-Bot-Api-Secret-Token`). Twilio WhatsApp tetap ada sebagai legacy path.
-- watchlist management: add/remove asset via CoinGecko search, per-asset AI toggle (`aiEnabled`), dan hard cap `MAX_WATCHLIST_ASSETS` (10) — selaras dengan `WORKER_MAX_AI_ASSETS` agar semua asset yang di-watch benar-benar dianalisis dan biaya AI serta rate limit CoinGecko tetap terkendali
+- watchlist management: add/remove asset via CoinGecko search, per-asset AI toggle (`aiEnabled`), dan hard cap `MAX_WATCHLIST_ASSETS` (10 per user) — selaras dengan `WORKER_MAX_AI_ASSETS` agar semua asset yang di-watch benar-benar dianalisis dan biaya AI serta rate limit CoinGecko tetap terkendali
+- portfolio overview (`GET /portfolio/overview`): agregasi exposure dan concentration warning lintas posisi aktif seorang user
+- multi-user: tabel `users` (role `admin`/`member`) dan `api_tokens`; watchlist, AI cost cap (`ai_cost_ledger`), positions, dan alerts semua di-scope per `userId`. Worker scheduler iterasi tiap user yang punya watchlist secara independen.
 
 ## Workspace Layout
 
@@ -95,6 +97,15 @@ Untuk local development, nilai berikut harus didefinisikan di `.env.development`
 - `WORKER_SCHEDULED_ASSETS`
 - `WORKER_SCHEDULED_TIMEFRAMES`
 - `WORKER_THRESHOLD_CHECK_INTERVAL_MINUTES`
+- `WORKER_FALLBACK_USER_ID` — user (uuid) yang dipakai worker seed default watchlist dan sebagai fallback scheduling kalau watchlist per-user tidak bisa dibaca. Isi dengan id admin hasil `bun run --cwd packages/db create-admin <email> <password>`.
+
+Nilai berikut terkait autentikasi multi-user:
+
+- `API_AUTH_TOKEN` — bootstrap token lama (opsional). Kalau di-set, request dengan token ini diperlakukan sebagai admin (`BOOTSTRAP_ADMIN_USER_ID`). Kalau kosong di development, auth API nonaktif seluruhnya (semua request dianggap admin lokal).
+- `BOOTSTRAP_ADMIN_USER_ID` — user id (uuid) yang dipetakan ke `API_AUTH_TOKEN`. Wajib diisi bersamaan dengan `API_AUTH_TOKEN` di production.
+- `CHAT_LAYER_USER_ID` — user id (uuid) pemilik watchlist yang dipakai Telegram/WhatsApp chat layer (satu shared chat untuk satu user). Fallback ke `BOOTSTRAP_ADMIN_USER_ID` kalau kosong.
+
+User admin pertama dibuat lewat `bun run --cwd packages/db create-admin <email> <password>`. Belum ada endpoint public register — user (admin maupun member) lain dibuat lewat `POST /auth/users` yang hanya bisa diakses oleh admin.
 
 Nilai berikut dibutuhkan saat AI analysis live ingin dijalankan:
 
@@ -144,7 +155,11 @@ Endpoint read yang tersedia saat ini:
 - `POST /positions`
 - `PATCH /positions/:positionId`
 - `POST /positions/:positionId/close`
+- `GET /portfolio/overview`
 - `GET /readyz`
+- `POST /auth/login` (body `{ "email": string, "password": string }`, public)
+- `POST /auth/users` (admin-only, body `{ "email", "password", "role" }`)
+- `GET /auth/users` (admin-only)
 
 Endpoint chat layer yang tersedia saat ini:
 

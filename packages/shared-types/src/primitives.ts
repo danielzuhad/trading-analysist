@@ -4,6 +4,10 @@ export const assetClassValues = ["crypto", "stock"] as const;
 export const assetClassSchema = z.enum(assetClassValues);
 export type AssetClass = z.infer<typeof assetClassSchema>;
 
+export const userRoleValues = ["admin", "member"] as const;
+export const userRoleSchema = z.enum(userRoleValues);
+export type UserRole = z.infer<typeof userRoleSchema>;
+
 export const assetStates = [
   "IGNORE",
   "WATCH",
