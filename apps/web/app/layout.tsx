@@ -24,9 +24,12 @@ export default function RootLayout({
       className={cn("font-sans", geist.variable)}
     >
       <body suppressHydrationWarning>
-        <header className="topbar">
-          <div className="topbar__inner">
-            <Link className="topbar__brand" href="/">
+        <header className="sticky top-0 z-20 border-b border-border bg-background/86 backdrop-blur-[10px]">
+          <div className="mx-auto flex min-h-14 w-[min(1600px,calc(100vw-32px))] items-center justify-between gap-4 sm:w-[min(1600px,calc(100vw-20px))]">
+            <Link
+              className="flex items-baseline gap-2.5 font-bold tracking-[0.01em] [&_span]:text-muted-foreground"
+              href="/"
+            >
               Pythia <span>Trading Analyst</span>
             </Link>
           </div>

@@ -3,6 +3,7 @@ import type {
   OverviewStatus,
   SupportedTimeframe,
 } from "@trading-analyst/shared-types";
+import { cva } from "class-variance-authority";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
@@ -14,6 +15,7 @@ import {
   mapOverviewStatusTone,
   mapScoreClass,
 } from "@/lib/dashboard-format";
+import { cn } from "@/lib/utils";
 
 type DashboardTimeframeTabsProps = {
   basePath: string;
@@ -29,11 +31,17 @@ export function DashboardTimeframeTabs({
   const timeframes: SupportedTimeframe[] = ["1H", "4H"];
 
   return (
-    <nav className="timeframe-tabs" aria-label="Timeframe selector">
+    <nav
+      className="inline-flex gap-0.75 rounded-full border border-border bg-card p-0.75"
+      aria-label="Timeframe selector"
+    >
       {timeframes.map((entry) => (
         <Link
           key={entry}
-          className={`timeframe-tab${entry === timeframe ? " timeframe-tab--active" : ""}`}
+          className={cn(
+            "inline-flex min-h-7.5 items-center justify-center rounded-full px-4 text-[0.85rem] font-semibold text-muted-foreground hover:text-foreground",
+            entry === timeframe && "bg-primary text-white hover:text-white",
+          )}
           href={`${basePath}?timeframe=${entry}`}
         >
           {entry}
@@ -43,25 +51,87 @@ export function DashboardTimeframeTabs({
   );
 }
 
+const badgeBaseClasses =
+  "inline-flex min-h-6.5 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[0.74rem] font-bold tracking-[0.06em] uppercase";
+
+const stateBadgeVariants = cva(badgeBaseClasses, {
+  variants: {
+    tone: {
+      none: "bg-muted-foreground/16 text-muted-foreground",
+      ignore: "bg-muted-foreground/16 text-muted-foreground",
+      watch: "bg-accent-soft text-accent",
+      prepare: "bg-warn-soft text-[#e8a93a]",
+      actionable: "bg-up-soft text-up",
+      "in-position": "bg-violet-soft text-violet",
+      "exit-warning": "bg-orange-soft text-orange",
+      invalid: "bg-red-soft text-down",
+    },
+  },
+  defaultVariants: {
+    tone: "none",
+  },
+});
+
 export function StateBadge({ state }: { state: AssetState | undefined }) {
   return (
-    <span className={`state-badge state-badge--${mapAssetStateClass(state)}`}>
+    <span className={stateBadgeVariants({ tone: mapAssetStateClass(state) })}>
       {state?.replaceAll("_", " ") ?? "No AI state"}
     </span>
   );
 }
 
+export const statusBadgeVariants = cva(badgeBaseClasses, {
+  variants: {
+    tone: {
+      active: "bg-up-soft text-up",
+      degraded: "bg-warn-soft text-[#e8a93a]",
+      down: "bg-red-soft text-down",
+      disabled: "bg-muted-foreground/16 text-muted-foreground",
+    },
+  },
+  defaultVariants: {
+    tone: "disabled",
+  },
+});
+
 export function OverviewStatusBadge({ status }: { status: OverviewStatus }) {
   return <ToneBadge tone={mapOverviewStatusTone(status)}>{status}</ToneBadge>;
 }
 
+const deltaVariants = cva("text-[0.95rem] font-semibold tabular-nums", {
+  variants: {
+    tone: {
+      up: "text-up",
+      down: "text-down",
+      flat: "text-muted-foreground",
+    },
+  },
+  defaultVariants: {
+    tone: "flat",
+  },
+});
+
 export function DeltaText({ value }: { value?: number | undefined }) {
   return (
-    <span className={`delta delta--${mapDeltaClass(value)}`}>
+    <span className={deltaVariants({ tone: mapDeltaClass(value) })}>
       {value === undefined ? "—" : formatPercent(value)}
     </span>
   );
 }
+
+const scoreBarFillVariants = cva("h-full rounded-full", {
+  variants: {
+    tone: {
+      high: "bg-up",
+      mid: "bg-warn",
+      low: "bg-down",
+      none: "bg-muted-foreground",
+    },
+  },
+  defaultVariants: {
+    tone: "none",
+  },
+});
 
 export function ScoreBar({
   label,
@@ -74,14 +144,19 @@ export function ScoreBar({
     value === undefined ? 0 : Math.max(0, Math.min(100, Math.round(value)));
 
   return (
-    <div className="score-bar">
-      <span className="score-bar__label">
+    <div className="grid gap-1.25">
+      <span className="flex justify-between text-[0.78rem] tracking-[0.08em] text-muted-foreground uppercase">
         {label}
-        <strong>{value === undefined ? "—" : formatScore(value)}</strong>
+        <strong className="tracking-normal text-foreground tabular-nums">
+          {value === undefined ? "—" : formatScore(value)}
+        </strong>
       </span>
-      <div className="score-bar__track" aria-hidden="true">
+      <div
+        className="h-1.5 overflow-hidden rounded-full bg-secondary"
+        aria-hidden="true"
+      >
         <div
-          className={`score-bar__fill score-bar__fill--${mapScoreClass(value)}`}
+          className={scoreBarFillVariants({ tone: mapScoreClass(value) })}
           style={{ width: `${clamped}%` }}
         />
       </div>
@@ -95,9 +170,12 @@ export function MissingDataList({ items }: { items: string[] }) {
   }
 
   return (
-    <div className="missing-data-list">
+    <div className="flex flex-wrap gap-2">
       {items.map((item) => (
-        <span key={item} className="inline-chip">
+        <span
+          key={item}
+          className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground"
+        >
           {formatMissingDataLabel(item)}
         </span>
       ))}
@@ -107,6 +185,6 @@ export function MissingDataList({ items }: { items: string[] }) {
 
 function ToneBadge({ children, tone }: { children: ReactNode; tone: Tone }) {
   return (
-    <span className={`status-badge status-badge--${tone}`}>{children}</span>
+    <span className={statusBadgeVariants({ tone })}>{children}</span>
   );
 }

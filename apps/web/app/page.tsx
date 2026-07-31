@@ -70,13 +70,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const aiWarning = buildAiOperationalWarning(infrastructureStatus);
 
   return (
-    <main className="shell">
-      <div className="page-heading">
-        <h1>Watchlist</h1>
-        <div className="page-heading__meta">
+    <main className="mx-auto grid w-[min(1600px,calc(100vw-32px))] gap-6 py-6 pb-18 sm:w-[min(100vw-20px,1600px)] sm:py-4 sm:pb-12">
+      <div className="flex flex-wrap items-center justify-between gap-3.5 sm:flex-col sm:items-stretch">
+        <h1 className="m-0 text-[1.35rem] tracking-[-0.01em]">Watchlist</h1>
+        <div className="flex flex-wrap items-center gap-2.5">
           {watchlistLimit ? (
             <span
-              className="inline-chip"
+              className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground"
               title={`The watchlist is capped at ${watchlistLimit} assets to keep AI analysis cost and market-data rate limits under control.`}
             >
               {watchlistEntries.length}/{watchlistLimit} slots
@@ -94,10 +94,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         watchlistLimit={watchlistLimit}
       />
 
-      <div className="dashboard-columns">
-        <section aria-label="Ranked assets">
+      <div className="grid grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] items-start gap-6 lg:grid-cols-1">
+        <section aria-label="Ranked assets" className="grid gap-3.5">
           {items.length === 0 ? (
-            <article className="card">
+            <article className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 [&_h3]:m-0 [&_h3]:text-[0.95rem] [&_p]:m-0 [&_p]:text-ink-2">
               <h3>No data yet</h3>
               <p>
                 The analysis worker hasn't stored any snapshots for this
@@ -105,13 +105,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 completes.
               </p>
               {overviewResult.issues.map((issue) => (
-                <p key={issue} className="issue-text">
+                <p key={issue} className="text-[0.85rem] text-muted-foreground">
                   {issue}
                 </p>
               ))}
             </article>
           ) : (
-            <div className="asset-grid">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-3.5 sm:grid-cols-1">
               {items.map((item) => {
                 const watchlistEntry = watchlistEntryByAssetId.get(
                   item.asset.id,
@@ -120,24 +120,26 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 return (
                   <Link
                     key={`${item.asset.id}:${item.timeframe}`}
-                    className="asset-card"
+                    className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 transition-colors duration-140 hover:border-input hover:bg-secondary"
                     href={`/assets/${item.asset.symbol.toLowerCase()}?timeframe=${timeframe}`}
                   >
-                    <div className="asset-card__header">
-                      <div className="asset-card__identity">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
                         <CoinLogo
                           imageUrl={readAssetImageUrl(item.asset.metadata)}
                           size={34}
                           symbol={item.asset.symbol}
                         />
                         <div>
-                          <p className="asset-card__symbol">
+                          <p className="m-0 text-[1.15rem] font-bold">
                             {item.asset.symbol}
                           </p>
-                          <p className="asset-card__name">{item.asset.name}</p>
+                          <p className="mt-0.5 mb-0 text-[0.85rem] text-muted-foreground">
+                            {item.asset.name}
+                          </p>
                         </div>
                       </div>
-                      <div className="asset-card__meta">
+                      <div className="flex flex-wrap items-center gap-2">
                         <StateBadge state={item.state} />
                         {watchlistEntry ? (
                           <WatchlistCardActions
@@ -149,12 +151,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                       </div>
                     </div>
 
-                    <div className="asset-card__price">
-                      <strong>{formatPrice(item.lastPrice)}</strong>
+                    <div className="flex items-baseline gap-3">
+                      <strong className="text-[1.6rem] font-bold tracking-[-0.01em] tabular-nums">
+                        {formatPrice(item.lastPrice)}
+                      </strong>
                       <DeltaText value={item.priceChangePercent} />
                     </div>
 
-                    <div className="score-row">
+                    <div className="grid gap-2.5">
                       <ScoreBar
                         label="Signal"
                         value={item.signalStrengthScore}
@@ -165,24 +169,33 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                       />
                     </div>
 
-                    <p className="asset-card__summary">
+                    <p className="m-0 text-[0.9rem] leading-[1.55] text-ink-2">
                       {item.summary ?? "Waiting for the first analysis."}
                     </p>
 
-                    <div className="asset-card__levels">
-                      <span className="level-text level-text--support">
-                        S <strong>{formatPrice(item.nearestSupport)}</strong>
+                    <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[0.82rem] tabular-nums text-muted-foreground">
+                      <span>
+                        S{" "}
+                        <strong className="font-semibold text-up">
+                          {formatPrice(item.nearestSupport)}
+                        </strong>
                       </span>
-                      <span className="level-text level-text--resistance">
-                        R <strong>{formatPrice(item.nearestResistance)}</strong>
+                      <span>
+                        R{" "}
+                        <strong className="font-semibold text-accent">
+                          {formatPrice(item.nearestResistance)}
+                        </strong>
                       </span>
-                      <span className="level-text level-text--invalidation">
-                        Inv <strong>{formatPrice(item.invalidation)}</strong>
+                      <span>
+                        Inv{" "}
+                        <strong className="font-semibold text-down">
+                          {formatPrice(item.invalidation)}
+                        </strong>
                       </span>
                     </div>
 
                     {item.keyReasons.length > 0 ? (
-                      <ul className="asset-card__list">
+                      <ul className="m-0 pl-4.5 text-[0.85rem] leading-[1.6] text-muted-foreground">
                         {item.keyReasons.slice(0, 2).map((reason) => (
                           <li key={reason}>{reason}</li>
                         ))}
@@ -197,19 +210,24 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           )}
 
           {pendingEntries.length > 0 ? (
-            <article className="card pending-assets">
+            <article className="mt-3.5 grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 [&_h3]:m-0 [&_h3]:text-[0.95rem]">
               <h3>Waiting for first analysis</h3>
-              <ul className="pending-assets__list">
+              <ul className="m-0 grid list-none gap-1 p-0">
                 {pendingEntries.map((entry) => (
-                  <li key={entry.asset.id}>
-                    <span className="pending-assets__coin">
+                  <li
+                    key={entry.asset.id}
+                    className="flex items-center justify-between gap-2.5 py-1.5"
+                  >
+                    <span className="flex min-w-0 items-center gap-2">
                       <CoinLogo
                         imageUrl={readAssetImageUrl(entry.asset.metadata)}
                         size={22}
                         symbol={entry.asset.symbol}
                       />
                       <strong>{entry.asset.symbol}</strong>
-                      <span>{entry.asset.name}</span>
+                      <span className="overflow-hidden text-[0.84rem] text-ellipsis whitespace-nowrap text-muted-foreground">
+                        {entry.asset.name}
+                      </span>
                     </span>
                     <WatchlistCardActions
                       aiEnabled={entry.aiEnabled}
@@ -223,7 +241,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           ) : null}
         </section>
 
-        <section aria-label="Alerts and system status">
+        <section aria-label="Alerts and system status" className="grid gap-3.5">
           <PortfolioOverviewCard
             data={portfolioResult.data}
             issues={portfolioResult.issues}

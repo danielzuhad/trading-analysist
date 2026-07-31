@@ -1,3 +1,4 @@
+import type { ZodType } from "zod";
 import {
   type AlertsResponse,
   type AssetOverviewResponse,
@@ -42,11 +43,22 @@ export function resolveDashboardTimeframe(
   return parsed.success ? parsed.data : "4H";
 }
 
-export async function fetchWatchlistOverview(
+type DashboardResourceMessages<T> = {
+  endpointLabel: string;
+  invalid: string;
+  notFound?: string;
+  requestFailedPrefix: string;
+  success: (data: T) => string;
+  unreachable: string;
+};
+
+async function fetchDashboardResource<T>(
   apiBaseUrl: string | undefined,
-  timeframe: SupportedTimeframe,
-  fetchImpl: FetchLike = fetch,
-): Promise<DashboardDataResult<WatchlistOverviewResponse>> {
+  url: string,
+  schema: ZodType<T>,
+  messages: DashboardResourceMessages<T>,
+  fetchImpl: FetchLike,
+): Promise<DashboardDataResult<T>> {
   if (!apiBaseUrl) {
     return {
       data: null,
@@ -57,88 +69,16 @@ export async function fetchWatchlistOverview(
   }
 
   try {
-    const response = await fetchImpl(
-      `${apiBaseUrl}/watchlist/overview?timeframe=${timeframe}`,
-      {
-        cache: "no-store",
-        headers: buildApiAuthHeaders(),
-      },
-    );
+    const response = await fetchImpl(url, {
+      cache: "no-store",
+      headers: buildApiAuthHeaders(),
+    });
 
-    if (!response.ok) {
-      return {
-        data: null,
-        issues: [
-          "The watchlist overview endpoint returned an unexpected error.",
-        ],
-        message: `Watchlist overview request failed with status ${response.status}.`,
-        status: "api-unreachable",
-      };
-    }
-
-    const payload = watchlistOverviewResponseSchema.safeParse(
-      await response.json(),
-    );
-
-    if (!payload.success) {
-      return {
-        data: null,
-        issues: [
-          "The API returned a watchlist overview payload that did not match the expected schema.",
-        ],
-        message: "Watchlist overview payload is invalid.",
-        status: "invalid-response",
-      };
-    }
-
-    return {
-      data: payload.data,
-      issues: [],
-      message: "Watchlist overview loaded.",
-      status: "ready",
-    };
-  } catch (error) {
-    return {
-      data: null,
-      issues: ["The web app could not reach the watchlist overview endpoint."],
-      message:
-        error instanceof Error
-          ? `Watchlist overview request failed: ${error.message}`
-          : "Watchlist overview request failed.",
-      status: "api-unreachable",
-    };
-  }
-}
-
-export async function fetchAssetOverview(
-  apiBaseUrl: string | undefined,
-  assetId: string,
-  timeframe: SupportedTimeframe,
-  fetchImpl: FetchLike = fetch,
-): Promise<DashboardDataResult<AssetOverviewResponse>> {
-  if (!apiBaseUrl) {
-    return {
-      data: null,
-      issues: ["Set NEXT_PUBLIC_API_BASE_URL to load the dashboard data."],
-      message: "API base URL is not configured.",
-      status: "api-unconfigured",
-    };
-  }
-
-  try {
-    const response = await fetchImpl(
-      `${apiBaseUrl}/assets/${assetId}/overview?timeframe=${timeframe}`,
-      {
-        cache: "no-store",
-        headers: buildApiAuthHeaders(),
-      },
-    );
-
-    if (response.status === 404) {
+    if (messages.notFound && response.status === 404) {
       return {
         data: null,
         issues: ["The requested asset is outside the seeded MVP asset scope."],
-        message: "Asset overview is not available for this asset.",
+        message: messages.notFound,
         status: "not-found",
       };
     }
@@ -146,23 +86,19 @@ export async function fetchAssetOverview(
     if (!response.ok) {
       return {
         data: null,
-        issues: ["The asset overview endpoint returned an unexpected error."],
-        message: `Asset overview request failed with status ${response.status}.`,
+        issues: [messages.unreachable],
+        message: `${messages.requestFailedPrefix} failed with status ${response.status}.`,
         status: "api-unreachable",
       };
     }
 
-    const payload = assetOverviewResponseSchema.safeParse(
-      await response.json(),
-    );
+    const payload = schema.safeParse(await response.json());
 
     if (!payload.success) {
       return {
         data: null,
-        issues: [
-          "The API returned an asset overview payload that did not match the expected schema.",
-        ],
-        message: "Asset overview payload is invalid.",
+        issues: [messages.invalid],
+        message: `${messages.requestFailedPrefix} payload is invalid.`,
         status: "invalid-response",
       };
     }
@@ -170,150 +106,114 @@ export async function fetchAssetOverview(
     return {
       data: payload.data,
       issues: [],
-      message: "Asset overview loaded.",
+      message: messages.success(payload.data),
       status: "ready",
     };
   } catch (error) {
     return {
       data: null,
-      issues: ["The web app could not reach the asset overview endpoint."],
+      issues: [
+        `The web app could not reach the ${messages.endpointLabel} endpoint.`,
+      ],
       message:
         error instanceof Error
-          ? `Asset overview request failed: ${error.message}`
-          : "Asset overview request failed.",
+          ? `${messages.requestFailedPrefix} request failed: ${error.message}`
+          : `${messages.requestFailedPrefix} request failed.`,
       status: "api-unreachable",
     };
   }
 }
 
-export async function fetchWatchlist(
+export function fetchWatchlistOverview(
+  apiBaseUrl: string | undefined,
+  timeframe: SupportedTimeframe,
+  fetchImpl: FetchLike = fetch,
+): Promise<DashboardDataResult<WatchlistOverviewResponse>> {
+  return fetchDashboardResource(
+    apiBaseUrl,
+    `${apiBaseUrl}/watchlist/overview?timeframe=${timeframe}`,
+    watchlistOverviewResponseSchema,
+    {
+      endpointLabel: "watchlist overview",
+      invalid:
+        "The API returned a watchlist overview payload that did not match the expected schema.",
+      requestFailedPrefix: "Watchlist overview",
+      success: () => "Watchlist overview loaded.",
+      unreachable:
+        "The watchlist overview endpoint returned an unexpected error.",
+    },
+    fetchImpl,
+  );
+}
+
+export function fetchAssetOverview(
+  apiBaseUrl: string | undefined,
+  assetId: string,
+  timeframe: SupportedTimeframe,
+  fetchImpl: FetchLike = fetch,
+): Promise<DashboardDataResult<AssetOverviewResponse>> {
+  return fetchDashboardResource(
+    apiBaseUrl,
+    `${apiBaseUrl}/assets/${assetId}/overview?timeframe=${timeframe}`,
+    assetOverviewResponseSchema,
+    {
+      endpointLabel: "asset overview",
+      invalid:
+        "The API returned an asset overview payload that did not match the expected schema.",
+      notFound: "Asset overview is not available for this asset.",
+      requestFailedPrefix: "Asset overview",
+      success: () => "Asset overview loaded.",
+      unreachable: "The asset overview endpoint returned an unexpected error.",
+    },
+    fetchImpl,
+  );
+}
+
+export function fetchWatchlist(
   apiBaseUrl: string | undefined,
   fetchImpl: FetchLike = fetch,
 ): Promise<DashboardDataResult<WatchlistResponse>> {
-  if (!apiBaseUrl) {
-    return {
-      data: null,
-      issues: ["Set NEXT_PUBLIC_API_BASE_URL to load the dashboard data."],
-      message: "API base URL is not configured.",
-      status: "api-unconfigured",
-    };
-  }
-
-  try {
-    const response = await fetchImpl(`${apiBaseUrl}/watchlist`, {
-      cache: "no-store",
-      headers: buildApiAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      return {
-        data: null,
-        issues: ["The watchlist endpoint returned an unexpected error."],
-        message: `Watchlist request failed with status ${response.status}.`,
-        status: "api-unreachable",
-      };
-    }
-
-    const payload = watchlistResponseSchema.safeParse(await response.json());
-
-    if (!payload.success) {
-      return {
-        data: null,
-        issues: [
-          "The API returned a watchlist payload that did not match the expected schema.",
-        ],
-        message: "Watchlist payload is invalid.",
-        status: "invalid-response",
-      };
-    }
-
-    return {
-      data: payload.data,
-      issues: [],
-      message: "Watchlist loaded.",
-      status: "ready",
-    };
-  } catch (error) {
-    return {
-      data: null,
-      issues: ["The web app could not reach the watchlist endpoint."],
-      message:
-        error instanceof Error
-          ? `Watchlist request failed: ${error.message}`
-          : "Watchlist request failed.",
-      status: "api-unreachable",
-    };
-  }
+  return fetchDashboardResource(
+    apiBaseUrl,
+    `${apiBaseUrl}/watchlist`,
+    watchlistResponseSchema,
+    {
+      endpointLabel: "watchlist",
+      invalid:
+        "The API returned a watchlist payload that did not match the expected schema.",
+      requestFailedPrefix: "Watchlist",
+      success: () => "Watchlist loaded.",
+      unreachable: "The watchlist endpoint returned an unexpected error.",
+    },
+    fetchImpl,
+  );
 }
 
-export async function fetchPortfolioOverview(
+export function fetchPortfolioOverview(
   apiBaseUrl: string | undefined,
   fetchImpl: FetchLike = fetch,
 ): Promise<DashboardDataResult<PortfolioOverviewResponse>> {
-  if (!apiBaseUrl) {
-    return {
-      data: null,
-      issues: ["Set NEXT_PUBLIC_API_BASE_URL to load the dashboard data."],
-      message: "API base URL is not configured.",
-      status: "api-unconfigured",
-    };
-  }
-
-  try {
-    const response = await fetchImpl(`${apiBaseUrl}/portfolio/overview`, {
-      cache: "no-store",
-      headers: buildApiAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      return {
-        data: null,
-        issues: [
-          "The portfolio overview endpoint returned an unexpected error.",
-        ],
-        message: `Portfolio overview request failed with status ${response.status}.`,
-        status: "api-unreachable",
-      };
-    }
-
-    const payload = portfolioOverviewResponseSchema.safeParse(
-      await response.json(),
-    );
-
-    if (!payload.success) {
-      return {
-        data: null,
-        issues: [
-          "The API returned a portfolio overview payload that did not match the expected schema.",
-        ],
-        message: "Portfolio overview payload is invalid.",
-        status: "invalid-response",
-      };
-    }
-
-    return {
-      data: payload.data,
-      issues: [],
-      message:
-        payload.data.openPositionCount > 0
+  return fetchDashboardResource(
+    apiBaseUrl,
+    `${apiBaseUrl}/portfolio/overview`,
+    portfolioOverviewResponseSchema,
+    {
+      endpointLabel: "portfolio overview",
+      invalid:
+        "The API returned a portfolio overview payload that did not match the expected schema.",
+      requestFailedPrefix: "Portfolio overview",
+      success: (data) =>
+        data.openPositionCount > 0
           ? "Portfolio overview loaded."
           : "No open positions yet.",
-      status: "ready",
-    };
-  } catch (error) {
-    return {
-      data: null,
-      issues: ["The web app could not reach the portfolio overview endpoint."],
-      message:
-        error instanceof Error
-          ? `Portfolio overview request failed: ${error.message}`
-          : "Portfolio overview request failed.",
-      status: "api-unreachable",
-    };
-  }
+      unreachable:
+        "The portfolio overview endpoint returned an unexpected error.",
+    },
+    fetchImpl,
+  );
 }
 
-export async function fetchAlerts(
+export function fetchAlerts(
   apiBaseUrl: string | undefined,
   {
     assetId,
@@ -326,66 +226,27 @@ export async function fetchAlerts(
   } = {},
   fetchImpl: FetchLike = fetch,
 ): Promise<DashboardDataResult<AlertsResponse>> {
-  if (!apiBaseUrl) {
-    return {
-      data: null,
-      issues: ["Set NEXT_PUBLIC_API_BASE_URL to load the dashboard data."],
-      message: "API base URL is not configured.",
-      status: "api-unconfigured",
-    };
-  }
+  const searchParams = new URLSearchParams({
+    limit: limit.toString(),
+    ...(assetId ? { assetId } : {}),
+    ...(timeframe ? { timeframe } : {}),
+  });
 
-  try {
-    const searchParams = new URLSearchParams({
-      limit: limit.toString(),
-      ...(assetId ? { assetId } : {}),
-      ...(timeframe ? { timeframe } : {}),
-    });
-    const response = await fetchImpl(`${apiBaseUrl}/alerts?${searchParams}`, {
-      cache: "no-store",
-      headers: buildApiAuthHeaders(),
-    });
-
-    if (!response.ok) {
-      return {
-        data: null,
-        issues: ["The alerts endpoint returned an unexpected error."],
-        message: `Alert request failed with status ${response.status}.`,
-        status: "api-unreachable",
-      };
-    }
-
-    const payload = alertsResponseSchema.safeParse(await response.json());
-
-    if (!payload.success) {
-      return {
-        data: null,
-        issues: [
-          "The API returned an alert payload that did not match the expected schema.",
-        ],
-        message: "Alert payload is invalid.",
-        status: "invalid-response",
-      };
-    }
-
-    return {
-      data: payload.data,
-      issues: [],
-      message:
-        payload.data.count > 0
+  return fetchDashboardResource(
+    apiBaseUrl,
+    `${apiBaseUrl}/alerts?${searchParams}`,
+    alertsResponseSchema,
+    {
+      endpointLabel: "alerts",
+      invalid:
+        "The API returned an alert payload that did not match the expected schema.",
+      requestFailedPrefix: "Alert",
+      success: (data) =>
+        data.count > 0
           ? "Recent alerts loaded."
           : "No alerts have been generated yet.",
-      status: "ready",
-    };
-  } catch (error) {
-    return {
-      data: null,
-      issues: ["The web app could not reach the alerts endpoint."],
-      message:
-        error instanceof Error
-          ? `Alert request failed: ${error.message}`
-          : "Alert request failed.",
-      status: "api-unreachable",
-    };
-  }
+      unreachable: "The alerts endpoint returned an unexpected error.",
+    },
+    fetchImpl,
+  );
 }

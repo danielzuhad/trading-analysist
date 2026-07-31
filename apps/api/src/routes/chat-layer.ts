@@ -16,25 +16,21 @@ import {
   validateTelegramWebhookSecret,
   validateTwilioWebhookSignature,
 } from "@trading-analyst/chat-layer";
-import type {
-  LatestAssetAnalysis,
-  LatestMarketData,
-} from "@trading-analyst/db";
 import {
   type Asset,
   type ClosePositionInput,
   type CreatePositionInput,
   findDefaultCryptoAssetBySymbol,
-  type IndicatorSnapshot,
   type Position,
-  type SignalAggregationSnapshot,
   type SupportedTimeframe,
 } from "@trading-analyst/shared-types";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import {
   buildAssetOverviewResponse,
   buildWatchlistOverviewResponse,
-} from "./dashboard.js";
+  type OverviewDependencies,
+  resolveWatchlistAssetsForOverview,
+} from "../overview.js";
 
 type ChatInboundMessage = {
   channel: "telegram" | "whatsapp";
@@ -51,7 +47,7 @@ type TelegramDependencies = {
   webhookSecret: string;
 };
 
-type Dependencies = {
+type Dependencies = OverviewDependencies & {
   authToken?: string;
   chatUserId: string;
   telegram?: TelegramDependencies;
@@ -60,26 +56,6 @@ type Dependencies = {
     input: ClosePositionInput,
   ) => Promise<Position | null>;
   createPosition: (input: CreatePositionInput) => Promise<Position>;
-  getActivePositionForAsset: (filters: {
-    assetId: string;
-    userId: string;
-  }) => Promise<Position | null>;
-  getLatestAssetAnalysis: (
-    assetId: string,
-    timeframe: SupportedTimeframe,
-  ) => Promise<LatestAssetAnalysis | null>;
-  getLatestIndicatorSnapshot: (
-    assetId: string,
-    timeframe: SupportedTimeframe,
-  ) => Promise<IndicatorSnapshot | null>;
-  getLatestMarketData: (
-    assetId: string,
-    timeframe: SupportedTimeframe,
-  ) => Promise<LatestMarketData | null>;
-  getLatestSignalAggregationSnapshot: (
-    assetId: string,
-    timeframe: SupportedTimeframe,
-  ) => Promise<SignalAggregationSnapshot | null>;
   getWatchlistAssetBySymbol?: (filters: {
     symbol: string;
     userId: string;
@@ -240,9 +216,14 @@ async function buildChatReply(
     case "unknown":
       return formatUnknownCommandMessage();
     case "watchlist": {
+      const overviewAssets = await resolveWatchlistAssetsForOverview(
+        dependencies.chatUserId,
+        dependencies.listWatchlistAssets,
+      );
       const watchlist = await buildWatchlistOverviewResponse(
         dependencies.chatUserId,
         command.timeframe,
+        overviewAssets,
         dependencies,
       );
 

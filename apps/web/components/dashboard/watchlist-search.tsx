@@ -4,10 +4,12 @@ import type { CryptoSearchResult } from "@trading-analyst/shared-types";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { CoinLogo } from "@/components/dashboard/coin-logo";
+import { Input } from "@/components/ui/input";
 import {
   addToWatchlistAction,
   searchCryptoAction,
 } from "@/lib/watchlist-actions";
+import { cn } from "@/lib/utils";
 
 type WatchlistSearchProps = {
   watchlistCount: number;
@@ -145,10 +147,10 @@ export function WatchlistSearch({
   const showPopover = isOpen && (results.length > 0 || message !== null);
 
   return (
-    <div className="watchlist-search" ref={containerRef}>
-      <div className="watchlist-search__bar">
-        <input
-          className="watchlist-search__input"
+    <div className="relative grid gap-2" ref={containerRef}>
+      <div className="relative flex items-center">
+        <Input
+          className="min-h-10 rounded-sm border-input pr-16 focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-1"
           type="search"
           placeholder="Search a coin to add (e.g. XRP, doge)…"
           value={query}
@@ -163,7 +165,10 @@ export function WatchlistSearch({
         />
         {watchlistLimit !== null ? (
           <span
-            className={`watchlist-search__slots ${limitReached ? "watchlist-search__slots--full" : ""}`}
+            className={cn(
+              "pointer-events-auto absolute right-3 text-[0.8rem] tabular-nums text-muted-foreground",
+              limitReached && "font-semibold text-warn",
+            )}
             title={`The watchlist is capped at ${watchlistLimit} assets to keep AI analysis cost and market-data rate limits under control.`}
           >
             {watchlistCount}/{watchlistLimit}
@@ -173,54 +178,61 @@ export function WatchlistSearch({
 
       {showPopover ? (
         <div
-          className="watchlist-search__popover"
+          className="absolute top-[calc(100%+6px)] right-0 left-0 z-30 grid max-h-85 gap-1.5 overflow-y-auto rounded-sm border border-input bg-card p-2 shadow-[0_12px_32px_rgba(0,0,0,0.18)]"
           id="watchlist-search-results"
         >
           {limitReached ? (
-            <p className="watchlist-search__hint watchlist-search__hint--warn">
+            <p className="m-0 px-1.5 py-0.5 text-[0.85rem] text-warn">
               Watchlist is full ({watchlistLimit} assets). Remove an asset
               before adding a new one.
             </p>
           ) : null}
 
           {isPending ? (
-            <p className="watchlist-search__hint">Searching…</p>
+            <p className="m-0 px-1.5 py-0.5 text-[0.85rem] text-muted-foreground">
+              Searching…
+            </p>
           ) : message ? (
-            <p className="watchlist-search__hint">{message}</p>
+            <p className="m-0 px-1.5 py-0.5 text-[0.85rem] text-muted-foreground">
+              {message}
+            </p>
           ) : null}
 
           {results.length > 0 ? (
-            <ul className="watchlist-search__results">
+            <ul className="m-0 grid list-none gap-0.5 p-0">
               {results.map((result, index) => (
                 <li
                   key={result.coingeckoCoinId}
-                  className={
-                    index === activeIndex
-                      ? "watchlist-search__result--active"
-                      : ""
-                  }
+                  className={cn(
+                    "flex items-center justify-between gap-2.5 rounded-lg px-2.5 py-2 hover:bg-secondary",
+                    index === activeIndex && "bg-secondary",
+                  )}
                   onPointerEnter={() => setActiveIndex(index)}
                 >
-                  <span className="watchlist-search__coin">
+                  <span className="flex min-w-0 items-center gap-2">
                     <CoinLogo
                       imageUrl={result.thumb}
                       size={22}
                       symbol={result.symbol}
                     />
-                    <strong>{result.symbol}</strong>
-                    <span>{result.name}</span>
+                    <strong className="text-[0.9rem]">{result.symbol}</strong>
+                    <span className="overflow-hidden text-[0.84rem] text-ellipsis whitespace-nowrap text-muted-foreground">
+                      {result.name}
+                    </span>
                     {result.marketCapRank ? (
-                      <span className="watchlist-search__rank">
+                      <span className="tabular-nums text-muted-foreground">
                         #{result.marketCapRank}
                       </span>
                     ) : null}
                   </span>
                   {result.inWatchlist ? (
-                    <span className="inline-chip">In watchlist</span>
+                    <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
+                      In watchlist
+                    </span>
                   ) : (
                     <button
                       type="button"
-                      className="watchlist-search__add"
+                      className="cursor-pointer rounded-full border border-input bg-accent-soft px-3 py-1 text-[0.8rem] font-semibold whitespace-nowrap text-accent hover:bg-primary hover:text-white disabled:cursor-wait disabled:opacity-60"
                       disabled={isPending || limitReached}
                       onClick={() => handleAdd(result)}
                     >

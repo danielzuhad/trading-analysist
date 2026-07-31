@@ -47,51 +47,65 @@ export type WorkerRuntime = {
   workerConnection: Redis;
 };
 
+function runFullAnalysisCycle(
+  job: Job<MarketSnapshotJobData>,
+  env: WorkerEnv,
+  logger: Logger,
+  triggeredBy: AnalysisTrigger,
+) {
+  return runAnalysisCycle({
+    assetId: job.data.assetId,
+    ...(env.COINGECKO_API_KEY
+      ? { coingeckoApiKey: env.COINGECKO_API_KEY }
+      : {}),
+    coingeckoApiPlan: env.COINGECKO_API_PLAN,
+    connectionString: env.DATABASE_URL,
+    logger,
+    maxDailyAiCostUsd: env.MAX_DAILY_AI_COST_USD,
+    ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
+    requestedAt: job.data.requestedAt,
+    ...(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID
+      ? {
+          telegramAlertDelivery: {
+            botToken: env.TELEGRAM_BOT_TOKEN,
+            chatId: env.TELEGRAM_CHAT_ID,
+          },
+        }
+      : {}),
+    timeframe: job.data.timeframe,
+    triggeredBy,
+    userId: job.data.userId,
+    ...(env.TWILIO_ACCOUNT_SID &&
+    env.TWILIO_AUTH_TOKEN &&
+    env.TWILIO_WHATSAPP_FROM &&
+    env.TWILIO_WHATSAPP_TO
+      ? {
+          whatsappAlertDelivery: {
+            accountSid: env.TWILIO_ACCOUNT_SID,
+            authToken: env.TWILIO_AUTH_TOKEN,
+            from: env.TWILIO_WHATSAPP_FROM,
+            ...(env.TWILIO_STATUS_CALLBACK_URL
+              ? { statusCallbackUrl: env.TWILIO_STATUS_CALLBACK_URL }
+              : {}),
+            to: env.TWILIO_WHATSAPP_TO,
+          },
+        }
+      : {}),
+  });
+}
+
 async function defaultProcessor(
   job: Job<MarketSnapshotJobData>,
   env: WorkerEnv,
   logger: Logger,
 ) {
   if (job.name === marketSnapshotJobName) {
-    const result = await runAnalysisCycle({
-      assetId: job.data.assetId,
-      ...(env.COINGECKO_API_KEY
-        ? { coingeckoApiKey: env.COINGECKO_API_KEY }
-        : {}),
-      coingeckoApiPlan: env.COINGECKO_API_PLAN,
-      connectionString: env.DATABASE_URL,
+    const result = await runFullAnalysisCycle(
+      job,
+      env,
       logger,
-      maxDailyAiCostUsd: env.MAX_DAILY_AI_COST_USD,
-      ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
-      requestedAt: job.data.requestedAt,
-      ...(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID
-        ? {
-            telegramAlertDelivery: {
-              botToken: env.TELEGRAM_BOT_TOKEN,
-              chatId: env.TELEGRAM_CHAT_ID,
-            },
-          }
-        : {}),
-      timeframe: job.data.timeframe,
-      triggeredBy: resolveAnalysisTrigger(job.data.trigger),
-      userId: job.data.userId,
-      ...(env.TWILIO_ACCOUNT_SID &&
-      env.TWILIO_AUTH_TOKEN &&
-      env.TWILIO_WHATSAPP_FROM &&
-      env.TWILIO_WHATSAPP_TO
-        ? {
-            whatsappAlertDelivery: {
-              accountSid: env.TWILIO_ACCOUNT_SID,
-              authToken: env.TWILIO_AUTH_TOKEN,
-              from: env.TWILIO_WHATSAPP_FROM,
-              ...(env.TWILIO_STATUS_CALLBACK_URL
-                ? { statusCallbackUrl: env.TWILIO_STATUS_CALLBACK_URL }
-                : {}),
-              to: env.TWILIO_WHATSAPP_TO,
-            },
-          }
-        : {}),
-    });
+      resolveAnalysisTrigger(job.data.trigger),
+    );
 
     if (result.status === "skipped") {
       logger.warn(
@@ -159,45 +173,12 @@ async function defaultProcessor(
       `[worker] threshold check triggered re-analysis for ${thresholdResult.assetId} ${thresholdResult.timeframe}: ${thresholdResult.level.kind} at ${thresholdResult.level.level} is ${thresholdResult.level.distance} away (ATR ${thresholdResult.thresholdDistance})`,
     );
 
-    const result = await runAnalysisCycle({
-      assetId: job.data.assetId,
-      ...(env.COINGECKO_API_KEY
-        ? { coingeckoApiKey: env.COINGECKO_API_KEY }
-        : {}),
-      coingeckoApiPlan: env.COINGECKO_API_PLAN,
-      connectionString: env.DATABASE_URL,
+    const result = await runFullAnalysisCycle(
+      job,
+      env,
       logger,
-      maxDailyAiCostUsd: env.MAX_DAILY_AI_COST_USD,
-      ...(env.OPENAI_API_KEY ? { openAiApiKey: env.OPENAI_API_KEY } : {}),
-      requestedAt: job.data.requestedAt,
-      ...(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID
-        ? {
-            telegramAlertDelivery: {
-              botToken: env.TELEGRAM_BOT_TOKEN,
-              chatId: env.TELEGRAM_CHAT_ID,
-            },
-          }
-        : {}),
-      timeframe: job.data.timeframe,
-      triggeredBy: "realtime_event",
-      userId: job.data.userId,
-      ...(env.TWILIO_ACCOUNT_SID &&
-      env.TWILIO_AUTH_TOKEN &&
-      env.TWILIO_WHATSAPP_FROM &&
-      env.TWILIO_WHATSAPP_TO
-        ? {
-            whatsappAlertDelivery: {
-              accountSid: env.TWILIO_ACCOUNT_SID,
-              authToken: env.TWILIO_AUTH_TOKEN,
-              from: env.TWILIO_WHATSAPP_FROM,
-              ...(env.TWILIO_STATUS_CALLBACK_URL
-                ? { statusCallbackUrl: env.TWILIO_STATUS_CALLBACK_URL }
-                : {}),
-              to: env.TWILIO_WHATSAPP_TO,
-            },
-          }
-        : {}),
-    });
+      "realtime_event",
+    );
 
     if (result.status === "skipped") {
       logger.warn(

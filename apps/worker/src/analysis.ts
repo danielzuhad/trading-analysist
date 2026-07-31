@@ -102,30 +102,10 @@ export type GenerateLatestAssetAnalysisResult =
 export async function generateLatestAssetAnalysis({
   assetId,
   connectionString,
-  currentDailyCostUsd,
-  day = new Date(),
-  getCurrentDailyAiCostUsd = getDailyAiCostTotalUsdForUser,
-  getLatestAnalysis = getLatestAssetAnalysis,
   getLatestSignalSnapshot = getLatestSignalAggregationSnapshot,
-  generateAlert = generateStateTransitionAlert,
   logger = console,
-  maxDailyAiCostUsd,
-  model = defaultAiAnalysisModel,
-  openAiApiKey,
-  promptVersion = defaultAiAnalysisPromptVersion,
-  provider,
-  markDeliveredAlert = markAlertDelivered,
-  recordAiCostFn = recordAiCost,
-  recordOutcome = recordPendingAnalysisOutcome,
-  saveGeneratedAlert = saveAlert,
-  saveAnalysis = saveLatestAssetAnalysis,
-  sendTelegramMessageFn = sendTelegramMessage,
-  sendWhatsappMessage = sendTwilioMessage,
-  telegramAlertDelivery,
   timeframe,
-  triggeredBy = "manual_recalculation",
-  userId,
-  whatsappAlertDelivery,
+  ...rest
 }: GenerateLatestAssetAnalysisOptions): Promise<GenerateLatestAssetAnalysisResult> {
   const signalSnapshot = await getLatestSignalSnapshot(
     assetId,
@@ -146,125 +126,13 @@ export async function generateLatestAssetAnalysis({
     };
   }
 
-  if (!provider && !openAiApiKey) {
-    logger.warn(
-      `[worker] skipped AI analysis for ${assetId} ${timeframe} because OPENAI_API_KEY is not configured`,
-    );
-
-    return {
-      assetId,
-      reason: "missing_openai_api_key",
-      status: "skipped",
-      timeframe,
-    };
-  }
-
-  const previousAnalysis = await getLatestAnalysis(
-    assetId,
-    timeframe,
-    connectionString,
-  );
-
-  if (
-    triggeredBy === "scheduled" &&
-    previousAnalysis &&
-    isAnalysisInputUnchanged(previousAnalysis, signalSnapshot)
-  ) {
-    logger.log(
-      `[worker] skipped AI analysis for ${assetId} ${timeframe} because market conditions are unchanged since the last analysis`,
-    );
-
-    return {
-      assetId,
-      reason: "snapshot_unchanged",
-      status: "skipped",
-      timeframe,
-    };
-  }
-
-  let providerToUse = provider;
-
-  if (!providerToUse) {
-    if (!openAiApiKey) {
-      throw new Error(
-        "OPENAI_API_KEY is required when no AI provider is supplied.",
-      );
-    }
-
-    providerToUse = createOpenAiAnalysisProvider({ apiKey: openAiApiKey });
-  }
-  const dailyCostTotal =
-    currentDailyCostUsd ??
-    (await getCurrentDailyAiCostUsd(userId, day, connectionString));
-  const result = await analyzeSignalSnapshot({
-    currentDailyCostUsd: dailyCostTotal,
-    ...(maxDailyAiCostUsd !== undefined
-      ? { maxDailyCostUsd: maxDailyAiCostUsd }
-      : {}),
-    model,
-    ...(previousAnalysis?.state
-      ? { previousState: previousAnalysis.state }
-      : {}),
-    promptVersion,
-    provider: providerToUse,
-    signalSnapshot,
-    triggeredBy,
-  });
-
-  if (result.status === "skipped") {
-    logger.warn(
-      `[worker] skipped AI analysis for ${assetId} ${timeframe} because the daily AI cost cap has been reached`,
-    );
-
-    return {
-      assetId,
-      reason: "daily_cost_cap_reached",
-      status: "skipped",
-      timeframe,
-    };
-  }
-
-  await saveAnalysis(result.analysis, connectionString);
-  await recordAiCostFn(
-    {
-      analysisId: result.analysis.id,
-      assetId,
-      costEstimateUsd: result.analysis.costEstimateUsd,
-      generatedAt: result.analysis.generatedAt,
-      timeframe,
-      userId,
-    },
-    connectionString,
-  );
-  await recordOutcome({
-    analysis: result.analysis,
+  return generateAssetAnalysisFromSignalSnapshot({
+    ...rest,
     ...(connectionString ? { connectionString } : {}),
     logger,
-  });
-  await generateAndPersistAlert({
-    connectionString,
-    currentAnalysis: result.analysis,
-    generateAlert,
-    logger,
-    markDeliveredAlert,
-    previousAnalysis,
-    saveGeneratedAlert,
-    sendTelegramMessageFn,
-    sendWhatsappMessage,
-    ...(telegramAlertDelivery ? { telegramAlertDelivery } : {}),
-    ...(whatsappAlertDelivery ? { whatsappAlertDelivery } : {}),
-  });
-  logger.log(
-    `[worker] stored AI analysis ${result.analysis.id} for ${assetId} ${timeframe} in state ${result.analysis.state}`,
-  );
-
-  return {
-    analysisId: result.analysis.id,
-    assetId,
-    state: result.analysis.state,
-    status: "stored",
+    signalSnapshot,
     timeframe,
-  };
+  });
 }
 
 export async function generateAssetAnalysisFromSignalSnapshot({

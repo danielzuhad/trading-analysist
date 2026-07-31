@@ -1,16 +1,29 @@
 "use client";
 
+import { cva } from "class-variance-authority";
 import { useEffect, useState } from "react";
 import {
   ResponsiveSheet,
   useResponsiveSheet,
 } from "@/components/responsive-sheet";
+import { statusBadgeVariants } from "@/components/dashboard/dashboard-primitives";
 import { formatRelativeTime } from "@/lib/dashboard-format";
 import {
   buildAiOperationalWarning,
   fetchInfrastructureStatus,
   type InfrastructureStatus,
 } from "@/lib/status";
+
+const statusDotVariants = cva("h-2.25 w-2.25 shrink-0 rounded-full", {
+  variants: {
+    tone: {
+      ok: "bg-up",
+      warn: "bg-warn",
+      down: "bg-down",
+      unknown: "bg-muted-foreground",
+    },
+  },
+});
 
 type SystemStatusButtonProps = {
   apiBaseUrl: string | undefined;
@@ -88,10 +101,10 @@ export function SystemStatusButton({ apiBaseUrl }: SystemStatusButtonProps) {
     <>
       <button
         type="button"
-        className="inline-chip inline-chip--button"
+        className="inline-flex min-h-6.5 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground hover:border-input hover:text-ink-2"
         onClick={sheet.open}
       >
-        <span className={`status-dot status-dot--${tone}`} />
+        <span className={statusDotVariants({ tone })} />
         {label}
       </button>
 
@@ -133,9 +146,11 @@ export function SystemStatusButton({ apiBaseUrl }: SystemStatusButtonProps) {
                 <p>
                   AI budget:{" "}
                   <span
-                    className={`status-badge status-badge--${mapAiStateToTone(
-                      infrastructureStatus.operational.ai.currentState,
-                    )}`}
+                    className={statusBadgeVariants({
+                      tone: mapAiStateToTone(
+                        infrastructureStatus.operational.ai.currentState,
+                      ),
+                    })}
                   >
                     {infrastructureStatus.operational.ai.currentState}
                   </span>
@@ -153,15 +168,13 @@ export function SystemStatusButton({ apiBaseUrl }: SystemStatusButtonProps) {
                 ) : null}
                 {Object.entries(infrastructureStatus.operational.providers)
                   .length > 0 ? (
-                  <div className="status-provider-list">
+                  <div className="grid gap-1.5">
                     {Object.entries(
                       infrastructureStatus.operational.providers,
                     ).map(([provider, status]) => (
                       <p key={provider}>
                         {provider}:{" "}
-                        <span
-                          className={`status-badge status-badge--${status.status}`}
-                        >
+                        <span className={statusBadgeVariants({ tone: status.status })}>
                           {status.status}
                         </span>
                         {status.detail ? ` (${status.detail})` : ""}

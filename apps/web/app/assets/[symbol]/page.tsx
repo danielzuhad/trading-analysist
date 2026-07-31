@@ -1,4 +1,5 @@
 import { findDefaultCryptoAssetBySymbol } from "@trading-analyst/shared-types";
+import { cva } from "class-variance-authority";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertFeed } from "@/components/dashboard/alert-feed";
@@ -11,6 +12,10 @@ import {
   StateBadge,
 } from "@/components/dashboard/dashboard-primitives";
 import { OperationalWarningBanner } from "@/components/dashboard/operational-warning-banner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   fetchAlerts,
   fetchAssetOverview,
@@ -32,12 +37,32 @@ import {
   buildAiOperationalWarning,
   fetchInfrastructureStatus,
 } from "@/lib/status";
+import { cn } from "@/lib/utils";
 import { removeFromWatchlistAndRedirectAction } from "@/lib/watchlist-actions";
 import {
   closePositionAction,
   recordPositionAction,
   updatePositionAction,
 } from "./actions";
+
+const nativeSelectClassName =
+  "min-h-10 w-full rounded-sm border border-input bg-secondary px-3 text-foreground tabular-nums focus:outline-2 focus:outline-primary focus:outline-offset-1";
+
+const positionFieldLabelClassName =
+  "grid gap-1.5 text-[0.74rem] font-semibold tracking-widest text-muted-foreground uppercase";
+
+const positionInputClassName =
+  "min-h-10 rounded-sm border-input bg-secondary tabular-nums tracking-normal normal-case focus-visible:border-input focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-1";
+
+const actionBannerVariants = cva("m-0 rounded-sm border p-2.5 text-[0.9rem] font-semibold", {
+  variants: {
+    tone: {
+      success: "border-up/30 bg-up-soft text-up",
+      error: "border-down/30 bg-red-soft text-down",
+      muted: "border-border bg-secondary text-muted-foreground",
+    },
+  },
+});
 
 export const dynamic = "force-dynamic";
 
@@ -78,56 +103,56 @@ function LevelBar({
   const position = (value: number) => ((value - lo) / (hi - lo)) * 100;
 
   return (
-    <div className="level-bar">
-      <div className="level-bar__track">
+    <div className="grid gap-2">
+      <div className="relative h-2 rounded-full bg-secondary">
         {support !== undefined ? (
           <span
-            className="level-bar__marker level-bar__marker--support"
+            className="absolute top-1/2 h-4 w-0.75 -translate-x-1/2 -translate-y-1/2 rounded-xs bg-up"
             style={{ left: `${position(support)}%` }}
             title={`Support ${formatPrice(support)}`}
           />
         ) : null}
         {resistance !== undefined ? (
           <span
-            className="level-bar__marker level-bar__marker--resistance"
+            className="absolute top-1/2 h-4 w-0.75 -translate-x-1/2 -translate-y-1/2 rounded-xs bg-accent"
             style={{ left: `${position(resistance)}%` }}
             title={`Resistance ${formatPrice(resistance)}`}
           />
         ) : null}
         {invalidation !== undefined ? (
           <span
-            className="level-bar__marker level-bar__marker--invalidation"
+            className="absolute top-1/2 h-4 w-0.75 -translate-x-1/2 -translate-y-1/2 rounded-xs bg-down"
             style={{ left: `${position(invalidation)}%` }}
             title={`Invalidation ${formatPrice(invalidation)}`}
           />
         ) : null}
         <span
-          className="level-bar__marker level-bar__marker--price"
+          className="absolute top-1/2 h-2.75 w-2.75 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground"
           style={{ left: `${position(price)}%` }}
           title={`Price ${formatPrice(price)}`}
         />
       </div>
-      <div className="level-bar__legend">
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[0.8rem] tabular-nums text-muted-foreground">
         {support !== undefined ? (
           <span>
-            <i style={{ background: "var(--up)" }} />
+            <i className="mr-1.5 inline-block h-2 w-2 rounded-xs bg-up not-italic" />
             Support {formatPrice(support)}
           </span>
         ) : null}
         {resistance !== undefined ? (
           <span>
-            <i style={{ background: "var(--accent)" }} />
+            <i className="mr-1.5 inline-block h-2 w-2 rounded-xs bg-accent not-italic" />
             Resistance {formatPrice(resistance)}
           </span>
         ) : null}
         {invalidation !== undefined ? (
           <span>
-            <i style={{ background: "var(--down)" }} />
+            <i className="mr-1.5 inline-block h-2 w-2 rounded-xs bg-down not-italic" />
             Invalidation {formatPrice(invalidation)}
           </span>
         ) : null}
         <span>
-          <i style={{ background: "var(--ink)" }} />
+          <i className="mr-1.5 inline-block h-2 w-2 rounded-xs bg-foreground not-italic" />
           Price {formatPrice(price)}
         </span>
       </div>
@@ -145,7 +170,7 @@ function DetailRow({
   valueClass?: string | undefined;
 }) {
   return (
-    <p>
+    <p className="m-0 flex justify-between gap-3 text-[0.9rem] text-ink-2 [&>span:first-child]:text-muted-foreground [&>span:last-child]:text-right [&>span:last-child]:tabular-nums [&>span:last-child]:text-foreground">
       <span>{label}</span>
       <span className={valueClass}>{value ?? "—"}</span>
     </p>
@@ -154,19 +179,19 @@ function DetailRow({
 
 function mapChangeClass(value?: number) {
   const deltaClass = mapDeltaClass(value);
-  return deltaClass === "flat" ? "value--muted" : `value--${deltaClass}`;
+  return deltaClass === "flat" ? "text-muted-foreground" : deltaClass === "up" ? "text-up" : "text-down";
 }
 
 function mapBiasClass(bias?: string) {
   if (bias === "bullish") {
-    return "value--up";
+    return "text-up";
   }
 
   if (bias === "bearish") {
-    return "value--down";
+    return "text-down";
   }
 
-  return "value--muted";
+  return "text-muted-foreground";
 }
 
 export default async function AssetDetailPage({
@@ -214,20 +239,27 @@ export default async function AssetDetailPage({
   const decision = analysis?.decisionCard;
 
   return (
-    <main className="shell">
-      <div className="detail-header">
-        <Link className="back-link" href={`/?timeframe=${timeframe}`}>
+    <main className="mx-auto grid w-[min(1600px,calc(100vw-32px))] gap-6 py-6 pb-18 sm:w-[min(100vw-20px,1600px)] sm:py-4 sm:pb-12">
+      <div className="grid gap-3.5">
+        <Link
+          className="inline-flex w-fit items-center gap-1.5 text-[0.88rem] text-muted-foreground hover:text-foreground"
+          href={`/?timeframe=${timeframe}`}
+        >
           ← Watchlist
         </Link>
-        <div className="detail-header__row">
-          <div className="detail-header__identity">
+        <div className="flex flex-wrap items-center justify-between gap-3.5">
+          <div className="flex flex-wrap items-baseline gap-3">
             <CoinLogo
               imageUrl={readAssetImageUrl(asset.metadata)}
               size={40}
               symbol={asset.symbol}
             />
-            <h1>{asset.symbol}</h1>
-            <p className="asset-card__name">{asset.name}</p>
+            <h1 className="m-0 text-2xl tracking-[-0.01em]">
+              {asset.symbol}
+            </h1>
+            <p className="m-0 text-[0.95rem] text-muted-foreground">
+              {asset.name}
+            </p>
             <StateBadge state={analysis?.state} />
           </div>
           <DashboardTimeframeTabs
@@ -235,27 +267,34 @@ export default async function AssetDetailPage({
             timeframe={timeframe}
           />
         </div>
-        <div className="detail-header__row">
-          <div className="detail-price">
-            <strong>{formatPrice(overview?.marketSnapshot?.lastPrice)}</strong>
+        <div className="flex flex-wrap items-center justify-between gap-3.5">
+          <div className="flex items-baseline gap-3">
+            <strong className="text-[2rem] font-bold tracking-[-0.02em] tabular-nums sm:text-[1.6rem]">
+              {formatPrice(overview?.marketSnapshot?.lastPrice)}
+            </strong>
             <DeltaText value={overview?.marketSnapshot?.priceChangePercent} />
           </div>
-          <div className="page-heading__meta">
-            <span className="inline-chip">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
               Updated {formatRelativeTime(overview?.marketSnapshot?.capturedAt)}
             </span>
-            <span className="inline-chip">
+            <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
               {overview?.marketSnapshot?.provider ?? "no provider"}
             </span>
             {!activePosition ? (
               <form
-                className="remove-watchlist-form"
+                className="inline"
                 action={removeFromWatchlistAndRedirectAction.bind(
                   null,
                   asset.id,
                 )}
               >
-                <button type="submit">Remove from watchlist</button>
+                <button
+                  type="submit"
+                  className="cursor-pointer rounded-full border border-border bg-transparent px-3 py-1 text-[0.8rem] text-muted-foreground hover:border-down/40 hover:text-down"
+                >
+                  Remove from watchlist
+                </button>
               </form>
             ) : null}
           </div>
@@ -266,12 +305,15 @@ export default async function AssetDetailPage({
 
       {overview ? (
         <>
-          <section className="decision-card" aria-label="AI decision">
-            <div className="card-heading">
-              <h2>AI Decision</h2>
-              <div className="page-heading__meta">
+          <section
+            className="grid gap-4 rounded-(--radius) border border-input bg-card p-5"
+            aria-label="AI decision"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="m-0 text-base">AI Decision</h2>
+              <div className="flex flex-wrap items-center gap-2.5">
                 {analysis?.suggestion ? (
-                  <span className="inline-chip">
+                  <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
                     {analysis.suggestion.replaceAll("_", " ")}
                   </span>
                 ) : null}
@@ -279,7 +321,7 @@ export default async function AssetDetailPage({
               </div>
             </div>
 
-            <p className="decision-card__summary">
+            <p className="m-0 text-[1.02rem] leading-[1.6] text-foreground">
               {analysis?.summary ??
                 "No AI analysis has been stored for this asset and timeframe yet."}
             </p>
@@ -292,29 +334,35 @@ export default async function AssetDetailPage({
             />
 
             {decision ? (
-              <div className="decision-card__grid">
-                <div className="decision-block">
-                  <span className="decision-block__label">Action plan</span>
+              <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-1">
+                <div className="grid gap-1.5 rounded-sm border border-border bg-secondary p-3.5 [&_p]:m-0 [&_p]:text-[0.9rem] [&_p]:leading-[1.6] [&_p]:text-ink-2 [&_ul]:m-0 [&_ul]:pl-4.5 [&_ul]:text-[0.9rem] [&_ul]:leading-[1.6] [&_ul]:text-ink-2">
+                  <span className="text-[0.72rem] tracking-widest text-muted-foreground uppercase">
+                    Action plan
+                  </span>
                   <ul>
                     {decision.actionPlan.map((step) => (
                       <li key={step}>{step}</li>
                     ))}
                   </ul>
                 </div>
-                <div className="decision-block decision-block--invalidation">
-                  <span className="decision-block__label">Invalidation</span>
+                <div className="grid gap-1.5 rounded-sm border border-down/35 bg-secondary p-3.5 [&_p]:m-0 [&_p]:text-[0.9rem] [&_p]:leading-[1.6] [&_p]:text-ink-2 [&_ul]:m-0 [&_ul]:pl-4.5 [&_ul]:text-[0.9rem] [&_ul]:leading-[1.6] [&_ul]:text-ink-2">
+                  <span className="text-[0.72rem] tracking-widest text-muted-foreground uppercase">
+                    Invalidation
+                  </span>
                   <p>{decision.invalidation}</p>
                 </div>
-                <div className="decision-block">
-                  <span className="decision-block__label">Key reasons</span>
+                <div className="grid gap-1.5 rounded-sm border border-border bg-secondary p-3.5 [&_p]:m-0 [&_p]:text-[0.9rem] [&_p]:leading-[1.6] [&_p]:text-ink-2 [&_ul]:m-0 [&_ul]:pl-4.5 [&_ul]:text-[0.9rem] [&_ul]:leading-[1.6] [&_ul]:text-ink-2">
+                  <span className="text-[0.72rem] tracking-widest text-muted-foreground uppercase">
+                    Key reasons
+                  </span>
                   <ul>
                     {decision.keyReasons.map((reason) => (
                       <li key={reason}>{reason}</li>
                     ))}
                   </ul>
                 </div>
-                <div className="decision-block">
-                  <span className="decision-block__label">
+                <div className="grid gap-1.5 rounded-sm border border-border bg-secondary p-3.5 [&_p]:m-0 [&_p]:text-[0.9rem] [&_p]:leading-[1.6] [&_p]:text-ink-2 [&_ul]:m-0 [&_ul]:pl-4.5 [&_ul]:text-[0.9rem] [&_ul]:leading-[1.6] [&_ul]:text-ink-2">
+                  <span className="text-[0.72rem] tracking-widest text-muted-foreground uppercase">
                     Concerns · risk {decision.riskLevel}
                   </span>
                   {analysis?.concerns.length ? (
@@ -330,7 +378,7 @@ export default async function AssetDetailPage({
               </div>
             ) : null}
 
-            <div className="score-row">
+            <div className="grid gap-2.5">
               <ScoreBar
                 label="Signal"
                 value={overview.signalSnapshot?.signalStrengthScore}
@@ -338,15 +386,15 @@ export default async function AssetDetailPage({
               <ScoreBar label="AI confidence" value={analysis?.aiConfidence} />
             </div>
 
-            <div className="page-heading__meta">
-              <span className="inline-chip">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
                 {analysis?.modelUsed ?? "no model"}
               </span>
-              <span className="inline-chip">
+              <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
                 Generated {formatRelativeTime(analysis?.generatedAt)}
               </span>
               {analysis?.suggestedPositionSize ? (
-                <span className="inline-chip">
+                <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
                   Size: {analysis.suggestedPositionSize}
                 </span>
               ) : null}
@@ -354,10 +402,13 @@ export default async function AssetDetailPage({
             <MissingDataList items={overview.missingData} />
           </section>
 
-          <section className="detail-grid" aria-label="Snapshots">
-            <article className="card">
+          <section
+            className="grid grid-cols-2 gap-3.5 lg:grid-cols-1"
+            aria-label="Snapshots"
+          >
+            <article className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 [&_h2]:m-0 [&_h2]:text-base">
               <h2>Market</h2>
-              <div className="detail-list">
+              <div className="grid gap-2">
                 <DetailRow
                   label="Open"
                   value={formatPrice(overview.marketSnapshot?.candle.open)}
@@ -392,9 +443,9 @@ export default async function AssetDetailPage({
               </div>
             </article>
 
-            <article className="card">
+            <article className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 [&_h2]:m-0 [&_h2]:text-base">
               <h2>Indicators</h2>
-              <div className="detail-list">
+              <div className="grid gap-2">
                 <DetailRow
                   label="EMA 20"
                   value={formatPrice(
@@ -430,9 +481,9 @@ export default async function AssetDetailPage({
               </div>
             </article>
 
-            <article className="card">
+            <article className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 [&_h2]:m-0 [&_h2]:text-base [&>p]:m-0 [&>p]:text-ink-2">
               <h2>Signal</h2>
-              <div className="detail-list">
+              <div className="grid gap-2">
                 <DetailRow
                   label="Bias"
                   value={overview.signalSnapshot?.bias}
@@ -456,7 +507,7 @@ export default async function AssetDetailPage({
                   "No signal snapshot stored yet."}
               </p>
               {overview.signalSnapshot?.riskFlags.length ? (
-                <ul className="asset-card__list">
+                <ul className="m-0 pl-4.5 text-[0.85rem] leading-[1.6] text-muted-foreground">
                   {overview.signalSnapshot.riskFlags.map((flag) => (
                     <li key={flag}>{flag}</li>
                   ))}
@@ -464,26 +515,26 @@ export default async function AssetDetailPage({
               ) : null}
             </article>
 
-            <article className="card" id={manualPositionAnchorId}>
-              <div className="card-heading">
+            <article
+              className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 scroll-mt-18 [&_h2]:m-0 [&_h2]:text-base"
+              id={manualPositionAnchorId}
+            >
+              <div className="flex items-start justify-between gap-3">
                 <h2>Manual Position</h2>
-                <span className="inline-chip">
+                <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
                   {activePosition ? "active" : "none"}
                 </span>
               </div>
 
               {positionStatusMessage ? (
-                <p
-                  className={`action-banner action-banner--${positionStatusTone}`}
-                  role="status"
-                >
+                <p className={actionBannerVariants({ tone: positionStatusTone })} role="status">
                   {positionStatusMessage}
                 </p>
               ) : null}
 
               {activePosition ? (
-                <div className="position-stack">
-                  <div className="detail-list">
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
                     <DetailRow
                       label="Direction"
                       value={activePosition.direction}
@@ -507,7 +558,10 @@ export default async function AssetDetailPage({
                     />
                   </div>
 
-                  <form className="position-form" action={updatePositionAction}>
+                  <form
+                    className="grid grid-cols-2 gap-3 sm:grid-cols-1 [&>button]:col-span-full"
+                    action={updatePositionAction}
+                  >
                     <input
                       type="hidden"
                       name="positionId"
@@ -519,9 +573,10 @@ export default async function AssetDetailPage({
                       value={asset.symbol.toLowerCase()}
                     />
                     <input type="hidden" name="timeframe" value={timeframe} />
-                    <label>
+                    <Label className={positionFieldLabelClassName}>
                       Average Entry
-                      <input
+                      <Input
+                        className={positionInputClassName}
                         name="averageEntryPrice"
                         type="number"
                         step="any"
@@ -529,10 +584,11 @@ export default async function AssetDetailPage({
                         defaultValue={activePosition.averageEntryPrice}
                         required
                       />
-                    </label>
-                    <label>
+                    </Label>
+                    <Label className={positionFieldLabelClassName}>
                       Remaining Quantity
-                      <input
+                      <Input
+                        className={positionInputClassName}
                         name="remainingQuantity"
                         type="number"
                         step="any"
@@ -540,10 +596,11 @@ export default async function AssetDetailPage({
                         defaultValue={activePosition.remainingQuantity}
                         required
                       />
-                    </label>
-                    <label>
+                    </Label>
+                    <Label className={positionFieldLabelClassName}>
                       Status
                       <select
+                        className={nativeSelectClassName}
                         name="status"
                         defaultValue={activePosition.status}
                       >
@@ -552,38 +609,47 @@ export default async function AssetDetailPage({
                           Partially Closed
                         </option>
                       </select>
-                    </label>
-                    <label>
+                    </Label>
+                    <Label className={positionFieldLabelClassName}>
                       Stop
-                      <input
+                      <Input
+                        className={positionInputClassName}
                         name="stopLoss"
                         type="number"
                         step="any"
                         min="0"
                         defaultValue={activePosition.stopLoss ?? ""}
                       />
-                    </label>
-                    <label className="position-form__wide">
+                    </Label>
+                    <Label
+                      className={cn(positionFieldLabelClassName, "col-span-full")}
+                    >
                       Thesis
-                      <input
+                      <Input
+                        className={positionInputClassName}
                         name="thesis"
                         type="text"
                         defaultValue={activePosition.thesis ?? ""}
                       />
-                    </label>
-                    <label className="position-form__wide">
+                    </Label>
+                    <Label
+                      className={cn(positionFieldLabelClassName, "col-span-full")}
+                    >
                       Notes
-                      <textarea
+                      <Textarea
+                        className={cn(positionInputClassName, "min-h-22 resize-y py-2.5")}
                         name="notes"
                         rows={3}
                         defaultValue={activePosition.notes ?? ""}
                       />
-                    </label>
-                    <button type="submit">Save Position Update</button>
+                    </Label>
+                    <Button type="submit" className="col-span-full min-h-10">
+                      Save Position Update
+                    </Button>
                   </form>
 
                   <form
-                    className="position-form position-form--close"
+                    className="grid grid-cols-2 gap-3 border-t border-border pt-2 sm:grid-cols-1 [&>button]:col-span-full"
                     action={closePositionAction}
                   >
                     <input
@@ -597,39 +663,51 @@ export default async function AssetDetailPage({
                       value={asset.symbol.toLowerCase()}
                     />
                     <input type="hidden" name="timeframe" value={timeframe} />
-                    <label>
+                    <Label className={positionFieldLabelClassName}>
                       Realized PnL
-                      <input
+                      <Input
+                        className={positionInputClassName}
                         name="realizedPnl"
                         type="number"
                         step="any"
                         defaultValue={activePosition.realizedPnl ?? ""}
                       />
-                    </label>
-                    <label>
+                    </Label>
+                    <Label className={positionFieldLabelClassName}>
                       Realized PnL %
-                      <input
+                      <Input
+                        className={positionInputClassName}
                         name="realizedPnlPercent"
                         type="number"
                         step="any"
                         defaultValue={activePosition.realizedPnlPercent ?? ""}
                       />
-                    </label>
-                    <label className="position-form__wide">
+                    </Label>
+                    <Label
+                      className={cn(positionFieldLabelClassName, "col-span-full")}
+                    >
                       Close Notes
-                      <textarea
+                      <Textarea
+                        className={cn(positionInputClassName, "min-h-22 resize-y py-2.5")}
                         name="notes"
                         rows={3}
                         defaultValue={activePosition.notes ?? ""}
                       />
-                    </label>
-                    <button className="button--danger" type="submit">
+                    </Label>
+                    <Button
+                      variant="destructive"
+                      type="submit"
+                      className="col-span-full min-h-10 bg-red text-white hover:bg-red/90"
+                    >
                       Close Position
-                    </button>
+                    </Button>
                   </form>
                 </div>
               ) : (
-                <form className="position-form" action={recordPositionAction}>
+                <form
+                  className="grid grid-cols-2 gap-3 sm:grid-cols-1 [&>button]:col-span-full"
+                  action={recordPositionAction}
+                >
                   <input type="hidden" name="assetId" value={asset.id} />
                   <input
                     type="hidden"
@@ -637,16 +715,21 @@ export default async function AssetDetailPage({
                     value={asset.symbol.toLowerCase()}
                   />
                   <input type="hidden" name="timeframe" value={timeframe} />
-                  <label>
+                  <Label className={positionFieldLabelClassName}>
                     Direction
-                    <select name="direction" defaultValue="long">
+                    <select
+                      className={nativeSelectClassName}
+                      name="direction"
+                      defaultValue="long"
+                    >
                       <option value="long">Long</option>
                       <option value="short">Short</option>
                     </select>
-                  </label>
-                  <label>
+                  </Label>
+                  <Label className={positionFieldLabelClassName}>
                     Entry
-                    <input
+                    <Input
+                      className={positionInputClassName}
                       name="entryPrice"
                       type="number"
                       step="any"
@@ -654,26 +737,41 @@ export default async function AssetDetailPage({
                       defaultValue={overview.marketSnapshot?.lastPrice ?? ""}
                       required
                     />
-                  </label>
-                  <label>
+                  </Label>
+                  <Label className={positionFieldLabelClassName}>
                     Quantity
-                    <input
+                    <Input
+                      className={positionInputClassName}
                       name="quantity"
                       type="number"
                       step="any"
                       min="0"
                       required
                     />
-                  </label>
-                  <label>
+                  </Label>
+                  <Label className={positionFieldLabelClassName}>
                     Stop
-                    <input name="stopLoss" type="number" step="any" min="0" />
-                  </label>
-                  <label className="position-form__wide">
+                    <Input
+                      className={positionInputClassName}
+                      name="stopLoss"
+                      type="number"
+                      step="any"
+                      min="0"
+                    />
+                  </Label>
+                  <Label
+                    className={cn(positionFieldLabelClassName, "col-span-full")}
+                  >
                     Thesis
-                    <input name="thesis" type="text" />
-                  </label>
-                  <button type="submit">Record Position</button>
+                    <Input
+                      className={positionInputClassName}
+                      name="thesis"
+                      type="text"
+                    />
+                  </Label>
+                  <Button type="submit" className="col-span-full min-h-10">
+                    Record Position
+                  </Button>
                 </form>
               )}
             </article>
@@ -688,12 +786,12 @@ export default async function AssetDetailPage({
           />
         </>
       ) : (
-        <section className="detail-grid">
-          <article className="card">
+        <section className="grid grid-cols-2 gap-3.5 lg:grid-cols-1">
+          <article className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 [&_h2]:m-0 [&_h2]:text-base [&_p]:m-0 [&_p]:text-ink-2">
             <h2>Asset data unavailable</h2>
             <p>{overviewResult.message}</p>
             {overviewResult.issues.map((issue) => (
-              <p key={issue} className="issue-text">
+              <p key={issue} className="text-[0.85rem] text-muted-foreground">
                 {issue}
               </p>
             ))}

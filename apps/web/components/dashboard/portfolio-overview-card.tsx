@@ -1,5 +1,6 @@
 import type { PortfolioOverviewResponse } from "@trading-analyst/shared-types";
 import { formatPrice } from "@/lib/dashboard-format";
+import { cn } from "@/lib/utils";
 
 type PortfolioOverviewCardProps = {
   data: PortfolioOverviewResponse | null;
@@ -13,11 +14,13 @@ export function PortfolioOverviewCard({
   message,
 }: PortfolioOverviewCardProps) {
   return (
-    <article className="card">
-      <div className="card-heading">
+    <article className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 [&_h2]:m-0 [&_h2]:text-base [&_p]:m-0 [&_p]:text-ink-2">
+      <div className="flex items-start justify-between gap-3">
         <h2>Portfolio</h2>
         {data ? (
-          <span className="inline-chip">{data.openPositionCount} open</span>
+          <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
+            {data.openPositionCount} open
+          </span>
         ) : null}
       </div>
 
@@ -25,53 +28,59 @@ export function PortfolioOverviewCard({
         <>
           <p>{message}</p>
           {issues.map((issue) => (
-            <p key={issue} className="issue-text">
+            <p key={issue} className="text-[0.85rem] text-muted-foreground">
               {issue}
             </p>
           ))}
         </>
       ) : (
-        <div className="portfolio-overview">
-          <div className="portfolio-overview__totals">
-            <div className="portfolio-overview__stat">
-              <span className="portfolio-overview__stat-label">
+        <div className="grid gap-3.5">
+          <div className="flex gap-6">
+            <div className="grid gap-0.5">
+              <span className="text-[0.8rem] text-muted-foreground">
                 Total exposure
               </span>
               <strong>{formatPrice(data.totalNotionalValue)}</strong>
             </div>
-            <div className="portfolio-overview__stat">
-              <span className="portfolio-overview__stat-label">
+            <div className="grid gap-0.5">
+              <span className="text-[0.8rem] text-muted-foreground">
                 Unrealized P&L
               </span>
               <strong
-                className={`delta delta--${data.totalUnrealizedPnl >= 0 ? "up" : "down"}`}
+                className={cn(
+                  "font-semibold tabular-nums",
+                  data.totalUnrealizedPnl >= 0 ? "text-up" : "text-down",
+                )}
               >
                 {formatPrice(data.totalUnrealizedPnl)}
               </strong>
             </div>
           </div>
 
-          <div className="portfolio-overview__exposure-bar" aria-hidden="true">
+          <div
+            className="flex h-2 overflow-hidden rounded-full bg-border"
+            aria-hidden="true"
+          >
             <div
-              className="portfolio-overview__exposure-bar-fill portfolio-overview__exposure-bar-fill--long"
+              className="bg-up"
               style={{ width: `${data.longExposurePercent}%` }}
             />
             <div
-              className="portfolio-overview__exposure-bar-fill portfolio-overview__exposure-bar-fill--short"
+              className="bg-down"
               style={{ width: `${data.shortExposurePercent}%` }}
             />
           </div>
-          <div className="portfolio-overview__exposure-legend">
+          <div className="flex justify-between text-[0.8rem] text-muted-foreground">
             <span>Long {Math.round(data.longExposurePercent)}%</span>
             <span>Short {Math.round(data.shortExposurePercent)}%</span>
           </div>
 
           {data.concentrationWarnings.length > 0 ? (
-            <div className="portfolio-overview__warnings">
+            <div className="grid gap-1.5">
               {data.concentrationWarnings.map((warning) => (
                 <p
                   key={`${warning.kind}:${warning.message}`}
-                  className="portfolio-overview__warning"
+                  className="rounded-sm bg-warn-soft px-2.5 py-1.5 text-[0.85rem] text-[#e8a93a]"
                 >
                   {warning.message}
                 </p>
@@ -79,22 +88,33 @@ export function PortfolioOverviewCard({
             </div>
           ) : null}
 
-          <ul className="portfolio-overview__positions">
+          <ul className="grid gap-2">
             {data.positions.map((position) => (
-              <li key={position.positionId}>
-                <span className="portfolio-overview__position-symbol">
+              <li
+                key={position.positionId}
+                className="flex items-center justify-between gap-3 text-[0.85rem]"
+              >
+                <span className="flex items-center gap-2 font-semibold">
                   {position.asset.symbol}
                   <span
-                    className={`inline-chip portfolio-overview__direction portfolio-overview__direction--${position.direction}`}
+                    className={cn(
+                      "inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em]",
+                      position.direction === "long" ? "text-up" : "text-down",
+                    )}
                   >
                     {position.direction}
                   </span>
                 </span>
-                <span className="portfolio-overview__position-value">
+                <span className="flex items-center gap-2">
                   {formatPrice(position.notionalValue)}
                   {position.unrealizedPnl !== undefined ? (
                     <span
-                      className={`delta delta--${position.unrealizedPnl >= 0 ? "up" : "down"}`}
+                      className={cn(
+                        "font-semibold tabular-nums",
+                        position.unrealizedPnl >= 0
+                          ? "text-up"
+                          : "text-down",
+                      )}
                     >
                       {formatPrice(position.unrealizedPnl)}
                     </span>

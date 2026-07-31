@@ -1,5 +1,6 @@
 import type { Alert } from "@trading-analyst/shared-types";
 import { formatRelativeTime } from "@/lib/dashboard-format";
+import { cn } from "@/lib/utils";
 
 type AlertFeedProps = {
   alerts: Alert[];
@@ -29,44 +30,60 @@ export function AlertFeed({
   title,
 }: AlertFeedProps) {
   return (
-    <article className="card">
-      <div className="card-heading">
+    <article className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 [&_h2]:m-0 [&_h2]:text-base [&_p]:m-0 [&_p]:text-ink-2">
+      <div className="flex items-start justify-between gap-3">
         <h2>{title}</h2>
-        <span className="inline-chip">{alerts.length}</span>
+        <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
+          {alerts.length}
+        </span>
       </div>
 
       {alerts.length === 0 ? (
         <>
           <p>{message}</p>
-          <p className="issue-text">{emptyMessage}</p>
+          <p className="text-[0.85rem] text-muted-foreground">
+            {emptyMessage}
+          </p>
         </>
       ) : (
-        <div className="alert-feed">
+        <div className="grid gap-2.5">
           {alerts.map((alert) => (
             <article
               key={alert.id}
-              className={`alert-row alert-row--${mapSeverityClass(alert.severity)}`}
+              className={cn(
+                "grid gap-2 rounded-sm border border-border border-l-3 bg-secondary p-3.5",
+                mapSeverityClass(alert.severity) === "critical" &&
+                  "border-l-down",
+                mapSeverityClass(alert.severity) === "warning" &&
+                  "border-l-warn",
+                mapSeverityClass(alert.severity) === "info" &&
+                  "border-l-accent",
+              )}
             >
-              <div className="alert-row__header">
-                <strong>{alert.title}</strong>
-                <span className="alert-row__meta">
+              <div className="flex items-start justify-between gap-2.5">
+                <strong className="text-[0.92rem] leading-[1.4]">
+                  {alert.title}
+                </strong>
+                <span className="flex flex-wrap items-center gap-2 text-[0.8rem] text-muted-foreground">
                   {formatRelativeTime(alert.createdAt)}
                 </span>
               </div>
 
               <p>{alert.summary}</p>
 
-              <div className="alert-row__meta">
-                <span className="alert-transition">
+              <div className="flex flex-wrap items-center gap-2 text-[0.8rem] text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5 tabular-nums">
                   {alert.previousState ? (
                     <>
                       {alert.previousState.replaceAll("_", " ")}
-                      <span className="alert-transition__arrow">→</span>
+                      <span className="text-muted-foreground">→</span>
                     </>
                   ) : null}
                   {alert.currentState.replaceAll("_", " ")}
                 </span>
-                <span className="inline-chip">{alert.timeframe}</span>
+                <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
+                  {alert.timeframe}
+                </span>
               </div>
             </article>
           ))}
@@ -74,7 +91,7 @@ export function AlertFeed({
       )}
 
       {issues.map((issue) => (
-        <p key={issue} className="issue-text">
+        <p key={issue} className="text-[0.85rem] text-muted-foreground">
           {issue}
         </p>
       ))}

@@ -1,5 +1,15 @@
+import { cva } from "class-variance-authority";
 import { formatRelativeTime } from "@/lib/dashboard-format";
 import type { AiOperationalWarning } from "@/lib/status";
+
+const bannerVariants = cva("grid gap-2 rounded-(--radius) border p-3.5 px-4", {
+  variants: {
+    tone: {
+      critical: "border-red/40 bg-red-soft",
+      warning: "border-warn/40 bg-warn-soft",
+    },
+  },
+});
 
 export function OperationalWarningBanner({
   warning,
@@ -9,22 +19,26 @@ export function OperationalWarningBanner({
   return (
     <section
       aria-live="polite"
-      className={`operational-banner operational-banner--${warning.tone}`}
+      className={bannerVariants({ tone: warning.tone })}
       role="alert"
     >
-      <div className="operational-banner__header">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="operational-banner__eyebrow">Operational warning</p>
-          <h2>{warning.title}</h2>
+          <p className="mb-0.5 text-[0.7rem] tracking-[0.12em] text-muted-foreground uppercase">
+            Operational warning
+          </p>
+          <h2 className="m-0 text-[0.98rem]">{warning.title}</h2>
         </div>
-        <span className="inline-chip">{warning.statusLabel}</span>
+        <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
+          {warning.statusLabel}
+        </span>
       </div>
-      <p>{warning.message}</p>
+      <p className="m-0 text-[0.9rem] text-ink-2">{warning.message}</p>
       {warning.detail ? (
-        <p className="operational-banner__detail">{warning.detail}</p>
+        <p className="m-0 text-[0.9rem] text-ink-2">{warning.detail}</p>
       ) : null}
       {warning.checkedAt ? (
-        <p className="operational-banner__meta">
+        <p className="text-[0.8rem] text-muted-foreground">
           Last worker update: {formatRelativeTime(warning.checkedAt)}
         </p>
       ) : null}

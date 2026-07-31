@@ -6,6 +6,7 @@ import {
   removeFromWatchlistAction,
   setWatchlistAiEnabledAction,
 } from "@/lib/watchlist-actions";
+import { cn } from "@/lib/utils";
 
 type WatchlistCardActionsProps = {
   aiEnabled: boolean;
@@ -81,10 +82,15 @@ export function WatchlistCardActions({
   }
 
   return (
-    <div className="card-actions">
+    <div className="flex items-center gap-1.5">
       <button
         type="button"
-        className={`card-actions__ai ${aiEnabled ? "card-actions__ai--on" : "card-actions__ai--off"}`}
+        className={cn(
+          "cursor-pointer rounded-full border border-input px-2.5 py-0.5 text-[0.72rem] font-semibold whitespace-nowrap disabled:cursor-wait disabled:opacity-60",
+          aiEnabled
+            ? "bg-accent-soft text-accent"
+            : "bg-secondary text-muted-foreground",
+        )}
         disabled={isPending}
         onClick={handleToggleAi}
         title={
@@ -97,7 +103,10 @@ export function WatchlistCardActions({
       </button>
       <button
         type="button"
-        className={`card-actions__remove ${confirmingRemove ? "card-actions__remove--confirm" : ""}`}
+        className={cn(
+          "min-h-5.5 min-w-5.5 cursor-pointer rounded-full border border-border bg-transparent px-1.5 py-0.5 text-[0.72rem] leading-none font-semibold whitespace-nowrap text-muted-foreground hover:border-down hover:bg-down-soft hover:text-down disabled:cursor-wait disabled:opacity-60",
+          confirmingRemove && "border-down bg-down-soft text-down",
+        )}
         disabled={isPending}
         onClick={handleRemove}
         aria-label={`Remove ${symbol} from watchlist`}
@@ -105,7 +114,9 @@ export function WatchlistCardActions({
       >
         {confirmingRemove ? "Remove?" : "✕"}
       </button>
-      {error ? <span className="card-actions__error">{error}</span> : null}
+      {error ? (
+        <span className="text-[0.72rem] text-down">{error}</span>
+      ) : null}
     </div>
   );
 }
