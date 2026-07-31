@@ -41,9 +41,7 @@ export function AlertFeed({
       {alerts.length === 0 ? (
         <>
           <p>{message}</p>
-          <p className="text-[0.85rem] text-muted-foreground">
-            {emptyMessage}
-          </p>
+          <p className="text-[0.85rem] text-muted-foreground">{emptyMessage}</p>
         </>
       ) : (
         <div className="grid gap-2.5">

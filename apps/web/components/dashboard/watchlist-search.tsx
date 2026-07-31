@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { CoinLogo } from "@/components/dashboard/coin-logo";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   addToWatchlistAction,
   searchCryptoAction,
 } from "@/lib/watchlist-actions";
-import { cn } from "@/lib/utils";
 
 type WatchlistSearchProps = {
   watchlistCount: number;

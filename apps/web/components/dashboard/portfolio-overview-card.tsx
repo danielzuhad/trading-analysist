@@ -111,9 +111,7 @@ export function PortfolioOverviewCard({
                     <span
                       className={cn(
                         "font-semibold tabular-nums",
-                        position.unrealizedPnl >= 0
-                          ? "text-up"
-                          : "text-down",
+                        position.unrealizedPnl >= 0 ? "text-up" : "text-down",
                       )}
                     >
                       {formatPrice(position.unrealizedPnl)}

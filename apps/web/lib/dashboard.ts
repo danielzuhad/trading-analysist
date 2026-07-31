@@ -1,4 +1,3 @@
-import type { ZodType } from "zod";
 import {
   type AlertsResponse,
   type AssetOverviewResponse,
@@ -13,6 +12,7 @@ import {
   watchlistOverviewResponseSchema,
   watchlistResponseSchema,
 } from "@trading-analyst/shared-types";
+import type { ZodType } from "zod";
 import { buildApiAuthHeaders } from "./api-auth";
 
 export type DashboardDataStatus =

@@ -54,15 +54,18 @@ const positionFieldLabelClassName =
 const positionInputClassName =
   "min-h-10 rounded-sm border-input bg-secondary tabular-nums tracking-normal normal-case focus-visible:border-input focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-1";
 
-const actionBannerVariants = cva("m-0 rounded-sm border p-2.5 text-[0.9rem] font-semibold", {
-  variants: {
-    tone: {
-      success: "border-up/30 bg-up-soft text-up",
-      error: "border-down/30 bg-red-soft text-down",
-      muted: "border-border bg-secondary text-muted-foreground",
+const actionBannerVariants = cva(
+  "m-0 rounded-sm border p-2.5 text-[0.9rem] font-semibold",
+  {
+    variants: {
+      tone: {
+        success: "border-up/30 bg-up-soft text-up",
+        error: "border-down/30 bg-red-soft text-down",
+        muted: "border-border bg-secondary text-muted-foreground",
+      },
     },
   },
-});
+);
 
 export const dynamic = "force-dynamic";
 
@@ -179,7 +182,11 @@ function DetailRow({
 
 function mapChangeClass(value?: number) {
   const deltaClass = mapDeltaClass(value);
-  return deltaClass === "flat" ? "text-muted-foreground" : deltaClass === "up" ? "text-up" : "text-down";
+  return deltaClass === "flat"
+    ? "text-muted-foreground"
+    : deltaClass === "up"
+      ? "text-up"
+      : "text-down";
 }
 
 function mapBiasClass(bias?: string) {
@@ -254,9 +261,7 @@ export default async function AssetDetailPage({
               size={40}
               symbol={asset.symbol}
             />
-            <h1 className="m-0 text-2xl tracking-[-0.01em]">
-              {asset.symbol}
-            </h1>
+            <h1 className="m-0 text-2xl tracking-[-0.01em]">{asset.symbol}</h1>
             <p className="m-0 text-[0.95rem] text-muted-foreground">
               {asset.name}
             </p>
@@ -527,7 +532,10 @@ export default async function AssetDetailPage({
               </div>
 
               {positionStatusMessage ? (
-                <p className={actionBannerVariants({ tone: positionStatusTone })} role="status">
+                <p
+                  className={actionBannerVariants({ tone: positionStatusTone })}
+                  role="status"
+                >
                   {positionStatusMessage}
                 </p>
               ) : null}
@@ -622,7 +630,10 @@ export default async function AssetDetailPage({
                       />
                     </Label>
                     <Label
-                      className={cn(positionFieldLabelClassName, "col-span-full")}
+                      className={cn(
+                        positionFieldLabelClassName,
+                        "col-span-full",
+                      )}
                     >
                       Thesis
                       <Input
@@ -633,11 +644,17 @@ export default async function AssetDetailPage({
                       />
                     </Label>
                     <Label
-                      className={cn(positionFieldLabelClassName, "col-span-full")}
+                      className={cn(
+                        positionFieldLabelClassName,
+                        "col-span-full",
+                      )}
                     >
                       Notes
                       <Textarea
-                        className={cn(positionInputClassName, "min-h-22 resize-y py-2.5")}
+                        className={cn(
+                          positionInputClassName,
+                          "min-h-22 resize-y py-2.5",
+                        )}
                         name="notes"
                         rows={3}
                         defaultValue={activePosition.notes ?? ""}
@@ -684,11 +701,17 @@ export default async function AssetDetailPage({
                       />
                     </Label>
                     <Label
-                      className={cn(positionFieldLabelClassName, "col-span-full")}
+                      className={cn(
+                        positionFieldLabelClassName,
+                        "col-span-full",
+                      )}
                     >
                       Close Notes
                       <Textarea
-                        className={cn(positionInputClassName, "min-h-22 resize-y py-2.5")}
+                        className={cn(
+                          positionInputClassName,
+                          "min-h-22 resize-y py-2.5",
+                        )}
                         name="notes"
                         rows={3}
                         defaultValue={activePosition.notes ?? ""}

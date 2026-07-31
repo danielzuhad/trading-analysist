@@ -2,11 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { cn } from "@/lib/utils";
 import {
   removeFromWatchlistAction,
   setWatchlistAiEnabledAction,
 } from "@/lib/watchlist-actions";
-import { cn } from "@/lib/utils";
 
 type WatchlistCardActionsProps = {
   aiEnabled: boolean;
@@ -114,9 +114,7 @@ export function WatchlistCardActions({
       >
         {confirmingRemove ? "Remove?" : "✕"}
       </button>
-      {error ? (
-        <span className="text-[0.72rem] text-down">{error}</span>
-      ) : null}
+      {error ? <span className="text-[0.72rem] text-down">{error}</span> : null}
     </div>
   );
 }

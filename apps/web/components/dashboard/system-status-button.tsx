@@ -2,11 +2,11 @@
 
 import { cva } from "class-variance-authority";
 import { useEffect, useState } from "react";
+import { statusBadgeVariants } from "@/components/dashboard/dashboard-primitives";
 import {
   ResponsiveSheet,
   useResponsiveSheet,
 } from "@/components/responsive-sheet";
-import { statusBadgeVariants } from "@/components/dashboard/dashboard-primitives";
 import { formatRelativeTime } from "@/lib/dashboard-format";
 import {
   buildAiOperationalWarning,
@@ -174,7 +174,11 @@ export function SystemStatusButton({ apiBaseUrl }: SystemStatusButtonProps) {
                     ).map(([provider, status]) => (
                       <p key={provider}>
                         {provider}:{" "}
-                        <span className={statusBadgeVariants({ tone: status.status })}>
+                        <span
+                          className={statusBadgeVariants({
+                            tone: status.status,
+                          })}
+                        >
                           {status.status}
                         </span>
                         {status.detail ? ` (${status.detail})` : ""}

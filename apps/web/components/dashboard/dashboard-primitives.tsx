@@ -184,7 +184,5 @@ export function MissingDataList({ items }: { items: string[] }) {
 }
 
 function ToneBadge({ children, tone }: { children: ReactNode; tone: Tone }) {
-  return (
-    <span className={statusBadgeVariants({ tone })}>{children}</span>
-  );
+  return <span className={statusBadgeVariants({ tone })}>{children}</span>;
 }
