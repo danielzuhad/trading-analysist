@@ -3,6 +3,7 @@ import Link from "next/link";
 import "./globals.css";
 import { Geist } from "next/font/google";
 import { SiteNav } from "@/components/site-nav";
+import { Toaster } from "@/components/ui/sonner";
 import { logoutAction } from "@/lib/auth-actions";
 import { getSessionEmail, getSessionToken } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,7 @@ export default async function RootLayout({
           </div>
         </header>
         {children}
+        <Toaster />
       </body>
     </html>
   );

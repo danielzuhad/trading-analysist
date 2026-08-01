@@ -3,11 +3,11 @@ import type {
   Position,
   SupportedTimeframe,
 } from "@trading-analyst/shared-types";
-import { cva } from "class-variance-authority";
 import {
   DetailRow,
   InfoPill,
 } from "@/components/dashboard/dashboard-primitives";
+import { SearchParamStatusToast } from "@/components/dashboard/search-param-status-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,19 +30,6 @@ const positionFieldLabelClassName =
 const positionInputClassName =
   "min-h-10 rounded-sm border-input bg-secondary tabular-nums tracking-normal normal-case focus-visible:border-input focus-visible:ring-0 focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-1";
 
-const actionBannerVariants = cva(
-  "m-0 rounded-sm border p-2.5 text-[0.9rem] font-semibold",
-  {
-    variants: {
-      tone: {
-        success: "border-up/30 bg-up-soft text-up",
-        error: "border-down/30 bg-red-soft text-down",
-        muted: "border-border bg-secondary text-muted-foreground",
-      },
-    },
-  },
-);
-
 export function ManualPositionCard({
   activePosition,
   asset,
@@ -63,19 +50,16 @@ export function ManualPositionCard({
       className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 scroll-mt-18 [&_h2]:m-0 [&_h2]:text-base"
       id={manualPositionAnchorId}
     >
+      <SearchParamStatusToast
+        message={positionStatusMessage}
+        paramName="positionStatus"
+        tone={positionStatusTone}
+      />
+
       <div className="flex items-start justify-between gap-3">
         <h2>Manual Position</h2>
         <InfoPill>{activePosition ? "active" : "none"}</InfoPill>
       </div>
-
-      {positionStatusMessage ? (
-        <p
-          className={actionBannerVariants({ tone: positionStatusTone })}
-          role="status"
-        >
-          {positionStatusMessage}
-        </p>
-      ) : null}
 
       {activePosition ? (
         <div className="grid gap-4">

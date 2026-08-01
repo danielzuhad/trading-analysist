@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,18 +15,17 @@ export function LoginForm() {
     LoginActionResult | null,
     FormData
   >(loginAction, null);
+  const lastErrorRef = useRef<LoginActionResult | null>(null);
+
+  useEffect(() => {
+    if (state && state !== lastErrorRef.current) {
+      lastErrorRef.current = state;
+      toast.error(state.message);
+    }
+  }, [state]);
 
   return (
     <form className="grid gap-3.5" action={formAction}>
-      {state?.status === "error" ? (
-        <p
-          className="m-0 rounded-sm border border-down/30 bg-red-soft p-2.5 text-[0.9rem] font-semibold text-down"
-          role="alert"
-        >
-          {state.message}
-        </p>
-      ) : null}
-
       <Label className={labelClassName}>
         Email
         <Input

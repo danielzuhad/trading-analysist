@@ -10,6 +10,7 @@ import {
   StateBadge,
 } from "@/components/dashboard/dashboard-primitives";
 import { OperationalWarningBanner } from "@/components/dashboard/operational-warning-banner";
+import { SearchParamStatusToast } from "@/components/dashboard/search-param-status-toast";
 import {
   fetchAlerts,
   fetchAssetOverview,
@@ -42,6 +43,7 @@ type AssetDetailPageProps = {
   searchParams?: Promise<{
     positionStatus?: string | string[];
     timeframe?: string | string[];
+    watchlistStatus?: string | string[];
   }>;
 };
 
@@ -85,6 +87,13 @@ export default async function AssetDetailPage({
     : resolvedSearchParams?.positionStatus;
   const positionStatusMessage = formatPositionStatusMessage(positionStatus);
   const positionStatusTone = mapPositionStatusTone(positionStatus);
+  const watchlistStatus = Array.isArray(resolvedSearchParams?.watchlistStatus)
+    ? resolvedSearchParams.watchlistStatus[0]
+    : resolvedSearchParams?.watchlistStatus;
+  const watchlistStatusMessage =
+    watchlistStatus === "remove-failed"
+      ? "This asset has an active position. Close the position before removing it."
+      : undefined;
   const activePosition = overview?.activePosition;
   const analysis = overview?.analysisSnapshot;
 
@@ -135,6 +144,7 @@ export default async function AssetDetailPage({
                 action={removeFromWatchlistAndRedirectAction.bind(
                   null,
                   asset.id,
+                  asset.symbol.toLowerCase(),
                 )}
               >
                 <button
@@ -148,6 +158,12 @@ export default async function AssetDetailPage({
           </div>
         </div>
       </div>
+
+      <SearchParamStatusToast
+        message={watchlistStatusMessage}
+        paramName="watchlistStatus"
+        tone="error"
+      />
 
       {aiWarning ? <OperationalWarningBanner warning={aiWarning} /> : null}
 

@@ -165,12 +165,20 @@ export async function setWatchlistAiEnabledAction(
   }
 }
 
-export async function removeFromWatchlistAndRedirectAction(assetId: string) {
+export async function removeFromWatchlistAndRedirectAction(
+  assetId: string,
+  symbol: string,
+) {
   const result = await removeFromWatchlistAction(assetId);
 
   if (result.status === "ok") {
     redirect("/");
   }
+
+  const searchParams = new URLSearchParams({
+    watchlistStatus: "remove-failed",
+  });
+  redirect(`/assets/${symbol}?${searchParams.toString()}`);
 }
 
 export async function removeFromWatchlistAction(

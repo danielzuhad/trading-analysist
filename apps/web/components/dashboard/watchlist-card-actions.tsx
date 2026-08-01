@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   removeFromWatchlistAction,
@@ -21,7 +22,6 @@ export function WatchlistCardActions({
 }: WatchlistCardActionsProps) {
   const router = useRouter();
   const [confirmingRemove, setConfirmingRemove] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const confirmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -36,16 +36,16 @@ export function WatchlistCardActions({
   function handleToggleAi(event: React.MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
-    setError(null);
 
     startTransition(async () => {
       const result = await setWatchlistAiEnabledAction(assetId, !aiEnabled);
 
       if (result.status === "error") {
-        setError(result.message);
+        toast.error(result.message);
         return;
       }
 
+      toast.success(result.message);
       router.refresh();
     });
   }
@@ -53,7 +53,6 @@ export function WatchlistCardActions({
   function handleRemove(event: React.MouseEvent) {
     event.preventDefault();
     event.stopPropagation();
-    setError(null);
 
     if (!confirmingRemove) {
       setConfirmingRemove(true);
@@ -73,10 +72,11 @@ export function WatchlistCardActions({
       const result = await removeFromWatchlistAction(assetId);
 
       if (result.status === "error") {
-        setError(result.message);
+        toast.error(result.message);
         return;
       }
 
+      toast.success(result.message);
       router.refresh();
     });
   }
@@ -114,7 +114,6 @@ export function WatchlistCardActions({
       >
         {confirmingRemove ? "Remove?" : "✕"}
       </button>
-      {error ? <span className="text-[0.72rem] text-down">{error}</span> : null}
     </div>
   );
 }

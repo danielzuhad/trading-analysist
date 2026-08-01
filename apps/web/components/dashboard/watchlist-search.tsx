@@ -3,6 +3,7 @@
 import type { CryptoSearchResult } from "@trading-analyst/shared-types";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { CoinLogo } from "@/components/dashboard/coin-logo";
 import { InfoPill } from "@/components/dashboard/dashboard-primitives";
 import { Input } from "@/components/ui/input";
@@ -98,9 +99,8 @@ export function WatchlistSearch({
         symbol: result.symbol,
       });
 
-      setMessage(response.message);
-
       if (response.status === "ok") {
+        toast.success(response.message);
         setResults((current) =>
           current.map((entry) =>
             entry.coingeckoCoinId === result.coingeckoCoinId
@@ -109,6 +109,8 @@ export function WatchlistSearch({
           ),
         );
         router.refresh();
+      } else {
+        toast.error(response.message);
       }
     });
   }
