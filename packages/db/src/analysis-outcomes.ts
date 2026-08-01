@@ -9,7 +9,7 @@ import {
   analysisOutcomeSchema,
   analysisQualityBucketSchema,
 } from "@trading-analyst/shared-types";
-import { and, eq, lte, sql } from "drizzle-orm";
+import { and, desc, eq, lte, sql } from "drizzle-orm";
 import { getDb } from "./client.js";
 import { analysisOutcomes } from "./schema/index.js";
 
@@ -33,6 +33,8 @@ export function serializeAnalysisOutcome(
     signalStrengthScore: outcome.signalStrengthScore,
     aiConfidence: outcome.aiConfidence,
     keyLevels: outcome.keyLevels,
+    summary: outcome.summary ?? null,
+    keyReasons: outcome.keyReasons,
     priceAtAnalysis: serializeNumber(outcome.priceAtAnalysis),
     analysisGeneratedAt: new Date(outcome.analysisGeneratedAt),
     evaluateAfter: new Date(outcome.evaluateAfter),
@@ -70,6 +72,8 @@ export function parseAnalysisOutcome(
     signalStrengthScore: row.signalStrengthScore,
     aiConfidence: row.aiConfidence,
     keyLevels: row.keyLevels,
+    ...(row.summary ? { summary: row.summary } : {}),
+    keyReasons: row.keyReasons,
     priceAtAnalysis: parseNumber(row.priceAtAnalysis),
     analysisGeneratedAt: row.analysisGeneratedAt.toISOString(),
     evaluateAfter: row.evaluateAfter.toISOString(),
@@ -155,6 +159,40 @@ export async function completeAnalysisOutcome(
       updatedAt: sql`now()`,
     })
     .where(eq(analysisOutcomes.id, outcomeId));
+}
+
+export async function listAnalysisOutcomes(
+  {
+    assetId,
+    limit = 50,
+    state,
+    status,
+    timeframe,
+  }: {
+    assetId?: string;
+    limit?: number;
+    state?: AnalysisOutcome["state"];
+    status?: AnalysisOutcome["status"];
+    timeframe?: SupportedTimeframe;
+  } = {},
+  connectionString?: string,
+): Promise<AnalysisOutcome[]> {
+  const db = getDb(connectionString);
+  const normalizedLimit = Math.min(Math.max(limit, 1), 200);
+  const conditions = [
+    ...(assetId ? [eq(analysisOutcomes.assetId, assetId)] : []),
+    ...(state ? [eq(analysisOutcomes.state, state)] : []),
+    ...(status ? [eq(analysisOutcomes.status, status)] : []),
+    ...(timeframe ? [eq(analysisOutcomes.timeframe, timeframe)] : []),
+  ];
+  const rows = await db
+    .select()
+    .from(analysisOutcomes)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(analysisOutcomes.analysisGeneratedAt))
+    .limit(normalizedLimit);
+
+  return rows.map(parseAnalysisOutcome);
 }
 
 export async function getAnalysisQualitySummary(

@@ -17,6 +17,7 @@ import {
   getWatchlistAsset,
   getWatchlistAssetBySymbol,
   listAlerts,
+  listAnalysisOutcomes,
   listPositions,
   listServiceHeartbeats,
   listUsers,
@@ -127,6 +128,8 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
   await registerAnalysisQualityRoutes(app, {
     getAnalysisQualitySummary: (filters) =>
       getAnalysisQualitySummary(filters, env.DATABASE_URL),
+    listAnalysisOutcomes: (filters) =>
+      listAnalysisOutcomes(filters, env.DATABASE_URL),
   });
   await registerWatchlistRoutes(app, {
     addAsset: (input) => addWatchlistAsset(input, env.DATABASE_URL),

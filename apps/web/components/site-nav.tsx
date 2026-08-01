@@ -10,12 +10,17 @@ const navItems = [
   { href: "/track-record", label: "Track Record" },
 ] as const;
 
-export function SiteNav() {
+const adminNavItems = [
+  { href: "/admin/decisions", label: "Decision History" },
+] as const;
+
+export function SiteNav({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
+  const items = isAdmin ? [...navItems, ...adminNavItems] : navItems;
 
   return (
     <nav className="flex items-center gap-1" aria-label="Main navigation">
-      {navItems.map((item) => {
+      {items.map((item) => {
         const isActive =
           item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
 

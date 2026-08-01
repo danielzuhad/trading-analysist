@@ -1,8 +1,12 @@
 import {
   type AlertsResponse,
+  type AnalysisOutcomeStatus,
+  type AnalysisOutcomesResponse,
   type AnalysisQualityResponse,
   type AssetOverviewResponse,
+  type AssetState,
   alertsResponseSchema,
+  analysisOutcomesResponseSchema,
   analysisQualityResponseSchema,
   assetOverviewResponseSchema,
   type PortfolioOverviewResponse,
@@ -245,6 +249,49 @@ export function fetchAnalysisQuality(
           : "No evaluated analyses yet.",
       unreachable:
         "The analysis quality endpoint returned an unexpected error.",
+    },
+    fetchImpl,
+  );
+}
+
+export function fetchAnalysisOutcomes(
+  apiBaseUrl: string | undefined,
+  {
+    assetId,
+    limit = 50,
+    state,
+    status,
+    timeframe,
+  }: {
+    assetId?: string;
+    limit?: number;
+    state?: AssetState;
+    status?: AnalysisOutcomeStatus;
+    timeframe?: SupportedTimeframe;
+  } = {},
+  fetchImpl: FetchLike = fetch,
+): Promise<DashboardDataResult<AnalysisOutcomesResponse>> {
+  const searchParams = new URLSearchParams({
+    limit: limit.toString(),
+    ...(assetId ? { assetId } : {}),
+    ...(state ? { state } : {}),
+    ...(status ? { status } : {}),
+    ...(timeframe ? { timeframe } : {}),
+  });
+
+  return fetchDashboardResource(
+    apiBaseUrl,
+    `${apiBaseUrl}/analysis-outcomes?${searchParams}`,
+    analysisOutcomesResponseSchema,
+    {
+      endpointLabel: "analysis outcomes",
+      invalid:
+        "The API returned an analysis outcomes payload that did not match the expected schema.",
+      requestFailedPrefix: "Analysis outcomes",
+      success: (data) =>
+        data.count > 0 ? "Decision history loaded." : "No decisions yet.",
+      unreachable:
+        "The analysis outcomes endpoint returned an unexpected error.",
     },
     fetchImpl,
   );

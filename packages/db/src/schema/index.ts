@@ -394,6 +394,8 @@ export const analysisOutcomes = pgTable(
     keyLevels: jsonb("key_levels")
       .$type<AnalysisOutcome["keyLevels"]>()
       .notNull(),
+    summary: text("summary"),
+    keyReasons: jsonb("key_reasons").$type<string[]>().notNull().default([]),
     priceAtAnalysis: text("price_at_analysis").notNull(),
     analysisGeneratedAt: timestamp("analysis_generated_at", {
       withTimezone: true,

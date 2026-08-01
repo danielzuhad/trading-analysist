@@ -12,6 +12,7 @@ import {
   getSessionToken,
   setSessionCookie,
   setSessionEmailCookie,
+  setSessionRoleCookie,
 } from "@/lib/session";
 
 export type LoginActionResult = {
@@ -68,6 +69,7 @@ export async function loginAction(
 
   await setSessionCookie(payload.data.token);
   await setSessionEmailCookie(payload.data.user.email);
+  await setSessionRoleCookie(payload.data.user.role);
   redirect("/");
 }
 

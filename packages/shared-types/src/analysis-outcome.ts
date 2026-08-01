@@ -46,6 +46,8 @@ export const analysisOutcomeSchema = z.object({
   signalStrengthScore: z.number().int().min(0).max(100),
   aiConfidence: z.number().int().min(0).max(100),
   keyLevels: signalKeyLevelsSchema,
+  summary: nonEmptyStringSchema.optional(),
+  keyReasons: z.array(nonEmptyStringSchema).default([]),
   priceAtAnalysis: z.number().positive(),
   analysisGeneratedAt: isoDatetimeSchema,
   evaluateAfter: isoDatetimeSchema,
@@ -76,4 +78,12 @@ export const analysisQualityResponseSchema = z.object({
 });
 export type AnalysisQualityResponse = z.infer<
   typeof analysisQualityResponseSchema
+>;
+
+export const analysisOutcomesResponseSchema = z.object({
+  outcomes: z.array(analysisOutcomeSchema),
+  count: z.number().int().min(0),
+});
+export type AnalysisOutcomesResponse = z.infer<
+  typeof analysisOutcomesResponseSchema
 >;

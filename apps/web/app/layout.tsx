@@ -5,7 +5,11 @@ import { Geist } from "next/font/google";
 import { SiteNav } from "@/components/site-nav";
 import { Toaster } from "@/components/ui/sonner";
 import { logoutAction } from "@/lib/auth-actions";
-import { getSessionEmail, getSessionToken } from "@/lib/session";
+import {
+  getSessionEmail,
+  getSessionToken,
+  isSessionAdmin,
+} from "@/lib/session";
 import { cn } from "@/lib/utils";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
@@ -23,6 +27,7 @@ export default async function RootLayout({
 }>) {
   const sessionToken = await getSessionToken();
   const sessionEmail = await getSessionEmail();
+  const isAdmin = await isSessionAdmin();
 
   return (
     <html
@@ -41,7 +46,7 @@ export default async function RootLayout({
             </Link>
             {sessionToken ? (
               <div className="flex items-center gap-3">
-                <SiteNav />
+                <SiteNav isAdmin={isAdmin} />
                 <div className="flex items-center gap-2 border-l border-border pl-3">
                   {sessionEmail ? (
                     <span className="text-[0.8rem] text-muted-foreground">

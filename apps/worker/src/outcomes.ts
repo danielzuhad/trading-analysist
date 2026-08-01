@@ -43,6 +43,8 @@ export function buildPendingAnalysisOutcome({
     signalStrengthScore: analysis.signalStrengthScore,
     aiConfidence: analysis.aiConfidence,
     keyLevels: analysis.keyLevels,
+    summary: analysis.summary,
+    keyReasons: analysis.decisionCard.keyReasons,
     priceAtAnalysis: analysis.marketSnapshot.lastPrice,
     analysisGeneratedAt: analysis.generatedAt,
     evaluateAfter: evaluateAfter.toISOString(),

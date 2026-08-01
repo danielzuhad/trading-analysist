@@ -27,6 +27,30 @@ export async function clearSessionCookie(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE_NAME);
   cookieStore.delete(SESSION_EMAIL_COOKIE_NAME);
+  cookieStore.delete(SESSION_ROLE_COOKIE_NAME);
+}
+
+const SESSION_ROLE_COOKIE_NAME = "session_role";
+
+export const getSessionRole = cache(async (): Promise<string | undefined> => {
+  const cookieStore = await cookies();
+  return cookieStore.get(SESSION_ROLE_COOKIE_NAME)?.value;
+});
+
+export async function isSessionAdmin(): Promise<boolean> {
+  return (await getSessionRole()) === "admin";
+}
+
+export async function setSessionRoleCookie(role: string): Promise<void> {
+  const cookieStore = await cookies();
+
+  cookieStore.set(SESSION_ROLE_COOKIE_NAME, role, {
+    httpOnly: true,
+    maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
 }
 
 const SESSION_EMAIL_COOKIE_NAME = "session_email";
