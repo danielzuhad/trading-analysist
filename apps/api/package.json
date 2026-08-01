@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@fastify/rate-limit": "^11.2.0",
     "@trading-analyst/chat-layer": "workspace:*",
     "@trading-analyst/db": "workspace:*",
     "@trading-analyst/shared-types": "workspace:*",

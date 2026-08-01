@@ -171,10 +171,17 @@ export async function savePosition(
 export async function getPosition(
   positionId: string,
   connectionString?: string,
+  userId?: string,
 ) {
   const db = getDb(connectionString);
+  const conditions = [eq(positions.id, positionId)];
+
+  if (userId) {
+    conditions.push(eq(positions.userId, userId));
+  }
+
   const row = await db.query.positions.findFirst({
-    where: eq(positions.id, positionId),
+    where: and(...conditions),
   });
 
   return row ? parsePosition(row) : null;
@@ -224,8 +231,9 @@ export async function updatePosition(
   positionId: string,
   input: UpdatePositionInput,
   connectionString?: string,
+  userId?: string,
 ) {
-  const current = await getPosition(positionId, connectionString);
+  const current = await getPosition(positionId, connectionString, userId);
 
   if (!current) {
     return null;
@@ -244,8 +252,9 @@ export async function closePosition(
   positionId: string,
   input: ClosePositionInput,
   connectionString?: string,
+  userId?: string,
 ) {
-  const current = await getPosition(positionId, connectionString);
+  const current = await getPosition(positionId, connectionString, userId);
 
   if (!current) {
     return null;

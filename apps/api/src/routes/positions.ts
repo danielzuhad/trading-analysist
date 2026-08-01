@@ -35,6 +35,7 @@ type Dependencies = {
   closePosition: (
     positionId: string,
     input: ClosePositionInput,
+    userId: string,
   ) => Promise<Position | null>;
   createPosition: (input: CreatePositionInput) => Promise<Position>;
   getActivePositionForAsset: (filters: {
@@ -51,6 +52,7 @@ type Dependencies = {
   updatePosition: (
     positionId: string,
     input: UpdatePositionInput,
+    userId: string,
   ) => Promise<Position | null>;
 };
 
@@ -144,6 +146,7 @@ export async function registerPositionRoutes(
   });
 
   app.patch("/positions/:positionId", async (request, reply) => {
+    const userId = requireUserId(request);
     const paramsResult = positionParamsSchema.safeParse(request.params);
     const bodyResult = updatePositionInputSchema.safeParse(request.body);
 
@@ -160,6 +163,7 @@ export async function registerPositionRoutes(
     const position = await dependencies.updatePosition(
       paramsResult.data.positionId,
       bodyResult.data,
+      userId,
     );
 
     if (!position) {
@@ -175,6 +179,7 @@ export async function registerPositionRoutes(
   });
 
   app.post("/positions/:positionId/close", async (request, reply) => {
+    const userId = requireUserId(request);
     const paramsResult = positionParamsSchema.safeParse(request.params);
     const bodyResult = closePositionInputSchema.safeParse(request.body);
 
@@ -191,6 +196,7 @@ export async function registerPositionRoutes(
     const position = await dependencies.closePosition(
       paramsResult.data.positionId,
       bodyResult.data,
+      userId,
     );
 
     if (!position) {

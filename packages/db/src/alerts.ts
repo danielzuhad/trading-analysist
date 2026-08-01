@@ -16,6 +16,7 @@ export type ListAlertsFilters = {
   limit?: number;
   status?: AlertStatus;
   timeframe?: SupportedTimeframe;
+  userId: string;
 };
 
 export type SaveAlertResult = {
@@ -108,11 +109,11 @@ export async function saveAlert(
 }
 
 export async function listAlerts(
-  filters: ListAlertsFilters = {},
+  filters: ListAlertsFilters,
   connectionString?: string,
 ) {
   const db = getDb(connectionString);
-  const conditions: SQL[] = [];
+  const conditions: SQL[] = [eq(alerts.userId, filters.userId)];
   const limit = Math.min(Math.max(filters.limit ?? 50, 1), 100);
 
   if (filters.assetId) {
@@ -127,7 +128,7 @@ export async function listAlerts(
     conditions.push(eq(alerts.status, filters.status));
   }
 
-  const where = conditions.length > 0 ? and(...conditions) : undefined;
+  const where = and(...conditions);
   const rows = await db
     .select()
     .from(alerts)

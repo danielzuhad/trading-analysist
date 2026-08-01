@@ -1,3 +1,4 @@
+import rateLimit from "@fastify/rate-limit";
 import {
   addWatchlistAsset,
   closeDatabase,
@@ -12,6 +13,7 @@ import {
   getLatestIndicatorSnapshot,
   getLatestMarketData,
   getLatestSignalAggregationSnapshot,
+  getUserById,
   getWatchlistAsset,
   getWatchlistAssetBySymbol,
   listAlerts,
@@ -65,12 +67,14 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
   );
 
   await registerCors(app);
+  await app.register(rateLimit, { global: false });
   registerAuthGuard(app, {
     ...(env.API_AUTH_TOKEN ? { bootstrapToken: env.API_AUTH_TOKEN } : {}),
     ...(env.BOOTSTRAP_ADMIN_USER_ID
       ? { bootstrapUserId: env.BOOTSTRAP_ADMIN_USER_ID }
       : {}),
     enabled: Boolean(env.API_AUTH_TOKEN),
+    getUserById: (userId) => getUserById(userId, env.DATABASE_URL),
     resolveApiToken: (token) => resolveApiToken(token, env.DATABASE_URL),
   });
   await registerAuthRoutes(app, {
@@ -150,8 +154,8 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
       : {}),
   });
   await registerPositionRoutes(app, {
-    closePosition: (positionId, input) =>
-      closePosition(positionId, input, env.DATABASE_URL),
+    closePosition: (positionId, input, userId) =>
+      closePosition(positionId, input, env.DATABASE_URL, userId),
     createPosition: (input) => createPosition(input, env.DATABASE_URL),
     getActivePositionForAsset: ({ assetId, userId }) =>
       getActivePositionForAsset({
@@ -160,8 +164,8 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
         userId,
       }),
     listPositions: (filters) => listPositions(filters, env.DATABASE_URL),
-    updatePosition: (positionId, input) =>
-      updatePosition(positionId, input, env.DATABASE_URL),
+    updatePosition: (positionId, input, userId) =>
+      updatePosition(positionId, input, env.DATABASE_URL, userId),
   });
   await registerPortfolioRoutes(app, {
     getWatchlistAsset: ({ assetId, userId }) =>
@@ -172,7 +176,12 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
     ...(env.TWILIO_AUTH_TOKEN ? { authToken: env.TWILIO_AUTH_TOKEN } : {}),
     chatUserId: env.CHAT_LAYER_USER_ID ?? env.BOOTSTRAP_ADMIN_USER_ID ?? "",
     closePosition: (positionId, input) =>
-      closePosition(positionId, input, env.DATABASE_URL),
+      closePosition(
+        positionId,
+        input,
+        env.DATABASE_URL,
+        env.CHAT_LAYER_USER_ID ?? env.BOOTSTRAP_ADMIN_USER_ID,
+      ),
     createPosition: (input) => createPosition(input, env.DATABASE_URL),
     getActivePositionForAsset: ({ assetId, userId }) =>
       getActivePositionForAsset({

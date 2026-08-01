@@ -21,6 +21,7 @@ type Dependencies = {
     limit?: number;
     status?: AlertStatus;
     timeframe?: SupportedTimeframe;
+    userId: string;
   }) => Promise<Alert[]>;
 };
 
@@ -29,6 +30,12 @@ export async function registerAlertRoutes(
   dependencies: Dependencies,
 ) {
   app.get("/alerts", async (request, reply) => {
+    const userId = request.user?.userId;
+
+    if (!userId) {
+      return reply.code(401).send({ error: "UNAUTHORIZED" });
+    }
+
     const queryResult = alertsQuerySchema.safeParse(request.query);
 
     if (!queryResult.success) {
@@ -41,6 +48,7 @@ export async function registerAlertRoutes(
     const { assetId, limit, status, timeframe } = queryResult.data;
     const alerts = await dependencies.listAlerts({
       limit,
+      userId,
       ...(assetId ? { assetId } : {}),
       ...(status ? { status } : {}),
       ...(timeframe ? { timeframe } : {}),

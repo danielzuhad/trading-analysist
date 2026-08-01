@@ -25,27 +25,38 @@ export async function registerAuthRoutes(
   app: FastifyInstance,
   dependencies: Dependencies,
 ) {
-  app.post("/auth/login", async (request, reply) => {
-    const bodyResult = loginInputSchema.safeParse(request.body);
+  app.post(
+    "/auth/login",
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: "1 minute",
+        },
+      },
+    },
+    async (request, reply) => {
+      const bodyResult = loginInputSchema.safeParse(request.body);
 
-    if (!bodyResult.success) {
-      return reply.code(400).send({
-        error: "INVALID_BODY",
-        issues: bodyResult.error.issues,
-      });
-    }
+      if (!bodyResult.success) {
+        return reply.code(400).send({
+          error: "INVALID_BODY",
+          issues: bodyResult.error.issues,
+        });
+      }
 
-    const { email, password }: LoginInput = bodyResult.data;
-    const user = await dependencies.verifyUserPassword(email, password);
+      const { email, password }: LoginInput = bodyResult.data;
+      const user = await dependencies.verifyUserPassword(email, password);
 
-    if (!user) {
-      return reply.code(401).send({ error: "INVALID_CREDENTIALS" });
-    }
+      if (!user) {
+        return reply.code(401).send({ error: "INVALID_CREDENTIALS" });
+      }
 
-    const { token } = await dependencies.createApiToken(user.id);
+      const { token } = await dependencies.createApiToken(user.id);
 
-    return reply.code(201).send({ token, user });
-  });
+      return reply.code(201).send({ token, user });
+    },
+  );
 
   app.post("/auth/users", async (request, reply) => {
     if (request.user?.role !== "admin") {

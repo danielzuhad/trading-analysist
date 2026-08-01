@@ -2,8 +2,18 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { RequestUser, UserRole } from "@trading-analyst/shared-types";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
-const publicPaths = new Set(["/health", "/readyz", "/auth/login"]);
-const publicPrefixes = ["/chat-layer/"];
+// Every entry here is a route that must accept unauthenticated requests.
+// Each webhook endpoint verifies its own provider signature/secret, so a
+// bearer token isn't the right gate for it — but that also means adding a
+// route to this list is a deliberate security decision, not something that
+// should happen implicitly via a prefix match.
+const publicPaths = new Set([
+  "/health",
+  "/readyz",
+  "/auth/login",
+  "/chat-layer/twilio/webhook",
+  "/chat-layer/telegram/webhook",
+]);
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -12,11 +22,7 @@ declare module "fastify" {
 }
 
 export function isPublicApiPath(pathname: string): boolean {
-  if (publicPaths.has(pathname)) {
-    return true;
-  }
-
-  return publicPrefixes.some((prefix) => pathname.startsWith(prefix));
+  return publicPaths.has(pathname);
 }
 
 export function isAuthorizedBearerHeader(
@@ -58,7 +64,9 @@ type Dependencies = {
   /**
    * Legacy single shared token, kept only as a bootstrap escape hatch
    * (e.g. generating the first admin user before any api_tokens exist).
-   * Requests authenticated this way are attributed to the bootstrapUserId.
+   * Requests authenticated this way are attributed to the bootstrapUserId,
+   * using that user's actual role — the bootstrap token is a login shortcut,
+   * not an unconditional admin grant.
    */
   bootstrapToken?: string | undefined;
   bootstrapUserId?: string | undefined;
@@ -68,6 +76,7 @@ type Dependencies = {
    * do this in production.
    */
   enabled: boolean;
+  getUserById: (userId: string) => Promise<{ role: UserRole } | null>;
   resolveApiToken: (
     token: string,
   ) => Promise<{ role: UserRole; tokenId: string; userId: string } | null>;
@@ -77,8 +86,13 @@ export function registerAuthGuard(
   app: FastifyInstance,
   dependencies: Dependencies,
 ): void {
-  const { bootstrapToken, bootstrapUserId, enabled, resolveApiToken } =
-    dependencies;
+  const {
+    bootstrapToken,
+    bootstrapUserId,
+    enabled,
+    getUserById,
+    resolveApiToken,
+  } = dependencies;
 
   if (!enabled) {
     app.log.warn(
@@ -108,7 +122,13 @@ export function registerAuthGuard(
       bootstrapUserId &&
       isAuthorizedBearerHeader(`Bearer ${token}`, bootstrapToken)
     ) {
-      request.user = { role: "admin", userId: bootstrapUserId };
+      const bootstrapUser = await getUserById(bootstrapUserId);
+
+      if (!bootstrapUser) {
+        return reply.code(401).send({ error: "UNAUTHORIZED" });
+      }
+
+      request.user = { role: bootstrapUser.role, userId: bootstrapUserId };
       return;
     }
 
