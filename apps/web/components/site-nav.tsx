@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/", label: "Watchlist" },
   { href: "/portfolio", label: "Portfolio" },
+  { href: "/track-record", label: "Track Record" },
 ] as const;
 
 export function SiteNav() {

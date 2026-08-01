@@ -182,7 +182,49 @@ function buildAlertMessage(
   previousState: AssetState,
   currentAnalysis: LatestAssetAnalysis,
 ) {
-  return `${currentAnalysis.asset.displaySymbol} changed from ${previousState} to ${currentAnalysis.state}. ${currentAnalysis.summary}`;
+  const base = `${currentAnalysis.asset.displaySymbol} changed from ${previousState} to ${currentAnalysis.state}. ${currentAnalysis.summary}`;
+  const positionContext = buildPositionContext(previousState, currentAnalysis);
+
+  return positionContext ? `${base} ${positionContext}` : base;
+}
+
+/**
+ * Explains *why* the plan changed when an open position is involved, since
+ * position-aware analysis swaps the invalidation level for the position's
+ * own stop loss rather than a purely technical level — that's a change in
+ * what the state transition means, not just a new label.
+ */
+function buildPositionContext(
+  previousState: AssetState,
+  currentAnalysis: LatestAssetAnalysis,
+): string | undefined {
+  const position = currentAnalysis.position;
+
+  if (!position) {
+    return undefined;
+  }
+
+  const directionLabel = position.direction === "long" ? "long" : "short";
+
+  if (
+    previousState !== "IN_POSITION" &&
+    currentAnalysis.state === "IN_POSITION"
+  ) {
+    return `This reflects your open ${directionLabel} position — the invalidation level below is now your stop loss, not a general technical level.`;
+  }
+
+  if (currentAnalysis.state === "EXIT_WARNING") {
+    return `Your open ${directionLabel} position is at risk — price is approaching the level that would trigger your stop loss.`;
+  }
+
+  if (
+    previousState === "IN_POSITION" &&
+    currentAnalysis.state !== "IN_POSITION"
+  ) {
+    return `You still have an open ${directionLabel} position on this asset; this analysis no longer treats it as the active setup.`;
+  }
+
+  return undefined;
 }
 
 function buildTransitionId({

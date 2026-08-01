@@ -6,6 +6,7 @@ import {
   StateBadge,
 } from "@/components/dashboard/dashboard-primitives";
 import { formatRelativeTime } from "@/lib/dashboard-format";
+import { InvalidationStatus } from "./invalidation-status";
 import { LevelBar } from "./level-bar";
 
 const decisionCardClassName =
@@ -41,6 +42,11 @@ export function AiDecisionSection({
         {analysis?.summary ??
           "No AI analysis has been stored for this asset and timeframe yet."}
       </p>
+
+      <InvalidationStatus
+        invalidation={analysis?.keyLevels.invalidation}
+        price={overview.marketSnapshot?.lastPrice}
+      />
 
       <LevelBar
         invalidation={analysis?.keyLevels.invalidation}

@@ -114,102 +114,114 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               ))}
             </article>
           ) : (
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-3.5 sm:grid-cols-1">
-              {items.map((item) => {
-                const watchlistEntry = watchlistEntryByAssetId.get(
-                  item.asset.id,
-                );
+            <>
+              <p className="m-0 text-[0.8rem] text-muted-foreground">
+                Ranked by state, signal strength, and AI confidence — #1 is the
+                asset most worth your attention right now.
+              </p>
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-3.5 sm:grid-cols-1">
+                {items.map((item, index) => {
+                  const watchlistEntry = watchlistEntryByAssetId.get(
+                    item.asset.id,
+                  );
 
-                return (
-                  <Link
-                    key={`${item.asset.id}:${item.timeframe}`}
-                    className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 transition-colors duration-140 hover:border-input hover:bg-secondary"
-                    href={`/assets/${item.asset.symbol.toLowerCase()}?timeframe=${timeframe}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2.5">
-                        <CoinLogo
-                          imageUrl={readAssetImageUrl(item.asset.metadata)}
-                          size={34}
-                          symbol={item.asset.symbol}
-                        />
-                        <div>
-                          <p className="m-0 text-[1.15rem] font-bold">
-                            {item.asset.symbol}
-                          </p>
-                          <p className="mt-0.5 mb-0 text-[0.85rem] text-muted-foreground">
-                            {item.asset.name}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <StateBadge state={item.state} />
-                        {watchlistEntry ? (
-                          <WatchlistCardActions
-                            aiEnabled={watchlistEntry.aiEnabled}
-                            assetId={item.asset.id}
+                  return (
+                    <Link
+                      key={`${item.asset.id}:${item.timeframe}`}
+                      className="relative grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 transition-colors duration-140 hover:border-input hover:bg-secondary"
+                      href={`/assets/${item.asset.symbol.toLowerCase()}?timeframe=${timeframe}`}
+                    >
+                      <span
+                        className="absolute top-3 left-3 flex h-6 w-6 items-center justify-center rounded-full border border-border bg-secondary text-[0.72rem] font-semibold tabular-nums text-muted-foreground"
+                        title={`Ranked #${index + 1} of ${items.length} — sorted by data readiness, state, signal, and confidence`}
+                      >
+                        {index + 1}
+                      </span>
+                      <div className="flex items-start justify-between gap-3 pl-7">
+                        <div className="flex items-center gap-2.5">
+                          <CoinLogo
+                            imageUrl={readAssetImageUrl(item.asset.metadata)}
+                            size={34}
                             symbol={item.asset.symbol}
                           />
-                        ) : null}
+                          <div>
+                            <p className="m-0 text-[1.15rem] font-bold">
+                              {item.asset.symbol}
+                            </p>
+                            <p className="mt-0.5 mb-0 text-[0.85rem] text-muted-foreground">
+                              {item.asset.name}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <StateBadge state={item.state} />
+                          {watchlistEntry ? (
+                            <WatchlistCardActions
+                              aiEnabled={watchlistEntry.aiEnabled}
+                              assetId={item.asset.id}
+                              symbol={item.asset.symbol}
+                            />
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-baseline gap-3">
-                      <strong className="text-[1.6rem] font-bold tracking-[-0.01em] tabular-nums">
-                        {formatPrice(item.lastPrice)}
-                      </strong>
-                      <DeltaText value={item.priceChangePercent} />
-                    </div>
-
-                    <div className="grid gap-2.5">
-                      <ScoreBar
-                        label="Signal"
-                        value={item.signalStrengthScore}
-                      />
-                      <ScoreBar
-                        label="AI confidence"
-                        value={item.aiConfidence}
-                      />
-                    </div>
-
-                    <p className="m-0 text-[0.9rem] leading-[1.55] text-ink-2">
-                      {item.summary ?? "Waiting for the first analysis."}
-                    </p>
-
-                    <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[0.82rem] tabular-nums text-muted-foreground">
-                      <span>
-                        S{" "}
-                        <strong className="font-semibold text-up">
-                          {formatPrice(item.nearestSupport)}
+                      <div className="flex items-baseline gap-3">
+                        <strong className="text-[1.6rem] font-bold tracking-[-0.01em] tabular-nums">
+                          {formatPrice(item.lastPrice)}
                         </strong>
-                      </span>
-                      <span>
-                        R{" "}
-                        <strong className="font-semibold text-accent">
-                          {formatPrice(item.nearestResistance)}
-                        </strong>
-                      </span>
-                      <span>
-                        Inv{" "}
-                        <strong className="font-semibold text-down">
-                          {formatPrice(item.invalidation)}
-                        </strong>
-                      </span>
-                    </div>
+                        <DeltaText value={item.priceChangePercent} />
+                      </div>
 
-                    {item.keyReasons.length > 0 ? (
-                      <ul className="m-0 pl-4.5 text-[0.85rem] leading-[1.6] text-muted-foreground">
-                        {item.keyReasons.slice(0, 2).map((reason) => (
-                          <li key={reason}>{reason}</li>
-                        ))}
-                      </ul>
-                    ) : null}
+                      <div className="grid gap-2.5">
+                        <ScoreBar
+                          label="Signal"
+                          value={item.signalStrengthScore}
+                        />
+                        <ScoreBar
+                          label="AI confidence"
+                          value={item.aiConfidence}
+                        />
+                      </div>
 
-                    <MissingDataList items={item.missingData} />
-                  </Link>
-                );
-              })}
-            </div>
+                      <p className="m-0 text-[0.9rem] leading-[1.55] text-ink-2">
+                        {item.summary ?? "Waiting for the first analysis."}
+                      </p>
+
+                      <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[0.82rem] tabular-nums text-muted-foreground">
+                        <span>
+                          S{" "}
+                          <strong className="font-semibold text-up">
+                            {formatPrice(item.nearestSupport)}
+                          </strong>
+                        </span>
+                        <span>
+                          R{" "}
+                          <strong className="font-semibold text-accent">
+                            {formatPrice(item.nearestResistance)}
+                          </strong>
+                        </span>
+                        <span>
+                          Inv{" "}
+                          <strong className="font-semibold text-down">
+                            {formatPrice(item.invalidation)}
+                          </strong>
+                        </span>
+                      </div>
+
+                      {item.keyReasons.length > 0 ? (
+                        <ul className="m-0 pl-4.5 text-[0.85rem] leading-[1.6] text-muted-foreground">
+                          {item.keyReasons.slice(0, 2).map((reason) => (
+                            <li key={reason}>{reason}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+
+                      <MissingDataList items={item.missingData} />
+                    </Link>
+                  );
+                })}
+              </div>
+            </>
           )}
 
           {pendingEntries.length > 0 ? (

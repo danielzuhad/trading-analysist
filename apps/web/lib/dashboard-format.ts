@@ -31,6 +31,61 @@ export function formatScore(value?: number) {
   return value === undefined ? "Unavailable" : `${Math.round(value)}/100`;
 }
 
+export function formatWinRate(known: number, hit: number) {
+  return known === 0 ? "—" : `${Math.round((hit / known) * 100)}%`;
+}
+
+export type InvalidationStatus = "breached" | "approaching" | "safe";
+
+const INVALIDATION_APPROACH_THRESHOLD = 0.03;
+
+/**
+ * invalidation's side relative to price tells us the breach direction
+ * without needing the analysis bias: a level below price protects against
+ * a breakdown (breached once price falls to/through it), a level above
+ * price protects against a breakout (breached once price rises to/through
+ * it). Equal to price is already breached — there's no safe gap left.
+ */
+export function getInvalidationStatus(
+  price?: number,
+  invalidation?: number,
+): InvalidationStatus | undefined {
+  if (price === undefined || invalidation === undefined || price <= 0) {
+    return undefined;
+  }
+
+  const isBelowPrice = invalidation <= price;
+  const breached = isBelowPrice ? price <= invalidation : price >= invalidation;
+
+  if (breached) {
+    return "breached";
+  }
+
+  const distanceRatio = Math.abs(price - invalidation) / price;
+
+  return distanceRatio <= INVALIDATION_APPROACH_THRESHOLD
+    ? "approaching"
+    : "safe";
+}
+
+export function mapWinRateClass(known: number, hit: number) {
+  if (known === 0) {
+    return "text-muted-foreground";
+  }
+
+  const rate = hit / known;
+
+  if (rate >= 0.6) {
+    return "text-up";
+  }
+
+  if (rate >= 0.45) {
+    return "text-warn";
+  }
+
+  return "text-down";
+}
+
 export function formatAlertTimestamp(value?: string) {
   return value === undefined
     ? "Unavailable"

@@ -1,7 +1,9 @@
 import {
   type AlertsResponse,
+  type AnalysisQualityResponse,
   type AssetOverviewResponse,
   alertsResponseSchema,
+  analysisQualityResponseSchema,
   assetOverviewResponseSchema,
   type PortfolioOverviewResponse,
   portfolioOverviewResponseSchema,
@@ -219,6 +221,30 @@ export function fetchPortfolioOverview(
           : "No open positions yet.",
       unreachable:
         "The portfolio overview endpoint returned an unexpected error.",
+    },
+    fetchImpl,
+  );
+}
+
+export function fetchAnalysisQuality(
+  apiBaseUrl: string | undefined,
+  fetchImpl: FetchLike = fetch,
+): Promise<DashboardDataResult<AnalysisQualityResponse>> {
+  return fetchDashboardResource(
+    apiBaseUrl,
+    `${apiBaseUrl}/analysis-quality`,
+    analysisQualityResponseSchema,
+    {
+      endpointLabel: "analysis quality",
+      invalid:
+        "The API returned an analysis quality payload that did not match the expected schema.",
+      requestFailedPrefix: "Analysis quality",
+      success: (data) =>
+        data.evaluatedCount > 0
+          ? "Track record loaded."
+          : "No evaluated analyses yet.",
+      unreachable:
+        "The analysis quality endpoint returned an unexpected error.",
     },
     fetchImpl,
   );
