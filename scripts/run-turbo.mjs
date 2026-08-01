@@ -73,14 +73,6 @@ function main(argv = process.argv.slice(2)) {
       ? path.join(os.tmpdir(), "trading-analyst-turbo")
       : "/tmp/turbo");
 
-  if (task === "test") {
-    const defaultTempDir = process.platform === "win32" ? os.tmpdir() : "/tmp";
-
-    env.TMPDIR ??= defaultTempDir;
-    env.TEMP ??= defaultTempDir;
-    env.TMP ??= defaultTempDir;
-  }
-
   mkdirSync(cacheDir, { recursive: true });
 
   const turboBin = resolveTurboBin();

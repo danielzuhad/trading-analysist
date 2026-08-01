@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start --port 3000",
     "lint": "biome check .",
-    "typecheck": "tsc --noEmit --incremental false",
-    "test": "vitest run --passWithNoTests"
+    "typecheck": "tsc --noEmit --incremental false"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",

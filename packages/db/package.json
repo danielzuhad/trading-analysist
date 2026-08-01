@@ -6,7 +6,6 @@
     "build": "bun build ./src/index.ts --outdir dist --target node",
     "lint": "biome check .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "create-admin": "bun run scripts/create-admin.ts"

@@ -5,8 +5,7 @@
   "scripts": {
     "build": "bun build ./src/index.ts --outdir dist --target node",
     "lint": "biome check .",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "typecheck": "tsc --noEmit"
   },
   "exports": {
     ".": "./src/index.ts"

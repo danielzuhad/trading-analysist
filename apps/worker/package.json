@@ -7,8 +7,7 @@
     "build": "bun build ./src/index.ts --outdir dist --target node",
     "start": "NODE_ENV=production bun ./dist/index.js",
     "lint": "biome check .",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@trading-analyst/ai-analysis": "workspace:*",

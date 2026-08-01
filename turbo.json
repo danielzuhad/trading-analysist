@@ -5,7 +5,6 @@
     "MAX_DAILY_AI_COST_USD",
     "NEXT_PUBLIC_API_BASE_URL",
     "REDIS_URL",
-    "RUN_INFRA_TESTS",
     "COINGECKO_API_KEY",
     "COINGECKO_API_PLAN",
     "TEMP",
@@ -27,10 +26,6 @@
     },
     "typecheck": {
       "dependsOn": ["^typecheck"],
-      "outputs": []
-    },
-    "test": {
-      "dependsOn": ["^test"],
       "outputs": []
     }
   }

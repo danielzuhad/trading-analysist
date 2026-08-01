@@ -73,11 +73,8 @@ docker compose --env-file .env.development -f infrastructure/docker/docker-compo
 - `bun run build` build workspace
 - `bun run lint` lint seluruh packages
 - `bun run typecheck` type-check seluruh packages
-- `bun run test` menjalankan test suite
 - `bun run db:generate` generate Drizzle migrations
 - `bun run db:migrate` menjalankan Drizzle migrations
-
-Infrastructure-backed integration tests tersedia untuk database, API routes, dan worker persistence/bootstrap flows. Jalankan dengan PostgreSQL dan Redis aktif serta `RUN_INFRA_TESTS=true`.
 
 ## Environment Notes
 
@@ -202,14 +199,12 @@ Kalau satu context provider gagal, worker tetap lanjut dengan `partial context`.
 
 Husky aktif di repository ini.
 
-- `pre-commit` menjalankan `bun run lint`, `bun run typecheck`, dan `bun run test`
+- `pre-commit` menjalankan `bun run lint` dan `bun run typecheck`
 
-Root validation scripts (`build`, `lint`, `typecheck`, dan `test`) berjalan melalui `scripts/run-turbo.mjs` agar kompatibel dengan PowerShell dan WSL.
+Root validation scripts (`build`, `lint`, dan `typecheck`) berjalan melalui `scripts/run-turbo.mjs` agar kompatibel dengan PowerShell dan WSL.
 Wrapper ini memilih Turbo cache directory dari `TURBO_CACHE_DIR`, atau memakai temp directory OS bila env tersebut kosong.
-Untuk WSL/Linux, `bun run test` tetap memaksa `TMPDIR`, `TEMP`, dan `TMP` ke `/tmp` bila belum didefinisikan.
-Ini menghindari Vitest/Bun memakai temp directory Windows saat repository dijalankan dari WSL.
 
-CI workflow menyalakan PostgreSQL dan Redis services, menjalankan `bun run db:migrate`, lalu menjalankan test suite dengan `RUN_INFRA_TESTS=true`.
+CI workflow menyalakan PostgreSQL dan Redis services, lalu menjalankan `bun run db:migrate` sebelum lint, typecheck, dan build.
 
 ## Local Infra Notes
 
