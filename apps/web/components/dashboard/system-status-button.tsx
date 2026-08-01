@@ -1,7 +1,7 @@
 "use client";
 
 import { cva } from "class-variance-authority";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { statusBadgeVariants } from "@/components/dashboard/dashboard-primitives";
 import {
   ResponsiveSheet,
@@ -27,6 +27,7 @@ const statusDotVariants = cva("h-2.25 w-2.25 shrink-0 rounded-full", {
 
 type SystemStatusButtonProps = {
   apiBaseUrl: string | undefined;
+  initialStatus: InfrastructureStatus;
 };
 
 function mapAiStateToTone(
@@ -53,56 +54,45 @@ function mapAiStateToTone(
   return "down";
 }
 
-export function SystemStatusButton({ apiBaseUrl }: SystemStatusButtonProps) {
+export function SystemStatusButton({
+  apiBaseUrl,
+  initialStatus,
+}: SystemStatusButtonProps) {
   const [infrastructureStatus, setInfrastructureStatus] =
-    useState<InfrastructureStatus | null>(null);
+    useState<InfrastructureStatus>(initialStatus);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const sheet = useResponsiveSheet();
 
-  useEffect(() => {
-    let cancelled = false;
+  async function handleOpen() {
+    sheet.open();
+    setIsRefreshing(true);
 
-    async function loadStatus() {
-      const nextStatus = await fetchInfrastructureStatus(apiBaseUrl);
+    const nextStatus = await fetchInfrastructureStatus(apiBaseUrl);
 
-      if (!cancelled) {
-        setInfrastructureStatus(nextStatus);
-      }
-    }
-
-    setInfrastructureStatus(null);
-    void loadStatus();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [apiBaseUrl]);
+    setInfrastructureStatus(nextStatus);
+    setIsRefreshing(false);
+  }
 
   const tone =
-    infrastructureStatus === null
-      ? "unknown"
-      : infrastructureStatus.status === "ready"
-        ? "ok"
-        : infrastructureStatus.status === "degraded"
-          ? "warn"
-          : "down";
+    infrastructureStatus.status === "ready"
+      ? "ok"
+      : infrastructureStatus.status === "degraded"
+        ? "warn"
+        : "down";
   const label =
-    infrastructureStatus === null
-      ? "Checking system status…"
-      : tone === "ok"
-        ? "All systems running"
-        : tone === "warn"
-          ? "System degraded"
-          : "System issue";
-  const aiWarning = infrastructureStatus
-    ? buildAiOperationalWarning(infrastructureStatus)
-    : null;
+    tone === "ok"
+      ? "All systems running"
+      : tone === "warn"
+        ? "System degraded"
+        : "System issue";
+  const aiWarning = buildAiOperationalWarning(infrastructureStatus);
 
   return (
     <>
       <button
         type="button"
         className="inline-flex min-h-6.5 cursor-pointer items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground hover:border-input hover:text-ink-2"
-        onClick={sheet.open}
+        onClick={handleOpen}
       >
         <span className={statusDotVariants({ tone })} />
         {label}
@@ -113,7 +103,7 @@ export function SystemStatusButton({ apiBaseUrl }: SystemStatusButtonProps) {
         onOpenChange={sheet.onOpenChange}
         title="System status"
       >
-        {infrastructureStatus === null ? (
+        {isRefreshing ? (
           <p>Checking system status…</p>
         ) : (
           <>

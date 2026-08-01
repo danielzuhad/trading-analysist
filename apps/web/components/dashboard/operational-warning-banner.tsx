@@ -1,4 +1,5 @@
 import { cva } from "class-variance-authority";
+import { InfoPill } from "@/components/dashboard/dashboard-primitives";
 import { formatRelativeTime } from "@/lib/dashboard-format";
 import type { AiOperationalWarning } from "@/lib/status";
 
@@ -29,9 +30,7 @@ export function OperationalWarningBanner({
           </p>
           <h2 className="m-0 text-[0.98rem]">{warning.title}</h2>
         </div>
-        <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
-          {warning.statusLabel}
-        </span>
+        <InfoPill>{warning.statusLabel}</InfoPill>
       </div>
       <p className="m-0 text-[0.9rem] text-ink-2">{warning.message}</p>
       {warning.detail ? (

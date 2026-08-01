@@ -1,4 +1,5 @@
 import type { Alert } from "@trading-analyst/shared-types";
+import { InfoPill } from "@/components/dashboard/dashboard-primitives";
 import { formatRelativeTime } from "@/lib/dashboard-format";
 import { cn } from "@/lib/utils";
 
@@ -33,9 +34,7 @@ export function AlertFeed({
     <article className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 [&_h2]:m-0 [&_h2]:text-base [&_p]:m-0 [&_p]:text-ink-2">
       <div className="flex items-start justify-between gap-3">
         <h2>{title}</h2>
-        <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
-          {alerts.length}
-        </span>
+        <InfoPill>{alerts.length}</InfoPill>
       </div>
 
       {alerts.length === 0 ? (
@@ -79,9 +78,7 @@ export function AlertFeed({
                   ) : null}
                   {alert.currentState.replaceAll("_", " ")}
                 </span>
-                <span className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground">
-                  {alert.timeframe}
-                </span>
+                <InfoPill>{alert.timeframe}</InfoPill>
               </div>
             </article>
           ))}

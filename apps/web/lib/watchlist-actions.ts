@@ -32,7 +32,7 @@ export async function searchCryptoAction(
       `${apiBaseUrl}/crypto-search?q=${encodeURIComponent(trimmed)}`,
       {
         cache: "no-store",
-        headers: buildApiAuthHeaders(),
+        headers: await buildApiAuthHeaders(),
       },
     );
 
@@ -93,7 +93,7 @@ export async function addToWatchlistAction({
       }),
       headers: {
         "Content-Type": "application/json",
-        ...buildApiAuthHeaders(),
+        ...(await buildApiAuthHeaders()),
       },
       method: "POST",
     });
@@ -136,7 +136,7 @@ export async function setWatchlistAiEnabledAction(
         body: JSON.stringify({ aiEnabled }),
         headers: {
           "Content-Type": "application/json",
-          ...buildApiAuthHeaders(),
+          ...(await buildApiAuthHeaders()),
         },
         method: "PATCH",
       },
@@ -186,7 +186,7 @@ export async function removeFromWatchlistAction(
     const response = await fetch(
       `${apiBaseUrl}/watchlist/${encodeURIComponent(assetId)}`,
       {
-        headers: buildApiAuthHeaders(),
+        headers: await buildApiAuthHeaders(),
         method: "DELETE",
       },
     );

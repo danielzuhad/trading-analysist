@@ -1,9 +1,7 @@
-type MutableEnv = Record<string, string | undefined>;
+import { getSessionToken } from "@/lib/session";
 
-export function buildApiAuthHeaders(
-  env: MutableEnv = process.env,
-): Record<string, string> {
-  const token = env.API_AUTH_TOKEN?.trim();
+export async function buildApiAuthHeaders(): Promise<Record<string, string>> {
+  const token = await getSessionToken();
 
   return token ? { authorization: `Bearer ${token}` } : {};
 }

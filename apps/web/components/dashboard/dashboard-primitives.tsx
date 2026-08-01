@@ -164,6 +164,45 @@ export function ScoreBar({
   );
 }
 
+export function InfoPill({
+  children,
+  className,
+  title,
+}: {
+  children: ReactNode;
+  className?: string | undefined;
+  title?: string | undefined;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground",
+        className,
+      )}
+      title={title}
+    >
+      {children}
+    </span>
+  );
+}
+
+export function DetailRow({
+  label,
+  value,
+  valueClass,
+}: {
+  label: string;
+  value?: string | number | undefined;
+  valueClass?: string | undefined;
+}) {
+  return (
+    <p className="m-0 flex justify-between gap-3 text-[0.9rem] text-ink-2 [&>span:first-child]:text-muted-foreground [&>span:last-child]:text-right [&>span:last-child]:tabular-nums [&>span:last-child]:text-foreground">
+      <span>{label}</span>
+      <span className={valueClass}>{value ?? "—"}</span>
+    </p>
+  );
+}
+
 export function MissingDataList({ items }: { items: string[] }) {
   if (items.length === 0) {
     return null;

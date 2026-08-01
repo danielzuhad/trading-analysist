@@ -5,6 +5,7 @@ import { CoinLogo } from "@/components/dashboard/coin-logo";
 import {
   DashboardTimeframeTabs,
   DeltaText,
+  InfoPill,
   MissingDataList,
   ScoreBar,
   StateBadge,
@@ -75,14 +76,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <h1 className="m-0 text-[1.35rem] tracking-[-0.01em]">Watchlist</h1>
         <div className="flex flex-wrap items-center gap-2.5">
           {watchlistLimit ? (
-            <span
-              className="inline-flex min-h-6.5 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-[0.74rem] font-medium tracking-[0.02em] text-muted-foreground"
+            <InfoPill
               title={`The watchlist is capped at ${watchlistLimit} assets to keep AI analysis cost and market-data rate limits under control.`}
             >
               {watchlistEntries.length}/{watchlistLimit} slots
-            </span>
+            </InfoPill>
           ) : null}
-          <SystemStatusButton apiBaseUrl={apiBaseUrl} />
+          <SystemStatusButton
+            apiBaseUrl={apiBaseUrl}
+            initialStatus={infrastructureStatus}
+          />
           <DashboardTimeframeTabs basePath="/" timeframe={timeframe} />
         </div>
       </div>
@@ -94,7 +97,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         watchlistLimit={watchlistLimit}
       />
 
-      <div className="grid grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] items-start gap-6 lg:grid-cols-1">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
         <section aria-label="Ranked assets" className="grid gap-3.5">
           {items.length === 0 ? (
             <article className="grid gap-3.5 rounded-(--radius) border border-border bg-card p-4.5 [&_h3]:m-0 [&_h3]:text-[0.95rem] [&_p]:m-0 [&_p]:text-ink-2">

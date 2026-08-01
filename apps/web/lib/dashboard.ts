@@ -71,7 +71,7 @@ async function fetchDashboardResource<T>(
   try {
     const response = await fetchImpl(url, {
       cache: "no-store",
-      headers: buildApiAuthHeaders(),
+      headers: await buildApiAuthHeaders(),
     });
 
     if (messages.notFound && response.status === 404) {

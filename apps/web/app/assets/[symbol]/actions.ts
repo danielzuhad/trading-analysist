@@ -24,7 +24,7 @@ export async function recordPositionAction(formData: FormData) {
     body: JSON.stringify(payload),
     headers: {
       "Content-Type": "application/json",
-      ...buildApiAuthHeaders(),
+      ...(await buildApiAuthHeaders()),
     },
     method: "POST",
   });
@@ -55,7 +55,7 @@ export async function updatePositionAction(formData: FormData) {
       body: JSON.stringify(payload),
       headers: {
         "Content-Type": "application/json",
-        ...buildApiAuthHeaders(),
+        ...(await buildApiAuthHeaders()),
       },
       method: "PATCH",
     },
@@ -87,7 +87,7 @@ export async function closePositionAction(formData: FormData) {
       body: JSON.stringify(payload),
       headers: {
         "Content-Type": "application/json",
-        ...buildApiAuthHeaders(),
+        ...(await buildApiAuthHeaders()),
       },
       method: "POST",
     },
