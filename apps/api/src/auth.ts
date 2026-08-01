@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { RequestUser, UserRole } from "@trading-analyst/shared-types";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 
-const publicPaths = new Set(["/health", "/readyz"]);
+const publicPaths = new Set(["/health", "/readyz", "/auth/login"]);
 const publicPrefixes = ["/chat-layer/"];
 
 declare module "fastify" {
@@ -70,7 +70,7 @@ type Dependencies = {
   enabled: boolean;
   resolveApiToken: (
     token: string,
-  ) => Promise<{ userId: string; role: UserRole } | null>;
+  ) => Promise<{ role: UserRole; tokenId: string; userId: string } | null>;
 };
 
 export function registerAuthGuard(
@@ -118,6 +118,10 @@ export function registerAuthGuard(
       return reply.code(401).send({ error: "UNAUTHORIZED" });
     }
 
-    request.user = { role: resolved.role, userId: resolved.userId };
+    request.user = {
+      role: resolved.role,
+      tokenId: resolved.tokenId,
+      userId: resolved.userId,
+    };
   });
 }

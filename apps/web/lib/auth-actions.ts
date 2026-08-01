@@ -5,9 +5,11 @@ import {
   loginResponseSchema,
 } from "@trading-analyst/shared-types";
 import { redirect } from "next/navigation";
+import { buildApiAuthHeaders } from "@/lib/api-auth";
 import { loadWebEnv } from "@/lib/env";
 import {
   clearSessionCookie,
+  getSessionToken,
   setSessionCookie,
   setSessionEmailCookie,
 } from "@/lib/session";
@@ -70,6 +72,21 @@ export async function loginAction(
 }
 
 export async function logoutAction(): Promise<void> {
+  const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
+  const sessionToken = await getSessionToken();
+
+  if (apiBaseUrl && sessionToken) {
+    try {
+      await fetch(`${apiBaseUrl}/auth/logout`, {
+        headers: await buildApiAuthHeaders(),
+        method: "POST",
+      });
+    } catch {
+      // The token still gets revoked eventually via expiry; don't block
+      // sign-out on the API being reachable.
+    }
+  }
+
   await clearSessionCookie();
   redirect("/login");
 }

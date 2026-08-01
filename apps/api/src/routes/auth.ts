@@ -15,6 +15,9 @@ type Dependencies = {
   }>;
   createUser: (input: CreateUserInput) => Promise<User>;
   listUsers: () => Promise<User[]>;
+  revokeApiToken: (
+    tokenId: string,
+  ) => Promise<{ status: "revoked" | "not_found" }>;
   verifyUserPassword: (email: string, password: string) => Promise<User | null>;
 };
 
@@ -75,5 +78,17 @@ export async function registerAuthRoutes(
     const users = await dependencies.listUsers();
 
     return { count: users.length, users };
+  });
+
+  app.post("/auth/logout", async (request, reply) => {
+    const tokenId = request.user?.tokenId;
+
+    if (!tokenId) {
+      return reply.code(204).send();
+    }
+
+    await dependencies.revokeApiToken(tokenId);
+
+    return reply.code(204).send();
   });
 }

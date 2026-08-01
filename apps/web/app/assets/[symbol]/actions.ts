@@ -9,6 +9,16 @@ import {
   buildPositionRedirectPath,
   buildUpdatePositionPayload,
 } from "@/lib/position-action-payload";
+import { clearSessionCookie } from "@/lib/session";
+
+async function redirectToLoginIfUnauthorized(response: {
+  status: number;
+}): Promise<void> {
+  if (response.status === 401) {
+    await clearSessionCookie();
+    redirect("/login");
+  }
+}
 
 export async function recordPositionAction(formData: FormData) {
   const symbol = readRequiredString(formData, "symbol");
@@ -28,6 +38,8 @@ export async function recordPositionAction(formData: FormData) {
     },
     method: "POST",
   });
+
+  await redirectToLoginIfUnauthorized(response);
 
   redirect(
     buildPositionRedirectPath({
@@ -61,6 +73,8 @@ export async function updatePositionAction(formData: FormData) {
     },
   );
 
+  await redirectToLoginIfUnauthorized(response);
+
   redirect(
     buildPositionRedirectPath({
       symbol,
@@ -93,6 +107,8 @@ export async function closePositionAction(formData: FormData) {
     },
   );
 
+  await redirectToLoginIfUnauthorized(response);
+
   redirect(
     buildPositionRedirectPath({
       symbol,
@@ -102,12 +118,16 @@ export async function closePositionAction(formData: FormData) {
   );
 }
 
-async function submitPositionRequest(input: string, init: RequestInit) {
+async function submitPositionRequest(
+  input: string,
+  init: RequestInit,
+): Promise<Pick<Response, "ok" | "status">> {
   try {
     return await fetch(input, init);
   } catch {
     return {
       ok: false,
+      status: 0,
     };
   }
 }

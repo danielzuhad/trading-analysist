@@ -8,6 +8,20 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { buildApiAuthHeaders } from "./api-auth";
 import { loadWebEnv } from "./env";
+import { clearSessionCookie } from "./session";
+
+// Not caught by callers' try/catch around fetch: redirect() throws a
+// Next.js control-flow signal that must propagate to the framework, not be
+// swallowed as a request error. Always call this outside any try/catch that
+// wraps the fetch itself.
+async function redirectToLoginIfUnauthorized(response: {
+  status: number;
+}): Promise<void> {
+  if (response.status === 401) {
+    await clearSessionCookie();
+    redirect("/login");
+  }
+}
 
 export type SearchCryptoActionResult =
   | { results: CryptoSearchResult[]; status: "ok" }
@@ -27,38 +41,42 @@ export async function searchCryptoAction(
     return { results: [], status: "ok" };
   }
 
+  let response: Response;
+
   try {
-    const response = await fetch(
+    response = await fetch(
       `${apiBaseUrl}/crypto-search?q=${encodeURIComponent(trimmed)}`,
       {
         cache: "no-store",
         headers: await buildApiAuthHeaders(),
       },
     );
-
-    if (!response.ok) {
-      return {
-        message:
-          response.status === 503
-            ? "Crypto search is not configured on the API."
-            : `Search failed with status ${response.status}.`,
-        status: "error",
-      };
-    }
-
-    const payload = cryptoSearchResponseSchema.safeParse(await response.json());
-
-    if (!payload.success) {
-      return {
-        message: "Search returned an invalid payload.",
-        status: "error",
-      };
-    }
-
-    return { results: payload.data.results, status: "ok" };
   } catch {
     return { message: "Could not reach the search endpoint.", status: "error" };
   }
+
+  await redirectToLoginIfUnauthorized(response);
+
+  if (!response.ok) {
+    return {
+      message:
+        response.status === 503
+          ? "Crypto search is not configured on the API."
+          : `Search failed with status ${response.status}.`,
+      status: "error",
+    };
+  }
+
+  const payload = cryptoSearchResponseSchema.safeParse(await response.json());
+
+  if (!payload.success) {
+    return {
+      message: "Search returned an invalid payload.",
+      status: "error",
+    };
+  }
+
+  return { results: payload.data.results, status: "ok" };
 }
 
 export type WatchlistMutationResult = {
@@ -83,8 +101,10 @@ export async function addToWatchlistAction({
     return { message: "API base URL is not configured.", status: "error" };
   }
 
+  let response: Response;
+
   try {
-    const response = await fetch(`${apiBaseUrl}/watchlist`, {
+    response = await fetch(`${apiBaseUrl}/watchlist`, {
       body: JSON.stringify({
         coingeckoCoinId,
         ...(imageUrl ? { imageUrl } : {}),
@@ -97,26 +117,28 @@ export async function addToWatchlistAction({
       },
       method: "POST",
     });
-
-    if (!response.ok) {
-      return {
-        message: `Failed to add ${symbol.toUpperCase()} (status ${response.status}).`,
-        status: "error",
-      };
-    }
-
-    revalidatePath("/");
-
-    return {
-      message: `${symbol.toUpperCase()} added to the watchlist. Analysis starts on the next worker run.`,
-      status: "ok",
-    };
   } catch {
     return {
       message: "Could not reach the watchlist endpoint.",
       status: "error",
     };
   }
+
+  await redirectToLoginIfUnauthorized(response);
+
+  if (!response.ok) {
+    return {
+      message: `Failed to add ${symbol.toUpperCase()} (status ${response.status}).`,
+      status: "error",
+    };
+  }
+
+  revalidatePath("/");
+
+  return {
+    message: `${symbol.toUpperCase()} added to the watchlist. Analysis starts on the next worker run.`,
+    status: "ok",
+  };
 }
 
 export async function setWatchlistAiEnabledAction(
@@ -129,8 +151,10 @@ export async function setWatchlistAiEnabledAction(
     return { message: "API base URL is not configured.", status: "error" };
   }
 
+  let response: Response;
+
   try {
-    const response = await fetch(
+    response = await fetch(
       `${apiBaseUrl}/watchlist/${encodeURIComponent(assetId)}`,
       {
         body: JSON.stringify({ aiEnabled }),
@@ -141,28 +165,30 @@ export async function setWatchlistAiEnabledAction(
         method: "PATCH",
       },
     );
-
-    if (!response.ok) {
-      return {
-        message: `Failed to update AI analysis (status ${response.status}).`,
-        status: "error",
-      };
-    }
-
-    revalidatePath("/");
-
-    return {
-      message: aiEnabled
-        ? "AI analysis enabled for this asset."
-        : "AI analysis paused for this asset. Price data keeps updating.",
-      status: "ok",
-    };
   } catch {
     return {
       message: "Could not reach the watchlist endpoint.",
       status: "error",
     };
   }
+
+  await redirectToLoginIfUnauthorized(response);
+
+  if (!response.ok) {
+    return {
+      message: `Failed to update AI analysis (status ${response.status}).`,
+      status: "error",
+    };
+  }
+
+  revalidatePath("/");
+
+  return {
+    message: aiEnabled
+      ? "AI analysis enabled for this asset."
+      : "AI analysis paused for this asset. Price data keeps updating.",
+    status: "ok",
+  };
 }
 
 export async function removeFromWatchlistAndRedirectAction(
@@ -190,37 +216,41 @@ export async function removeFromWatchlistAction(
     return { message: "API base URL is not configured.", status: "error" };
   }
 
+  let response: Response;
+
   try {
-    const response = await fetch(
+    response = await fetch(
       `${apiBaseUrl}/watchlist/${encodeURIComponent(assetId)}`,
       {
         headers: await buildApiAuthHeaders(),
         method: "DELETE",
       },
     );
-
-    if (response.status === 409) {
-      return {
-        message:
-          "This asset has an active position. Close the position before removing it.",
-        status: "error",
-      };
-    }
-
-    if (!response.ok) {
-      return {
-        message: `Failed to remove the asset (status ${response.status}).`,
-        status: "error",
-      };
-    }
-
-    revalidatePath("/");
-
-    return { message: "Removed from the watchlist.", status: "ok" };
   } catch {
     return {
       message: "Could not reach the watchlist endpoint.",
       status: "error",
     };
   }
+
+  await redirectToLoginIfUnauthorized(response);
+
+  if (response.status === 409) {
+    return {
+      message:
+        "This asset has an active position. Close the position before removing it.",
+      status: "error",
+    };
+  }
+
+  if (!response.ok) {
+    return {
+      message: `Failed to remove the asset (status ${response.status}).`,
+      status: "error",
+    };
+  }
+
+  revalidatePath("/");
+
+  return { message: "Removed from the watchlist.", status: "ok" };
 }

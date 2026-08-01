@@ -63,6 +63,9 @@ export const apiTokens = pgTable(
     revokedAt: timestamp("revoked_at", {
       withTimezone: true,
     }),
+    expiresAt: timestamp("expires_at", {
+      withTimezone: true,
+    }).notNull(),
   },
   (table) => [
     uniqueIndex("api_tokens_token_hash_unique").on(table.tokenHash),

@@ -39,6 +39,8 @@ function hashToken(token: string): string {
   return scryptSync(token, "api-token", 32).toString("hex");
 }
 
+const API_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
 export function parseUser(row: StoredUserRow): User {
   return userSchema.parse({
     id: row.id,
@@ -130,9 +132,10 @@ export async function createApiToken(
   const db = getDb(connectionString);
   const token = randomBytes(32).toString("hex");
   const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + API_TOKEN_TTL_MS);
   const [row] = await db
     .insert(apiTokens)
-    .values({ userId, tokenHash })
+    .values({ expiresAt, tokenHash, userId })
     .returning({ id: apiTokens.id });
 
   if (!row) {
@@ -159,14 +162,14 @@ export async function revokeApiToken(
 export async function resolveApiToken(
   token: string,
   connectionString?: string,
-): Promise<{ userId: string; role: UserRole } | null> {
+): Promise<{ role: UserRole; tokenId: string; userId: string } | null> {
   const db = getDb(connectionString);
   const tokenHash = hashToken(token);
   const row = await db.query.apiTokens.findFirst({
     where: eq(apiTokens.tokenHash, tokenHash),
   });
 
-  if (!row || row.revokedAt) {
+  if (!row || row.revokedAt || row.expiresAt.getTime() <= Date.now()) {
     return null;
   }
 
@@ -181,7 +184,7 @@ export async function resolveApiToken(
     .set({ lastUsedAt: sql`now()` })
     .where(eq(apiTokens.id, row.id));
 
-  return { userId: user.id, role: user.role };
+  return { role: user.role, tokenId: row.id, userId: user.id };
 }
 
 export type { User } from "@trading-analyst/shared-types";

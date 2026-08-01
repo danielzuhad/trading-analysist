@@ -22,6 +22,7 @@ import {
   pingDatabase,
   removeWatchlistAsset,
   resolveApiToken,
+  revokeApiToken,
   setWatchlistAssetAiEnabled,
   updatePosition,
   verifyUserPassword,
@@ -76,6 +77,7 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
     createApiToken: (userId) => createApiToken(userId, env.DATABASE_URL),
     createUser: (input) => createUser(input, env.DATABASE_URL),
     listUsers: () => listUsers(env.DATABASE_URL),
+    revokeApiToken: (tokenId) => revokeApiToken(tokenId, env.DATABASE_URL),
     verifyUserPassword: (email, password) =>
       verifyUserPassword(email, password, env.DATABASE_URL),
   });

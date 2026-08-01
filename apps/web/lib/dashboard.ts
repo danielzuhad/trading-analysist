@@ -12,8 +12,10 @@ import {
   watchlistOverviewResponseSchema,
   watchlistResponseSchema,
 } from "@trading-analyst/shared-types";
+import { redirect } from "next/navigation";
 import type { ZodType } from "zod";
 import { buildApiAuthHeaders } from "./api-auth";
+import { clearSessionCookie } from "./session";
 
 export type DashboardDataStatus =
   | "api-unconfigured"
@@ -68,47 +70,13 @@ async function fetchDashboardResource<T>(
     };
   }
 
+  let response: Pick<Response, "json" | "ok" | "status">;
+
   try {
-    const response = await fetchImpl(url, {
+    response = await fetchImpl(url, {
       cache: "no-store",
       headers: await buildApiAuthHeaders(),
     });
-
-    if (messages.notFound && response.status === 404) {
-      return {
-        data: null,
-        issues: ["The requested asset is outside the seeded MVP asset scope."],
-        message: messages.notFound,
-        status: "not-found",
-      };
-    }
-
-    if (!response.ok) {
-      return {
-        data: null,
-        issues: [messages.unreachable],
-        message: `${messages.requestFailedPrefix} failed with status ${response.status}.`,
-        status: "api-unreachable",
-      };
-    }
-
-    const payload = schema.safeParse(await response.json());
-
-    if (!payload.success) {
-      return {
-        data: null,
-        issues: [messages.invalid],
-        message: `${messages.requestFailedPrefix} payload is invalid.`,
-        status: "invalid-response",
-      };
-    }
-
-    return {
-      data: payload.data,
-      issues: [],
-      message: messages.success(payload.data),
-      status: "ready",
-    };
   } catch (error) {
     return {
       data: null,
@@ -122,6 +90,49 @@ async function fetchDashboardResource<T>(
       status: "api-unreachable",
     };
   }
+
+  // Not caught above: redirect() throws a Next.js control-flow signal that
+  // must propagate to the framework, not be swallowed as a fetch error.
+  if (response.status === 401) {
+    await clearSessionCookie();
+    redirect("/login");
+  }
+
+  if (messages.notFound && response.status === 404) {
+    return {
+      data: null,
+      issues: ["The requested asset is outside the seeded MVP asset scope."],
+      message: messages.notFound,
+      status: "not-found",
+    };
+  }
+
+  if (!response.ok) {
+    return {
+      data: null,
+      issues: [messages.unreachable],
+      message: `${messages.requestFailedPrefix} failed with status ${response.status}.`,
+      status: "api-unreachable",
+    };
+  }
+
+  const payload = schema.safeParse(await response.json());
+
+  if (!payload.success) {
+    return {
+      data: null,
+      issues: [messages.invalid],
+      message: `${messages.requestFailedPrefix} payload is invalid.`,
+      status: "invalid-response",
+    };
+  }
+
+  return {
+    data: payload.data,
+    issues: [],
+    message: messages.success(payload.data),
+    status: "ready",
+  };
 }
 
 export function fetchWatchlistOverview(

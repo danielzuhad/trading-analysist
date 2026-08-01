@@ -62,6 +62,7 @@ export type CreateApiTokenResponse = z.infer<
 export const requestUserSchema = z.object({
   userId: idSchema,
   role: userRoleSchema,
+  tokenId: idSchema.optional(),
 });
 
 export type RequestUser = z.infer<typeof requestUserSchema>;

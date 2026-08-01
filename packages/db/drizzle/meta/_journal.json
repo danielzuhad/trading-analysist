@@ -71,6 +71,13 @@
       "when": 1785067001666,
       "tag": "0009_plain_raza",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1785581400003,
+      "tag": "0010_stormy_madelyne_pryor",
+      "breakpoints": true
     }
   ]
 }
