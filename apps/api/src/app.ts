@@ -31,12 +31,19 @@ import {
   verifyUserPassword,
 } from "@trading-analyst/db";
 import { searchCoinGeckoCoins } from "@trading-analyst/market-data";
+import {
+  analysisQueueName,
+  type MarketSnapshotJobData,
+  marketSnapshotJobName,
+} from "@trading-analyst/shared-types";
+import { Queue } from "bullmq";
 import Fastify from "fastify";
 import { Redis } from "ioredis";
 import { registerAuthGuard } from "./auth.js";
 import { registerCors } from "./cors.js";
 import { type ApiEnv, loadApiEnv } from "./env.js";
 import { registerAlertRoutes } from "./routes/alerts.js";
+import { registerAnalysisRoutes } from "./routes/analysis.js";
 import { registerAnalysisQualityRoutes } from "./routes/analysis-quality.js";
 import { registerAuthRoutes } from "./routes/auth.js";
 import { registerChatLayerRoutes } from "./routes/chat-layer.js";
@@ -55,6 +62,12 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
   const redis = new Redis(env.REDIS_URL, {
     lazyConnect: true,
     maxRetriesPerRequest: 1,
+  });
+  // Producer-only view of the worker's queue. BullMQ needs its own connection
+  // settings (maxRetriesPerRequest: null), so it cannot share the health-check
+  // client above.
+  const analysisQueue = new Queue<MarketSnapshotJobData>(analysisQueueName, {
+    connection: { url: env.REDIS_URL },
   });
 
   app.addContentTypeParser(
@@ -130,6 +143,15 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
       getAnalysisQualitySummary(filters, env.DATABASE_URL),
     listAnalysisOutcomes: (filters) =>
       listAnalysisOutcomes(filters, env.DATABASE_URL),
+  });
+  await registerAnalysisRoutes(app, {
+    enqueueAnalysisJob: async (data) => {
+      const job = await analysisQueue.add(marketSnapshotJobName, data);
+
+      return { jobId: job.id ?? "unknown" };
+    },
+    getWatchlistAsset: ({ assetId, userId }) =>
+      getWatchlistAsset({ assetId, userId }, env.DATABASE_URL),
   });
   await registerWatchlistRoutes(app, {
     addAsset: (input) => addWatchlistAsset(input, env.DATABASE_URL),
@@ -219,6 +241,7 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
   });
 
   app.addHook("onClose", async () => {
+    await analysisQueue.close().catch(() => undefined);
     await redis.quit().catch(() => undefined);
     await closeDatabase(env.DATABASE_URL);
   });

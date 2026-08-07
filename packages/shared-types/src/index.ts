@@ -18,3 +18,4 @@ export * from "./primitives.js";
 export * from "./signal.js";
 export * from "./user.js";
 export * from "./watchlist.js";
+export * from "./worker-jobs.js";

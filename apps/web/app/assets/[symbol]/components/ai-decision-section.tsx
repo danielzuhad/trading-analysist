@@ -6,6 +6,7 @@ import {
   StateBadge,
 } from "@/components/dashboard/dashboard-primitives";
 import { formatRelativeTime } from "@/lib/dashboard-format";
+import { AnalyzeNowButton } from "./analyze-now-button";
 import { InvalidationStatus } from "./invalidation-status";
 import { LevelBar } from "./level-bar";
 
@@ -31,6 +32,11 @@ export function AiDecisionSection({
       <div className="flex items-start justify-between gap-3">
         <h2 className="m-0 text-base">AI Decision</h2>
         <div className="flex flex-wrap items-center gap-2.5">
+          <AnalyzeNowButton
+            assetId={overview.asset.id}
+            symbol={overview.asset.symbol}
+            timeframe={overview.timeframe}
+          />
           {analysis?.suggestion ? (
             <InfoPill>{analysis.suggestion.replaceAll("_", " ")}</InfoPill>
           ) : null}
