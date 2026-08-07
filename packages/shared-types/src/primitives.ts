@@ -192,6 +192,16 @@ export const alertStatusValues = [
 export const alertStatusSchema = z.enum(alertStatusValues);
 export type AlertStatus = z.infer<typeof alertStatusSchema>;
 
+/**
+ * The subset of AlertStatus a user can move an alert into themselves.
+ * "acknowledged" means they read it and acted; "ignored" means they read it
+ * and chose not to. The remaining statuses are owned by the delivery
+ * pipeline, not the reader.
+ */
+export const alertResolutionValues = ["acknowledged", "ignored"] as const;
+export const alertResolutionSchema = z.enum(alertResolutionValues);
+export type AlertResolution = z.infer<typeof alertResolutionSchema>;
+
 export const executionActionTypeValues = [
   "BUY",
   "SELL",

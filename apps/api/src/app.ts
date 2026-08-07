@@ -24,6 +24,7 @@ import {
   listWatchlistAssets,
   pingDatabase,
   removeWatchlistAsset,
+  resolveAlert,
   resolveApiToken,
   revokeApiToken,
   setWatchlistAssetAiEnabled,
@@ -137,6 +138,8 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
   });
   await registerAlertRoutes(app, {
     listAlerts: (filters) => listAlerts(filters, env.DATABASE_URL),
+    resolveAlert: (alertId, input) =>
+      resolveAlert(alertId, input, env.DATABASE_URL),
   });
   await registerAnalysisQualityRoutes(app, {
     getAnalysisQualitySummary: (filters) =>

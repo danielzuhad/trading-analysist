@@ -1,5 +1,6 @@
 import type {
   Alert,
+  AlertResolution,
   AlertStatus,
   SupportedTimeframe,
 } from "@trading-analyst/shared-types";
@@ -193,6 +194,42 @@ export async function markAlertDelivered(
     .where(eq(alerts.id, alertId));
 
   return updated;
+}
+
+/**
+ * Moves an alert into a user-chosen terminal status. Ownership is enforced
+ * in the WHERE clause rather than by reading first and comparing, so there is
+ * no window between the check and the write — and a miss returns null whether
+ * the alert is absent or simply belongs to somebody else, which is what the
+ * caller should surface either way.
+ */
+export async function resolveAlert(
+  alertId: string,
+  {
+    resolution,
+    resolvedAt = new Date(),
+    userId,
+  }: {
+    resolution: AlertResolution;
+    resolvedAt?: Date;
+    userId: string;
+  },
+  connectionString?: string,
+): Promise<Alert | null> {
+  const db = getDb(connectionString);
+  const updated = await db
+    .update(alerts)
+    .set({
+      acknowledgedAt: resolvedAt,
+      status: resolution,
+      updatedAt: sql`now()`,
+    })
+    .where(and(eq(alerts.id, alertId), eq(alerts.userId, userId)))
+    .returning();
+
+  const row = updated[0];
+
+  return row ? parseAlert(row) : null;
 }
 
 export async function markStaleAlertsForAssetTimeframe({

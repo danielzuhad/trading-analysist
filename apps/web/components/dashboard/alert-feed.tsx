@@ -1,4 +1,5 @@
 import type { Alert } from "@trading-analyst/shared-types";
+import { AlertResolutionActions } from "@/components/dashboard/alert-resolution-actions";
 import { InfoPill } from "@/components/dashboard/dashboard-primitives";
 import { formatRelativeTime } from "@/lib/dashboard-format";
 import { cn } from "@/lib/utils";
@@ -10,6 +11,16 @@ type AlertFeedProps = {
   message: string;
   title: string;
 };
+
+/**
+ * "suggested" and "delivered" are pipeline states — the alert is still
+ * waiting on the reader. Everything else means it has already been settled,
+ * either by the user or by expiry, so it stays visible as history but loses
+ * its action buttons.
+ */
+function isAwaitingReader(status: Alert["status"]) {
+  return status === "suggested" || status === "delivered";
+}
 
 function mapSeverityClass(severity: Alert["severity"]) {
   if (severity === "critical") {
@@ -55,6 +66,7 @@ export function AlertFeed({
                   "border-l-warn",
                 mapSeverityClass(alert.severity) === "info" &&
                   "border-l-accent",
+                !isAwaitingReader(alert.status) && "opacity-60",
               )}
             >
               <div className="flex items-start justify-between gap-2.5">
@@ -68,17 +80,24 @@ export function AlertFeed({
 
               <p>{alert.summary}</p>
 
-              <div className="flex flex-wrap items-center gap-2 text-[0.8rem] text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5 tabular-nums">
-                  {alert.previousState ? (
-                    <>
-                      {alert.previousState.replaceAll("_", " ")}
-                      <span className="text-muted-foreground">→</span>
-                    </>
-                  ) : null}
-                  {alert.currentState.replaceAll("_", " ")}
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[0.8rem] text-muted-foreground">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 tabular-nums">
+                    {alert.previousState ? (
+                      <>
+                        {alert.previousState.replaceAll("_", " ")}
+                        <span className="text-muted-foreground">→</span>
+                      </>
+                    ) : null}
+                    {alert.currentState.replaceAll("_", " ")}
+                  </span>
+                  <InfoPill>{alert.timeframe}</InfoPill>
                 </span>
-                <InfoPill>{alert.timeframe}</InfoPill>
+                {isAwaitingReader(alert.status) ? (
+                  <AlertResolutionActions alertId={alert.id} />
+                ) : (
+                  <InfoPill>{alert.status}</InfoPill>
+                )}
               </div>
             </article>
           ))}
