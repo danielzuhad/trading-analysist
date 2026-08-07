@@ -191,6 +191,61 @@ export async function setWatchlistAiEnabledAction(
   };
 }
 
+/**
+ * Mute is sent as a duration, not a deadline — the API decides what "now"
+ * means. `null` clears the mute.
+ */
+export async function setWatchlistAlertsMuteAction(
+  assetId: string,
+  muteAlertsForHours: number | null,
+): Promise<WatchlistMutationResult> {
+  const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
+
+  if (!apiBaseUrl) {
+    return { message: "API base URL is not configured.", status: "error" };
+  }
+
+  let response: Response;
+
+  try {
+    response = await fetch(
+      `${apiBaseUrl}/watchlist/${encodeURIComponent(assetId)}`,
+      {
+        body: JSON.stringify({ muteAlertsForHours }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(await buildApiAuthHeaders()),
+        },
+        method: "PATCH",
+      },
+    );
+  } catch {
+    return {
+      message: "Could not reach the watchlist endpoint.",
+      status: "error",
+    };
+  }
+
+  await redirectToLoginIfUnauthorized(response);
+
+  if (!response.ok) {
+    return {
+      message: `Failed to update alert muting (status ${response.status}).`,
+      status: "error",
+    };
+  }
+
+  revalidatePath("/");
+
+  return {
+    message:
+      muteAlertsForHours === null
+        ? "Alerts unmuted. Telegram delivery resumes on the next alert."
+        : `Alerts muted for ${muteAlertsForHours}h. They still appear in the dashboard feed.`,
+    status: "ok",
+  };
+}
+
 export async function removeFromWatchlistAndRedirectAction(
   assetId: string,
   symbol: string,

@@ -2,6 +2,7 @@ import { findDefaultCryptoAssetBySymbol } from "@trading-analyst/shared-types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertFeed } from "@/components/dashboard/alert-feed";
+import { AlertMuteControl } from "@/components/dashboard/alert-mute-control";
 import { CoinLogo } from "@/components/dashboard/coin-logo";
 import {
   DashboardTimeframeTabs,
@@ -54,15 +55,16 @@ export default async function AssetDetailPage({
   const resolvedParams = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl } = loadWebEnv();
-  let asset = findDefaultCryptoAssetBySymbol(resolvedParams.symbol);
-
-  if (!asset) {
-    const watchlist = await fetchWatchlist(apiBaseUrl);
-    const normalizedSymbol = resolvedParams.symbol.trim().toUpperCase();
-    asset = watchlist.data?.entries.find(
-      (entry) => entry.asset.symbol.toUpperCase() === normalizedSymbol,
-    )?.asset;
-  }
+  const normalizedSymbol = resolvedParams.symbol.trim().toUpperCase();
+  // Fetched even for seeded assets: the entry carries the per-asset alert
+  // mute state, which the overview response does not.
+  const watchlist = await fetchWatchlist(apiBaseUrl);
+  const watchlistEntry = watchlist.data?.entries.find(
+    (entry) => entry.asset.symbol.toUpperCase() === normalizedSymbol,
+  );
+  const asset =
+    findDefaultCryptoAssetBySymbol(resolvedParams.symbol) ??
+    watchlistEntry?.asset;
 
   if (!asset) {
     notFound();
@@ -138,6 +140,12 @@ export default async function AssetDetailPage({
             <InfoPill>
               {overview?.marketSnapshot?.provider ?? "no provider"}
             </InfoPill>
+            {watchlistEntry ? (
+              <AlertMuteControl
+                alertsMutedUntil={watchlistEntry.alertsMutedUntil}
+                assetId={asset.id}
+              />
+            ) : null}
             {!activePosition ? (
               <form
                 className="inline"

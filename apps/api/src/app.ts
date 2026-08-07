@@ -28,6 +28,7 @@ import {
   resolveApiToken,
   revokeApiToken,
   setWatchlistAssetAiEnabled,
+  setWatchlistAssetAlertsMutedUntil,
   updatePosition,
   verifyUserPassword,
 } from "@trading-analyst/db";
@@ -170,6 +171,12 @@ export async function buildApp(env: ApiEnv = loadApiEnv()) {
     removeAsset: (filters) => removeWatchlistAsset(filters, env.DATABASE_URL),
     setAssetAiEnabled: (filters, aiEnabled) =>
       setWatchlistAssetAiEnabled(filters, aiEnabled, env.DATABASE_URL),
+    setAssetAlertsMutedUntil: (filters, alertsMutedUntil) =>
+      setWatchlistAssetAlertsMutedUntil(
+        filters,
+        alertsMutedUntil,
+        env.DATABASE_URL,
+      ),
     ...(env.COINGECKO_API_KEY
       ? {
           searchCoins: (query: string) =>

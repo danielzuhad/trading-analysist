@@ -1,0 +1,1 @@
+ALTER TABLE "watchlist_assets" ADD COLUMN "alerts_muted_until" timestamp with time zone;

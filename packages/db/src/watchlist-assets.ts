@@ -31,6 +31,7 @@ export function parseWatchlistAssetEntry(
   return watchlistAssetEntrySchema.parse({
     asset: row.asset,
     aiEnabled: row.aiEnabled,
+    alertsMutedUntil: row.alertsMutedUntil?.toISOString(),
     source: row.source,
     addedAt: row.addedAt.toISOString(),
     metadata: row.metadata,
@@ -153,6 +154,31 @@ export async function setWatchlistAssetAiEnabled(
   const updated = await db
     .update(watchlistAssets)
     .set({ aiEnabled, updatedAt: sql`now()` })
+    .where(
+      and(
+        eq(watchlistAssets.userId, userId),
+        eq(watchlistAssets.assetId, assetId),
+      ),
+    )
+    .returning({ assetId: watchlistAssets.assetId });
+
+  return { status: updated.length > 0 ? "updated" : "not_found" };
+}
+
+/**
+ * Sets (or with `null`, clears) the mute deadline for one watched asset.
+ * Scoped by userId in the WHERE clause so a caller cannot silence somebody
+ * else's alerts.
+ */
+export async function setWatchlistAssetAlertsMutedUntil(
+  { assetId, userId }: { assetId: string; userId: string },
+  alertsMutedUntil: Date | null,
+  connectionString?: string,
+): Promise<{ status: "updated" | "not_found" }> {
+  const db = getDb(connectionString);
+  const updated = await db
+    .update(watchlistAssets)
+    .set({ alertsMutedUntil, updatedAt: sql`now()` })
     .where(
       and(
         eq(watchlistAssets.userId, userId),

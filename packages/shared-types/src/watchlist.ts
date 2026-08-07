@@ -53,11 +53,28 @@ export const MAX_WATCHLIST_ASSETS = 10;
 export const watchlistAssetEntrySchema = z.object({
   asset: assetSchema,
   aiEnabled: z.boolean(),
+  alertsMutedUntil: isoDatetimeSchema.optional(),
   source: watchlistAssetSourceSchema,
   addedAt: isoDatetimeSchema,
   metadata: metadataSchema,
 });
 export type WatchlistAssetEntry = z.infer<typeof watchlistAssetEntrySchema>;
+
+/**
+ * Muting silences outbound delivery (Telegram/WhatsApp) only — the alert is
+ * still generated and still appears in the dashboard feed. The dashboard is
+ * a record, not a notification; muting the record would lose history.
+ */
+export function isAlertsMuted(
+  entry: Pick<WatchlistAssetEntry, "alertsMutedUntil">,
+  now: Date = new Date(),
+): boolean {
+  if (!entry.alertsMutedUntil) {
+    return false;
+  }
+
+  return new Date(entry.alertsMutedUntil).getTime() > now.getTime();
+}
 
 export const watchlistResponseSchema = z.object({
   count: z.number().int().min(0),

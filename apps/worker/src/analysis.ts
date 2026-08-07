@@ -15,6 +15,7 @@ import {
   getDailyAiCostTotalUsdForUser,
   getLatestAssetAnalysis,
   getLatestSignalAggregationSnapshot,
+  getWatchlistAsset,
   markAlertDelivered,
   recordAiCost,
   saveAlert,
@@ -27,6 +28,7 @@ import type {
   SignalAggregationSnapshot,
   SupportedTimeframe,
 } from "@trading-analyst/shared-types";
+import { isAlertsMuted } from "@trading-analyst/shared-types";
 import {
   fetchRecentOutcomeContext,
   recordPendingAnalysisOutcome,
@@ -56,6 +58,7 @@ type GenerateLatestAssetAnalysisOptions = {
   getLatestAnalysis?: typeof getLatestAssetAnalysis;
   getLatestSignalSnapshot?: typeof getLatestSignalAggregationSnapshot;
   getRecentOutcomes?: typeof fetchRecentOutcomeContext;
+  getWatchlistAssetFn?: typeof getWatchlistAsset;
   generateAlert?: typeof generateStateTransitionAlert;
   logger?: Logger;
   maxDailyAiCostUsd?: number;
@@ -146,6 +149,7 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   getCurrentDailyAiCostUsd = getDailyAiCostTotalUsdForUser,
   getLatestAnalysis = getLatestAssetAnalysis,
   getRecentOutcomes = fetchRecentOutcomeContext,
+  getWatchlistAssetFn = getWatchlistAsset,
   generateAlert = generateStateTransitionAlert,
   logger = console,
   maxDailyAiCostUsd,
@@ -277,6 +281,7 @@ export async function generateAssetAnalysisFromSignalSnapshot({
     connectionString,
     currentAnalysis: result.analysis,
     generateAlert,
+    getWatchlistAssetFn,
     logger,
     markDeliveredAlert,
     previousAnalysis,
@@ -285,6 +290,7 @@ export async function generateAssetAnalysisFromSignalSnapshot({
     sendWhatsappMessage,
     ...(telegramAlertDelivery ? { telegramAlertDelivery } : {}),
     ...(whatsappAlertDelivery ? { whatsappAlertDelivery } : {}),
+    userId,
   });
   logger.log(
     `[worker] stored AI analysis ${result.analysis.id} for ${signalSnapshot.asset.id} ${signalSnapshot.marketSnapshot.timeframe} in state ${result.analysis.state}`,
@@ -303,6 +309,7 @@ async function generateAndPersistAlert({
   connectionString,
   currentAnalysis,
   generateAlert,
+  getWatchlistAssetFn,
   logger,
   markDeliveredAlert,
   previousAnalysis,
@@ -310,11 +317,13 @@ async function generateAndPersistAlert({
   sendTelegramMessageFn,
   sendWhatsappMessage,
   telegramAlertDelivery,
+  userId,
   whatsappAlertDelivery,
 }: {
   connectionString: string | undefined;
   currentAnalysis: LatestAssetAnalysis;
   generateAlert: typeof generateStateTransitionAlert;
+  getWatchlistAssetFn: typeof getWatchlistAsset;
   logger: Logger;
   markDeliveredAlert: typeof markAlertDelivered;
   previousAnalysis: LatestAssetAnalysis | null;
@@ -322,6 +331,7 @@ async function generateAndPersistAlert({
   sendTelegramMessageFn: typeof sendTelegramMessage;
   sendWhatsappMessage: typeof sendTwilioMessage;
   telegramAlertDelivery?: TelegramAlertDelivery | undefined;
+  userId: string;
   whatsappAlertDelivery?: WhatsappAlertDelivery | undefined;
 }) {
   const alertResult = generateAlert({
@@ -346,6 +356,23 @@ async function generateAndPersistAlert({
   );
 
   if (saveResult.status !== "created") {
+    return;
+  }
+
+  // Checked only once there is something to deliver, so the common
+  // "no alert this cycle" path costs no extra query.
+  if (
+    await isDeliveryMuted({
+      assetId: currentAnalysis.asset.id,
+      connectionString,
+      getWatchlistAssetFn,
+      logger,
+      userId,
+    })
+  ) {
+    logger.log(
+      `[worker] stored alert ${alertResult.alert.id} for ${currentAnalysis.asset.id} but skipped delivery: alerts are muted for this asset`,
+    );
     return;
   }
 
@@ -423,6 +450,40 @@ async function generateAndPersistAlert({
     logger.error(
       `[worker] failed WhatsApp delivery for alert ${alertResult.alert.id}: ${formatDeliveryError(error)}`,
     );
+  }
+}
+
+/**
+ * Best-effort mute check. A DB hiccup here degrades to "deliver anyway"
+ * rather than swallowing the alert: a mute that leaks one notification is a
+ * nuisance, an alert that silently vanishes is a missed trade.
+ */
+async function isDeliveryMuted({
+  assetId,
+  connectionString,
+  getWatchlistAssetFn,
+  logger,
+  userId,
+}: {
+  assetId: string;
+  connectionString: string | undefined;
+  getWatchlistAssetFn: typeof getWatchlistAsset;
+  logger: Logger;
+  userId: string;
+}): Promise<boolean> {
+  try {
+    const entry = await getWatchlistAssetFn(
+      { assetId, userId },
+      connectionString,
+    );
+
+    return entry ? isAlertsMuted(entry) : false;
+  } catch (error) {
+    logger.warn(
+      `[worker] could not read the mute state for ${assetId}, delivering anyway: ${formatDeliveryError(error)}`,
+    );
+
+    return false;
   }
 }
 

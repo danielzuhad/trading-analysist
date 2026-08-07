@@ -444,6 +444,11 @@ export const watchlistAssets = pgTable(
     coingeckoCoinId: text("coingecko_coin_id").notNull(),
     asset: jsonb("asset").$type<Asset>().notNull(),
     aiEnabled: boolean("ai_enabled").notNull().default(true),
+    // Null means "never muted". A timestamp in the past is equivalent, so
+    // un-muting can just clear the column rather than delete a row.
+    alertsMutedUntil: timestamp("alerts_muted_until", {
+      withTimezone: true,
+    }),
     source: text("source").notNull(),
     addedAt: timestamp("added_at", {
       withTimezone: true,

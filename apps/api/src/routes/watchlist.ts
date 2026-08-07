@@ -27,9 +27,33 @@ const searchQuerySchema = z.object({
   q: z.string().trim().min(1).max(64),
 });
 
-const setAiEnabledBodySchema = z.object({
-  aiEnabled: z.boolean(),
-});
+const maxMuteHours = 720;
+
+/**
+ * Both fields are optional but at least one must be present, so a PATCH is
+ * always a real change. Mute is expressed as a duration rather than a
+ * deadline: the client should not be the one deciding what "now" is, and a
+ * duration cannot accidentally land in the past.
+ */
+const updateWatchlistAssetBodySchema = z
+  .object({
+    aiEnabled: z.boolean().optional(),
+    muteAlertsForHours: z
+      .number()
+      .int()
+      .min(1)
+      .max(maxMuteHours)
+      .nullable()
+      .optional(),
+  })
+  .refine(
+    (body) =>
+      body.aiEnabled !== undefined || body.muteAlertsForHours !== undefined,
+    {
+      message:
+        "Provide aiEnabled and/or muteAlertsForHours (null to unmute alerts).",
+    },
+  );
 
 type Dependencies = {
   addAsset: (input: {
@@ -51,6 +75,10 @@ type Dependencies = {
   setAssetAiEnabled: (
     filters: { assetId: string; userId: string },
     aiEnabled: boolean,
+  ) => Promise<{ status: "updated" | "not_found" }>;
+  setAssetAlertsMutedUntil: (
+    filters: { assetId: string; userId: string },
+    alertsMutedUntil: Date | null,
   ) => Promise<{ status: "updated" | "not_found" }>;
 };
 
@@ -118,7 +146,7 @@ export async function registerWatchlistRoutes(
   app.patch("/watchlist/:assetId", async (request, reply) => {
     const userId = requireUserId(request);
     const { assetId } = request.params as { assetId: string };
-    const bodyResult = setAiEnabledBodySchema.safeParse(request.body);
+    const bodyResult = updateWatchlistAssetBodySchema.safeParse(request.body);
 
     if (!bodyResult.success) {
       return reply.code(400).send({
@@ -127,19 +155,50 @@ export async function registerWatchlistRoutes(
       });
     }
 
-    const result = await dependencies.setAssetAiEnabled(
-      { assetId, userId },
-      bodyResult.data.aiEnabled,
-    );
+    const { aiEnabled, muteAlertsForHours } = bodyResult.data;
+    let alertsMutedUntil: Date | null = null;
 
-    if (result.status === "not_found") {
-      return reply.code(404).send({
-        error: "WATCHLIST_ASSET_NOT_FOUND",
-        assetId,
-      });
+    if (aiEnabled !== undefined) {
+      const result = await dependencies.setAssetAiEnabled(
+        { assetId, userId },
+        aiEnabled,
+      );
+
+      if (result.status === "not_found") {
+        return reply.code(404).send({
+          error: "WATCHLIST_ASSET_NOT_FOUND",
+          assetId,
+        });
+      }
     }
 
-    return { assetId, aiEnabled: bodyResult.data.aiEnabled, status: "updated" };
+    if (muteAlertsForHours !== undefined) {
+      alertsMutedUntil =
+        muteAlertsForHours === null
+          ? null
+          : new Date(Date.now() + muteAlertsForHours * 60 * 60 * 1000);
+
+      const result = await dependencies.setAssetAlertsMutedUntil(
+        { assetId, userId },
+        alertsMutedUntil,
+      );
+
+      if (result.status === "not_found") {
+        return reply.code(404).send({
+          error: "WATCHLIST_ASSET_NOT_FOUND",
+          assetId,
+        });
+      }
+    }
+
+    return {
+      assetId,
+      ...(aiEnabled !== undefined ? { aiEnabled } : {}),
+      ...(muteAlertsForHours !== undefined
+        ? { alertsMutedUntil: alertsMutedUntil?.toISOString() ?? null }
+        : {}),
+      status: "updated",
+    };
   });
 
   app.delete("/watchlist/:assetId", async (request, reply) => {
