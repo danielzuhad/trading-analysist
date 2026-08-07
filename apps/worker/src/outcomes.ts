@@ -1,6 +1,8 @@
+import type { RecentOutcomeContext } from "@trading-analyst/ai-analysis";
 import {
   completeAnalysisOutcome,
   getLatestMarketData,
+  listAnalysisOutcomes,
   listDueAnalysisOutcomes,
   savePendingAnalysisOutcome,
 } from "@trading-analyst/db";
@@ -15,6 +17,57 @@ import type {
 type Logger = Pick<typeof console, "error" | "log" | "warn">;
 
 export const defaultOutcomeHorizonHours = 24;
+export const defaultRecentOutcomeLimit = 5;
+
+/**
+ * Best-effort lookup of this asset's recent evaluated track record, for
+ * feeding back into the next AI prompt. Never throws — a DB hiccup here
+ * should degrade to "analyze without history," not fail the analysis
+ * cycle, since this is a quality enhancement, not a correctness dependency.
+ */
+export async function fetchRecentOutcomeContext({
+  assetId,
+  connectionString,
+  limit = defaultRecentOutcomeLimit,
+  listOutcomes = listAnalysisOutcomes,
+  logger = console,
+  timeframe,
+}: {
+  assetId: string;
+  connectionString?: string;
+  limit?: number;
+  listOutcomes?: typeof listAnalysisOutcomes;
+  logger?: Logger;
+  timeframe: SupportedTimeframe;
+}): Promise<RecentOutcomeContext[]> {
+  try {
+    const outcomes = await listOutcomes(
+      {
+        assetId,
+        limit,
+        status: "evaluated",
+        timeframe,
+      },
+      connectionString,
+    );
+
+    return outcomes.map((outcome) => ({
+      analysisGeneratedAt: outcome.analysisGeneratedAt,
+      directionCorrect: outcome.evaluation?.directionCorrect ?? null,
+      invalidationHit: outcome.evaluation?.invalidationHit ?? null,
+      state: outcome.state,
+      suggestion: outcome.suggestion,
+    }));
+  } catch (error) {
+    logger.warn(
+      `[worker] failed to load recent outcome history for ${assetId} ${timeframe}, analyzing without it: ${
+        error instanceof Error ? error.message : "unknown error"
+      }`,
+    );
+
+    return [];
+  }
+}
 
 export function buildPendingAnalysisOutcome({
   analysis,

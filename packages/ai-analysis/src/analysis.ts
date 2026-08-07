@@ -12,8 +12,23 @@ import {
 } from "@trading-analyst/shared-types";
 
 export const defaultAiAnalysisModel = "gpt-4o-mini";
-export const defaultAiAnalysisPromptVersion = "ai-analysis:v1";
+export const defaultAiAnalysisPromptVersion = "ai-analysis:v2";
 export const defaultMaxDailyAiCostUsd = 2;
+
+/**
+ * A minimal, evaluated-outcome-only summary of a past analysis for the same
+ * asset — enough for the model to recognize "I've been wrong about this
+ * before" without re-sending the full historical snapshot. Deliberately
+ * excludes pending/skipped outcomes: an outcome with no known result isn't
+ * feedback, it's noise.
+ */
+export type RecentOutcomeContext = {
+  analysisGeneratedAt: string;
+  directionCorrect: boolean | null;
+  invalidationHit: boolean | null;
+  state: AssetState;
+  suggestion: string;
+};
 
 const criticalAssetStates = new Set<AssetState>([
   "PREPARE",
@@ -55,6 +70,7 @@ export type AiAnalysisProviderResult = {
 export type AiAnalysisProvider = (options: {
   model: string;
   promptVersion: string;
+  recentOutcomes?: RecentOutcomeContext[];
   signalSnapshot: SignalAggregationSnapshot;
 }) => Promise<AiAnalysisProviderResult>;
 
@@ -104,6 +120,7 @@ type AnalyzeSignalSnapshotOptions = {
   previousState?: AssetState;
   promptVersion?: string;
   provider: AiAnalysisProvider;
+  recentOutcomes?: RecentOutcomeContext[];
   signalSnapshot: SignalAggregationSnapshot;
   triggeredBy?: AnalysisTrigger;
 };
@@ -212,11 +229,38 @@ export function resolveAllowedSuggestionValues(
     : [...watchlistSuggestionValues];
 }
 
+function summarizeRecentOutcome(outcome: RecentOutcomeContext) {
+  const directionResult =
+    outcome.directionCorrect === null
+      ? "direction unknown"
+      : outcome.directionCorrect
+        ? "direction was correct"
+        : "direction was WRONG";
+  const invalidationResult =
+    outcome.invalidationHit === null
+      ? undefined
+      : outcome.invalidationHit
+        ? "invalidation was hit"
+        : "invalidation held";
+
+  return [
+    outcome.analysisGeneratedAt,
+    outcome.state,
+    outcome.suggestion,
+    directionResult,
+    invalidationResult,
+  ]
+    .filter(Boolean)
+    .join(" — ");
+}
+
 export function buildAiAnalysisPrompt({
   promptVersion = defaultAiAnalysisPromptVersion,
+  recentOutcomes,
   signalSnapshot,
 }: {
   promptVersion?: string;
+  recentOutcomes?: RecentOutcomeContext[];
   signalSnapshot: SignalAggregationSnapshot;
 }) {
   const { maxAllowed, minAllowed } = getAiConfidenceBounds(
@@ -226,6 +270,10 @@ export function buildAiAnalysisPrompt({
   const positionMode = signalSnapshot.position
     ? "There is an active position. Use only position-management suggestions."
     : "There is no active position. Use only watchlist-entry suggestions.";
+  const trackRecordInstruction =
+    recentOutcomes && recentOutcomes.length > 0
+      ? "A track record of your recent evaluated calls on this asset is included below. Learn from it — if you were previously wrong in similar conditions, do not repeat the same mistake — but the current snapshot is still the primary evidence; do not let the track record override clear present-day signal."
+      : undefined;
 
   return {
     promptVersion,
@@ -237,13 +285,23 @@ export function buildAiAnalysisPrompt({
       `aiConfidence MUST be between ${minAllowed} and ${maxAllowed}.`,
       positionMode,
       `Allowed suggestions: ${allowedSuggestions.join(", ")}.`,
+      trackRecordInstruction,
       "Return only the requested structured JSON.",
-    ].join(" "),
+    ]
+      .filter(Boolean)
+      .join(" "),
     user: JSON.stringify(
       {
         instruction:
           "Analyze this snapshot and return the best state, suggestion, confidence, reasons, concerns, action plan, execution method, invalidation, risk level, and notes.",
         signalSnapshot,
+        ...(recentOutcomes && recentOutcomes.length > 0
+          ? {
+              recentTrackRecordForThisAsset: recentOutcomes.map(
+                summarizeRecentOutcome,
+              ),
+            }
+          : {}),
       },
       null,
       2,
@@ -259,6 +317,7 @@ export async function analyzeSignalSnapshot({
   previousState,
   promptVersion = defaultAiAnalysisPromptVersion,
   provider,
+  recentOutcomes,
   signalSnapshot,
   triggeredBy = "manual_recalculation",
 }: AnalyzeSignalSnapshotOptions): Promise<AnalyzeSignalSnapshotResult> {
@@ -280,6 +339,7 @@ export async function analyzeSignalSnapshot({
   const providerResult = await provider({
     model,
     promptVersion,
+    ...(recentOutcomes ? { recentOutcomes } : {}),
     signalSnapshot,
   });
   const costEstimateUsd = estimateAiCostUsd({

@@ -8,6 +8,7 @@ import {
 import type {
   AiAnalysisProvider,
   AiAnalysisProviderResult,
+  RecentOutcomeContext,
 } from "./analysis.js";
 import {
   buildAiAnalysisPrompt,
@@ -84,6 +85,7 @@ export function createOpenAiAnalysisProvider({
   return async ({
     model = defaultModel,
     promptVersion = defaultPromptVersion,
+    recentOutcomes,
     signalSnapshot,
   }) =>
     requestOpenAiAnalysis({
@@ -92,6 +94,7 @@ export function createOpenAiAnalysisProvider({
       fetchImpl,
       model,
       promptVersion,
+      ...(recentOutcomes ? { recentOutcomes } : {}),
       signalSnapshot,
     });
 }
@@ -102,6 +105,7 @@ export async function requestOpenAiAnalysis({
   fetchImpl = fetch,
   model = defaultAiAnalysisModel,
   promptVersion = defaultAiAnalysisPromptVersion,
+  recentOutcomes,
   signalSnapshot,
 }: {
   apiKey: string;
@@ -109,10 +113,12 @@ export async function requestOpenAiAnalysis({
   fetchImpl?: FetchLike;
   model?: string;
   promptVersion?: string;
+  recentOutcomes?: RecentOutcomeContext[];
   signalSnapshot: SignalAggregationSnapshot;
 }): Promise<AiAnalysisProviderResult> {
   const prompt = buildAiAnalysisPrompt({
     promptVersion,
+    ...(recentOutcomes ? { recentOutcomes } : {}),
     signalSnapshot,
   });
   const requestBody = buildOpenAiAnalysisRequestBody({

@@ -27,7 +27,10 @@ import type {
   SignalAggregationSnapshot,
   SupportedTimeframe,
 } from "@trading-analyst/shared-types";
-import { recordPendingAnalysisOutcome } from "./outcomes.js";
+import {
+  fetchRecentOutcomeContext,
+  recordPendingAnalysisOutcome,
+} from "./outcomes.js";
 
 type Logger = Pick<typeof console, "error" | "log" | "warn">;
 
@@ -52,6 +55,7 @@ type GenerateLatestAssetAnalysisOptions = {
   getCurrentDailyAiCostUsd?: typeof getDailyAiCostTotalUsdForUser;
   getLatestAnalysis?: typeof getLatestAssetAnalysis;
   getLatestSignalSnapshot?: typeof getLatestSignalAggregationSnapshot;
+  getRecentOutcomes?: typeof fetchRecentOutcomeContext;
   generateAlert?: typeof generateStateTransitionAlert;
   logger?: Logger;
   maxDailyAiCostUsd?: number;
@@ -141,6 +145,7 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   day = new Date(),
   getCurrentDailyAiCostUsd = getDailyAiCostTotalUsdForUser,
   getLatestAnalysis = getLatestAssetAnalysis,
+  getRecentOutcomes = fetchRecentOutcomeContext,
   generateAlert = generateStateTransitionAlert,
   logger = console,
   maxDailyAiCostUsd,
@@ -216,6 +221,12 @@ export async function generateAssetAnalysisFromSignalSnapshot({
   const dailyCostTotal =
     currentDailyCostUsd ??
     (await getCurrentDailyAiCostUsd(userId, day, connectionString));
+  const recentOutcomes = await getRecentOutcomes({
+    assetId: signalSnapshot.asset.id,
+    ...(connectionString ? { connectionString } : {}),
+    logger,
+    timeframe,
+  });
   const result = await analyzeSignalSnapshot({
     currentDailyCostUsd: dailyCostTotal,
     ...(maxDailyAiCostUsd !== undefined
@@ -227,6 +238,7 @@ export async function generateAssetAnalysisFromSignalSnapshot({
       : {}),
     promptVersion,
     provider: providerToUse,
+    ...(recentOutcomes.length > 0 ? { recentOutcomes } : {}),
     signalSnapshot,
     triggeredBy,
   });
